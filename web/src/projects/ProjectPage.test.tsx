@@ -18,7 +18,7 @@ const demo = {
   id: 'p1',
   key: 'DEMO',
   name: 'The demo',
-  requests: { connectionId: 'c1', repository: 'acme/demo', label: 'sofa' },
+  requests: { connectionId: 'c1', repository: 'acme/demo', label: 'sofa', keepsIssueState: false },
   code: { connectionId: 'c1', repositories: ['acme/demo'] },
   phases: [
     { name: 'Triage', position: 0, pattern: 'Solo', castAgentId: 'a1', gate: 'Auto', sandbox: 'ReadOnly' },
@@ -110,6 +110,82 @@ test('an Admin changes the binding to more Repositories the Connection reaches',
 
   await waitFor(() => expect(requests.some((request) => request.method === 'PUT')).toBe(true))
   expect(await requests.find((request) => request.method === 'PUT')!.json()).toEqual({
-    connectionId: 'c1', requestRepository: 'acme/demo', label: 'sofa', codeRepositories: ['acme/demo', 'acme/web'],
+    connectionId: 'c1', requestRepository: 'acme/demo', label: 'sofa', codeRepositories: ['acme/demo', 'acme/web'], keepsIssueState: false,
   })
+})
+
+test('an Admin turns on keeping the issue’s state', async () => {
+  const { requests } = fakeGateway({
+    'GET /api/me': { body: me(true) },
+    [`GET ${project}`]: { body: demo },
+    [`GET /api/workspaces/${workspaceId}/connections`]: {
+      body: [{ id: 'c1', system: 'GitHub', account: 'acme', accountType: 'Organization', addedAt: '2026-11-27T12:00:00Z', suspended: false }],
+    },
+    [`GET /api/workspaces/${workspaceId}/connections/c1/repositories`]: { body: [{ fullName: 'acme/demo', private: false }] },
+    [`PUT ${project}/binding`]: { body: { ...demo, requests: { ...demo.requests, keepsIssueState: true } } },
+  })
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+
+  expect(await screen.findByText('left alone')).toBeDefined()
+  fireEvent.click(await screen.findByRole('button', { name: 'Change binding' }))
+  fireEvent.click(await screen.findByRole('checkbox', { name: /Keep the issue's state/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save binding' }))
+
+  await waitFor(() => expect(requests.some((request) => request.method === 'PUT')).toBe(true))
+  expect((await requests.find((request) => request.method === 'PUT')!.json()).keepsIssueState).toBe(true)
+})
+
+const workItems = [
+  {
+    key: 'DEMO-2',
+    title: 'Something from outside',
+    requestId: 'r2',
+    request: { repository: 'acme/demo', number: 20, url: 'https://github.com/acme/demo/issues/20' },
+    delegatedBy: null,
+    openedAt: '2026-11-27T13:00:00Z',
+  },
+  {
+    key: 'DEMO-1',
+    title: 'Add a dark mode toggle',
+    requestId: 'r1',
+    request: { repository: 'acme/demo', number: 12, url: 'https://github.com/acme/demo/issues/12' },
+    delegatedBy: { userId: 'u1', name: 'Ada Lovelace' },
+    openedAt: '2026-11-27T12:00:00Z',
+  },
+]
+
+test('lists the Project’s Work Items with their key, title, Request and delegating User', async () => {
+  fakeGateway({
+    'GET /api/me': { body: me(false) },
+    [`GET ${project}`]: { body: demo },
+    [`GET ${project}/work-items`]: { body: workItems },
+  })
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+
+  const list = await screen.findByRole('list', { name: 'Work Items' })
+  const [outside, demo1] = within(list).getAllByRole('listitem')
+  expect(within(demo1).getByText('DEMO-1')).toBeDefined()
+  expect(within(demo1).getByText('Add a dark mode toggle')).toBeDefined()
+  expect(within(demo1).getByRole('link', { name: 'acme/demo#12' }).getAttribute('href')).toBe('https://github.com/acme/demo/issues/12')
+  expect(within(demo1).getByText('delegated by Ada Lovelace')).toBeDefined()
+  expect(within(outside).getByText('Waiting for a delegating User')).toBeDefined()
+})
+
+test('a Work Item’s address shows its Project with the Work Item marked', async () => {
+  fakeGateway({
+    'GET /api/me': { body: me(false) },
+    [`GET ${project}`]: { body: demo },
+    [`GET ${project}/work-items`]: { body: workItems },
+  })
+  renderWithQueries(<ProjectPage projectKey="DEMO" workItemKey="DEMO-1" />)
+
+  const list = await screen.findByRole('list', { name: 'Work Items' })
+  expect(within(list).getAllByRole('listitem').map((item) => item.getAttribute('aria-current'))).toEqual([null, 'true'])
+})
+
+test('a Project with no Work Items says how to bring one in', async () => {
+  fakeGateway({ 'GET /api/me': { body: me(false) }, [`GET ${project}`]: { body: demo }, [`GET ${project}/work-items`]: { body: [] } })
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+
+  expect(await screen.findByText(/label an issue to bring a Request in/)).toBeDefined()
 })

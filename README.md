@@ -95,6 +95,27 @@ The pages for the GitHub App, Connections and adding Users are for a Workspace's
 
 Every new Project starts with milestone 1's Flow, Triage → Spec → Plan → Implement, every Phase Solo, with the Gates and Sandboxes of `docs/default-flow.md`, and its own Triager (Haiku), Lead (Opus) and Builder (Opus), registered with Identity as actors owned by the Workspace's Team. A Project's page shows them; every User of the Workspace has Write in its Projects (ADR 0031), so they change an Agent's role, instructions and model (`opus`, `sonnet`, `haiku` or a full model name, passed to Claude Code's `--model`) and a Phase's cast, Gate and Sandbox. Nothing runs the Flow yet.
 
+### Requests, Reports and answers
+
+Intake brings Requests in from GitHub and writes back to their issues; it learns each Project's binding from Flow's `ProjectBound` events and keeps its own copy, which Flow sends again for every Project when it starts (ADR 0034).
+
+- **Labelling an issue** in a Project's Repository with its label makes a Request and its root Work Item, `<KEY>-<n>`, numbered by Flow (ADR 0035). The User holding the GitHub account that added the label is its delegating User; an account linked to no User of the Workspace opens it with no one delegating, and Notices puts it in the Inbox of the Workspace's Admins. Labelling it again changes nothing. The Project's page lists its Work Items with their Request and who delegated them.
+- **Reports** are one comment per Phase on the issue: the summary, the detail collapsed beneath it, and a link to the Work Item in Sofa. Posting again for that Phase edits the comment (ADR 0036). Until Flow sends them (slice 8), post one by hand: `curl -X POST localhost:5299/diagnostics/reports -H 'Content-Type: application/json' -d '{"requestId":"<the request id>","workItemKey":"DEMO-1","phase":"Spec","summary":"…","detail":"…"}'`, with the Request's id from `GET /api/workspaces/{workspaceId}/projects/DEMO/work-items`. `/diagnostics/questions` asks a Question the same way (`questionId`, `requestId`, `workItemKey`, `phase`, `question`).
+- **Answers**: the first comment on the issue after an open Question, from a GitHub account linked to a User of the Workspace, answers it, without the quoted lines and @-mentions it starts with, and Flow receives the answer as an event (it logs it until slice 8). Anyone else's comment is ignored.
+- **The issue's state**, when the binding turns on *Keep the issue's state*: the issue carries `sofa: <phase>` for its Work Item's Phase, and is closed once the work reaches the main branch. Nothing sends those events before slice 8; `/diagnostics/work-items/entered-phase` and `/diagnostics/work-items/reached-main-branch` stand in.
+
+Port 5299 is Intake's; the diagnostics routes are reached only on the box, never through the App Gateway.
+
+#### Showing it on GitHub
+
+With the App installed on a test Repository (see *Trying the GitHub App*), and Sofa behind a public address so GitHub's webhooks arrive:
+
+1. Sign in, link your GitHub account from the home page, and create Project `DEMO` bound to the test Repository with the label `sofa`.
+2. On GitHub, create the label `sofa` in the Repository and add it to an issue. The Project's page shows `DEMO-1`, delegated by you.
+3. Have someone whose GitHub account is linked to no User add `sofa` to another issue: it shows as waiting for a delegating User.
+4. Post a Report with the `curl` above, then again with another summary: one comment on the issue, edited in place.
+5. Ask a Question with `/diagnostics/questions`, reply on the issue as yourself and as the other account: only yours answers it, and Flow's log shows `Flow received the answer to Question …`.
+
 ### Runners
 
 **Runners** lists the signed-in User's personal Runners and their Team's Runners; an Admin sees every team Runner. Each runs at most its limit of Runs at once (2 unless changed).
@@ -119,7 +140,7 @@ It starts a throwaway Worker container on the Runner's volume running `claude au
 
 ### Databases
 
-Identity, Connections, Flow and Execution keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
+Identity, Connections, Flow, Execution, Intake and Notices keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
 
 ```sh
 dotnet tool restore
@@ -127,6 +148,8 @@ SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Connections --output-dir Persistence/Migrations
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Flow --output-dir Data/Migrations
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Execution --output-dir Data/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Intake --output-dir Data/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Notices --output-dir Data/Migrations
 ```
 
 `SofaGeneratingMigrations` brings in EF's design package only for this, as its version of Roslyn clashes with Wolverine's runtime compilation.

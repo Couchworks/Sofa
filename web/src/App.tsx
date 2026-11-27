@@ -10,6 +10,7 @@ import { setupPath, signedInPath } from '@/auth/session'
 
 export const signInPath = '/sign-in'
 const projectPathPrefix = '/projects/'
+const workItemsSegment = '/work-items/'
 
 export default function App({ location = window.location }: { location?: Pick<Location, 'pathname' | 'search'> }) {
   switch (location.pathname) {
@@ -31,10 +32,16 @@ export default function App({ location = window.location }: { location?: Pick<Lo
     case '/team':
       return <TeamPage />
     default:
-      return location.pathname.startsWith(projectPathPrefix) ? (
-        <ProjectPage projectKey={decodeURIComponent(location.pathname.slice(projectPathPrefix.length))} />
-      ) : (
-        <HomePage />
-      )
+      return location.pathname.startsWith(projectPathPrefix) ? <ProjectRoute path={location.pathname} /> : <HomePage />
   }
+}
+
+function ProjectRoute({ path }: { path: string }) {
+  const [projectKey, workItemKey] = path.slice(projectPathPrefix.length).split(workItemsSegment)
+  return (
+    <ProjectPage
+      projectKey={decodeURIComponent(projectKey)}
+      workItemKey={workItemKey ? decodeURIComponent(workItemKey) : undefined}
+    />
+  )
 }

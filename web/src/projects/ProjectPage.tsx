@@ -36,16 +36,28 @@ const sandboxes: Record<Sandbox, string> = {
 const roles: AgentRole[] = ['Triager', 'Lead', 'Builder']
 const models = ['opus', 'sonnet', 'haiku']
 
-export function ProjectPage({ projectKey }: { projectKey: string }) {
+export function ProjectPage({ projectKey, workItemKey }: { projectKey: string; workItemKey?: string }) {
   const { workspace } = useWorkspace()
   return (
     <Page title={`Project ${projectKey}`}>
-      {workspace && <ProjectSettings workspaceId={workspace.id} isAdmin={workspace.isAdmin} projectKey={projectKey} />}
+      {workspace && (
+        <ProjectSettings workspaceId={workspace.id} isAdmin={workspace.isAdmin} projectKey={projectKey} workItemKey={workItemKey} />
+      )}
     </Page>
   )
 }
 
-function ProjectSettings({ workspaceId, isAdmin, projectKey }: { workspaceId: string; isAdmin: boolean; projectKey: string }) {
+function ProjectSettings({
+  workspaceId,
+  isAdmin,
+  projectKey,
+  workItemKey,
+}: {
+  workspaceId: string
+  isAdmin: boolean
+  projectKey: string
+  workItemKey?: string
+}) {
   const project = api.useQuery('get', '/api/workspaces/{workspaceId}/projects/{key}', {
     params: { path: { workspaceId, key: projectKey } },
   })
@@ -56,6 +68,7 @@ function ProjectSettings({ workspaceId, isAdmin, projectKey }: { workspaceId: st
   return (
     <>
       <p className="text-lg">{project.data.name}</p>
+      <WorkItemsCard workspaceId={workspaceId} projectKey={project.data.key} highlighted={workItemKey} />
       <BindingCard workspaceId={workspaceId} project={project.data} isAdmin={isAdmin} onChanged={() => void project.refetch()} />
       <FlowCard workspaceId={workspaceId} project={project.data} onChanged={() => void project.refetch()} />
       <section className="flex flex-col gap-4">
@@ -104,6 +117,8 @@ function BindingCard({
             </dd>
             <dt className="text-muted-foreground">Code</dt>
             <dd>{project.code.repositories.join(', ')}</dd>
+            <dt className="text-muted-foreground">Issue state</dt>
+            <dd>{project.requests.keepsIssueState ? 'kept: labelled with its Phase, closed once merged' : 'left alone'}</dd>
           </dl>
         )}
         {binding.isError && (
@@ -135,6 +150,7 @@ function BindingCard({
                   requestRepository: project.requests.repository,
                   label: project.requests.label,
                   codeRepositories: project.code.repositories,
+                  keepsIssueState: project.requests.keepsIssueState,
                 })
               }
             >
@@ -143,6 +159,57 @@ function BindingCard({
           )}
         </CardFooter>
       )}
+    </Card>
+  )
+}
+
+function WorkItemsCard({ workspaceId, projectKey, highlighted }: { workspaceId: string; projectKey: string; highlighted?: string }) {
+  const workItems = api.useQuery('get', '/api/workspaces/{workspaceId}/projects/{key}/work-items', {
+    params: { path: { workspaceId, key: projectKey } },
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Work Items</CardTitle>
+        <CardDescription>Each Request labelled for Sofa becomes one, newest first.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {workItems.isPending && <Badge variant="secondary">Loading…</Badge>}
+        {workItems.isError && (
+          <p role="alert" className="text-destructive text-sm">
+            {problemOf(workItems.error, 'Sofa could not list the Work Items.')}
+          </p>
+        )}
+        {workItems.data?.length === 0 && (
+          <p className="text-muted-foreground text-sm">None yet: label an issue to bring a Request in.</p>
+        )}
+        {workItems.data && workItems.data.length > 0 && (
+          <ul aria-label="Work Items" className="flex flex-col divide-y">
+            {workItems.data.map((workItem) => (
+              <li
+                key={workItem.key}
+                id={workItem.key}
+                aria-current={workItem.key === highlighted ? 'true' : undefined}
+                className="grid gap-1 py-2 text-sm aria-[current=true]:font-medium sm:grid-cols-[6rem_1fr_auto] sm:gap-4"
+              >
+                <span className="font-mono">{workItem.key}</span>
+                <span>{workItem.title}</span>
+                <span className="text-muted-foreground flex flex-col sm:items-end">
+                  <a className="underline-offset-4 hover:underline" href={workItem.request.url}>
+                    {workItem.request.repository}#{String(workItem.request.number)}
+                  </a>
+                  {workItem.delegatedBy ? (
+                    <span>delegated by {workItem.delegatedBy.name}</span>
+                  ) : (
+                    <Badge variant="outline">Waiting for a delegating User</Badge>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
     </Card>
   )
 }

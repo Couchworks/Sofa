@@ -295,6 +295,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Project's Work Items, newest first, each with its Request and its delegating User. */
+        get: operations["GetWorkItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/runners": {
         parameters: {
             query?: never;
@@ -406,6 +423,11 @@ export interface components {
             addedAt: string;
             suspended: boolean;
         };
+        DelegatingUser: {
+            /** Format: uuid */
+            userId: string;
+            name: string;
+        };
         /** @enum {unknown} */
         Gate: "Auto" | "Approve" | "ReviewAfterwards";
         GitHubAppCreationForm: {
@@ -481,6 +503,7 @@ export interface components {
             requestRepository: null | string;
             label: null | string;
             codeRepositories: null | string[];
+            keepsIssueState?: null | boolean;
         };
         ProjectDetails: {
             /** Format: uuid */
@@ -505,6 +528,14 @@ export interface components {
             connectionId: string;
             repository: string;
             label: string;
+            /** @default false */
+            keepsIssueState: boolean;
+        };
+        RequestRef: {
+            repository: string;
+            /** Format: int64 */
+            number: number | string;
+            url: string;
         };
         RunnerDetails: {
             /** Format: uuid */
@@ -584,6 +615,16 @@ export interface components {
         };
         /** @enum {unknown} */
         Vendor: "Anthropic";
+        WorkItemOfProject: {
+            key: string;
+            title: string;
+            /** Format: uuid */
+            requestId: string;
+            request: components["schemas"]["RequestRef"];
+            delegatedBy: null | components["schemas"]["DelegatingUser"];
+            /** Format: date-time */
+            openedAt: string;
+        };
         WorkspaceMember: {
             /** Format: uuid */
             userId: string;
@@ -1534,6 +1575,57 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetWorkItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemOfProject"][];
                 };
             };
             /** @description Unauthorized */

@@ -52,7 +52,7 @@ test('an Admin creates a Project bound to a Repository through a Connection, and
   expect(await requests.find((request) => request.method === 'POST')!.json()).toEqual({
     key: 'DEMO',
     name: 'The demo',
-    binding: { connectionId: 'c1', requestRepository: 'acme/demo', label: 'sofa', codeRepositories: ['acme/demo'] },
+    binding: { connectionId: 'c1', requestRepository: 'acme/demo', label: 'sofa', codeRepositories: ['acme/demo'], keepsIssueState: false },
   })
 })
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Sofa.Contracts;
 
 namespace Sofa.IntegrationTests;
@@ -181,21 +182,7 @@ public class ProjectTests(SofaApp sofa)
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
-    private static readonly SemaphoreSlim OneAtATime = new(1, 1);
-    private static Project? _demo;
-
-    private async Task<Project> TheDemoProjectAsync()
-    {
-        await OneAtATime.WaitAsync(Cancellation);
-        try
-        {
-            return _demo ??= await CreateAsync("DEMO");
-        }
-        finally
-        {
-            OneAtATime.Release();
-        }
-    }
+    private async Task<Project> TheDemoProjectAsync() => (await sofa.TheDemoProject).Deserialize<Project>(JsonSerializerOptions.Web)!;
 
     private async Task<Project> CreateAsync(string key)
     {
