@@ -8,6 +8,10 @@ public sealed class WorkerOptions
 
     public string? AgentGatewayAddress { get; set; }
 
+    public string Network { get; set; } = "sofa-workers";
+
+    public string RelayImage { get; set; } = "nginx:1.27-alpine";
+
     public TimeSpan LongestRun { get; set; } = TimeSpan.FromHours(2);
 
     public TimeSpan GraceAfterTheRunEnds { get; set; } = TimeSpan.FromSeconds(30);

@@ -16,7 +16,8 @@ public sealed record StartRun(
     Guid DelegatingUserId,
     Priority Priority,
     string Brief,
-    int RetryLimit);
+    int RetryLimit,
+    string? WorkItemKey = null);
 
 public sealed record EndTestRun(Guid RunId, string Summary);
 
@@ -57,6 +58,8 @@ public enum RefusedAs
     SignInAgain,
     AgentNotRegistered,
     ApiKeyUnavailable,
+    NoRepositoryToken,
+    LeftItsSandbox,
 }
 
 public sealed record RunDetails(
