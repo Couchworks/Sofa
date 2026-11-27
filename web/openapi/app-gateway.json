@@ -1181,6 +1181,86 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/projects/{key}/agents/{agentId}/registration": {
+      "post": {
+        "tags": [
+          "ProjectEndpoints"
+        ],
+        "summary": "Asks Identity again to register an Agent it refused or hasn't answered for.",
+        "operationId": "RegisterAgentAgain",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/projects/{key}/phases/{phase}": {
       "put": {
         "tags": [
@@ -1573,6 +1653,382 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspaceId}/runs": {
+      "get": {
+        "tags": [
+          "Sofa.AppGateway"
+        ],
+        "summary": "The Workspace's latest Runs, newest first.",
+        "operationId": "GetRuns",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunDetails"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/runs/{runId}": {
+      "get": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "A Run: its state and why, its Runner, and the Runs it retries or is retried by.",
+        "operationId": "GetRun",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/runs/{runId}/transcript": {
+      "get": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "The Run's Transcript as it arrived, line by line; `after` skips the lines already read.",
+        "operationId": "GetTranscript",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/runs/{runId}/retry": {
+      "post": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "Retries a Run that failed, was lost or was refused, as a new Run.",
+        "operationId": "RetryRun",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/runs/{runId}/stop": {
+      "post": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "Stops a Run that is waiting or running.",
+        "operationId": "StopRun",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1624,7 +2080,9 @@
           "role",
           "instructions",
           "vendor",
-          "model"
+          "model",
+          "registration",
+          "registrationRefusedBecause"
         ],
         "type": "object",
         "properties": {
@@ -1646,8 +2104,24 @@
           },
           "model": {
             "type": "string"
+          },
+          "registration": {
+            "$ref": "#/components/schemas/AgentRegistrationState"
+          },
+          "registrationRefusedBecause": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
+      },
+      "AgentRegistrationState": {
+        "enum": [
+          "Pending",
+          "Registered",
+          "Refused"
+        ]
       },
       "AgentRole": {
         "enum": [
@@ -1989,6 +2463,15 @@
           "Implement"
         ]
       },
+      "Priority": {
+        "enum": [
+          "Urgent",
+          "High",
+          "Medium",
+          "Low",
+          "None"
+        ]
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -2133,6 +2616,14 @@
           }
         }
       },
+      "RefusedAs": {
+        "enum": [
+          "SignInAgain",
+          "AgentNotRegistered",
+          "ApiKeyUnavailable",
+          null
+        ]
+      },
       "RequestProviderBinding": {
         "required": [
           "connectionId",
@@ -2150,6 +2641,155 @@
           },
           "label": {
             "type": "string"
+          }
+        }
+      },
+      "RunDetails": {
+        "required": [
+          "id",
+          "workspaceId",
+          "projectId",
+          "workItemId",
+          "phase",
+          "agentId",
+          "model",
+          "sandbox",
+          "delegatingUserId",
+          "priority",
+          "state",
+          "why",
+          "refusedAs",
+          "runnerId",
+          "attempt",
+          "retriesLeft",
+          "retryOf",
+          "retriedBy",
+          "waitsForRetry",
+          "summary",
+          "queuedAt",
+          "startedAt",
+          "endedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseName"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "model": {
+            "type": "string"
+          },
+          "sandbox": {
+            "$ref": "#/components/schemas/Sandbox"
+          },
+          "delegatingUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "why": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refusedAs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RefusedAs"
+              }
+            ]
+          },
+          "runnerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "attempt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retriesLeft": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retryOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "retriedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "waitsForRetry": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "queuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2256,6 +2896,17 @@
           }
         }
       },
+      "RunState": {
+        "enum": [
+          "Waiting",
+          "Running",
+          "Finished",
+          "Failed",
+          "Lost",
+          "Stopped",
+          "Refused"
+        ]
+      },
       "Sandbox": {
         "enum": [
           "ReadOnly",
@@ -2342,6 +2993,45 @@
           "userId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "Transcript": {
+        "required": [
+          "runId",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TranscriptLine"
+            }
+          }
+        }
+      },
+      "TranscriptLine": {
+        "required": [
+          "number",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -2511,6 +3201,9 @@
     },
     {
       "name": "ProjectEndpoints"
+    },
+    {
+      "name": "RunEndpoints"
     },
     {
       "name": "RunnerEndpoints"
