@@ -3,6 +3,7 @@
     <Project Path="src/Sofa.AgentGateway/Sofa.AgentGateway.csproj" />
     <Project Path="src/Sofa.AppGateway/Sofa.AppGateway.csproj" />
     <Project Path="src/Sofa.AppHost/Sofa.AppHost.csproj" />
+    <Project Path="src/Sofa.Cli/Sofa.Cli.csproj" />
     <Project Path="src/Sofa.Code/Sofa.Code.csproj" />
     <Project Path="src/Sofa.Connections/Sofa.Connections.csproj" />
     <Project Path="src/Sofa.Contracts/Sofa.Contracts.csproj" />

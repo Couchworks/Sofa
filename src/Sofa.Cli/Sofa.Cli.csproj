@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>sofa</AssemblyName>
+    <RootNamespace>Sofa.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Sofa.Contracts/Sofa.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
