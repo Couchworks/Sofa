@@ -14,4 +14,5 @@ The seam is `IWorkerContainers`: start a container with its image, volume, envir
 ## Consequences
 
 - When Execution restarts, it no longer sees the containers it started: their Runs end as *lost*, and their containers are removed.
-- A container reaches the box's network like any other on Docker; holding only its Run token, it can call nothing of Sofa's but the Agent Gateway, but keeping it from the box's other ports is the Sandbox's network rules, still to come.
+- A container reaches the box's network like any other on Docker. Holding only its Run token, it is served by nothing of Sofa's but the Agent Gateway, and Connections opens an API key only for Execution, which proves itself with a secret of its own; but keeping containers from the box's other ports is for the Sandbox's network rules, still to come.
+- Claude Code holds what it runs on inside the container: the volume's sign-in, or the API key in its environment. Every Run is denied reading `/claude` and `/proc`, a first guard until Transcripts are scrubbed of known secrets (milestone 1, slice 9); a Run allowed git commands could still reach them.
