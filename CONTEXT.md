@@ -29,7 +29,7 @@ A ticket in an outside system, such as a GitHub issue or a Jira issue, brought i
 _Avoid_: Ticket (for the outside one), issue, external ticket
 
 **Work Item**:
-Sofa's own unit of work. A Request becomes one root Work Item, which may be split into child Work Items, each run through the Flow on its own and possibly blocking others.
+Sofa's own unit of work, named by its Project's key and a number, such as `WEB-12`. A Request becomes one root Work Item, which may be split into child Work Items, each run through the Flow on its own and possibly blocking others.
 _Avoid_: Ticket, task, job, internal ticket
 
 **Flow**:
