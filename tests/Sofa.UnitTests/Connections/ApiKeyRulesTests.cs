@@ -39,4 +39,15 @@ public class ApiKeyRulesTests
         await Assert.ThrowsAnyAsync<CryptographicException>(async () =>
             await vault.Open(sealedKey, ApiKeyRules.PurposeOf(Guid.NewGuid()), TestContext.Current.CancellationToken));
     }
+
+    [Theory]
+    [InlineData("the-secret", "the-secret", true)]
+    [InlineData("not-the-secret", "the-secret", false)]
+    [InlineData(null, "the-secret", false)]
+    [InlineData("", "", false)]
+    [InlineData("anything", null, false)]
+    public void An_API_key_is_opened_only_for_the_asker_holding_Executions_secret(string? sent, string? executions, bool opened)
+    {
+        Assert.Equal(opened, ApiKeyRules.IsExecution(sent, executions));
+    }
 }
