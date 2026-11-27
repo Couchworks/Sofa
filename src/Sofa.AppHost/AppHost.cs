@@ -16,6 +16,11 @@ var executionClientSecret = builder.AddParameter(
     new GenerateParameterDefault { MinLength = 32, Special = false },
     secret: true,
     persist: true);
+var executionsSecretForConnections = builder.AddParameter(
+    "execution-connections-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false },
+    secret: true,
+    persist: true);
 var keyEncryptionKey = builder.AddParameter(
     "connections-key-encryption-key",
     new GenerateParameterDefault { MinLength = 48, Special = false },
@@ -47,6 +52,7 @@ var publicAddress = new PublicAddress(configuredPublicAddress, appGateway);
 
 var connections = AddService(SofaServices.Connections, "Sofa.Connections")
     .WithEnvironment("Credentials__KeyEncryptionKey", keyEncryptionKey)
+    .WithEnvironment("ApiKeys__ExecutionSecret", executionsSecretForConnections)
     .WithEnvironment(publicAddress.TellConnections);
 
 var identity = AddService(SofaServices.Identity, "Sofa.Identity")
@@ -57,28 +63,41 @@ var identity = AddService(SofaServices.Identity, "Sofa.Identity")
 
 var flow = AddService(SofaServices.Flow, "Sofa.Flow")
     .WithReference(connections);
+var records = AddService(SofaServices.Records, "Sofa.Records");
 var execution = AddService(SofaServices.Execution, "Sofa.Execution")
     .WithReference(identity)
-    .WithEnvironment("Execution__ClientSecret", executionClientSecret);
+    .WithReference(connections)
+    .WithEnvironment("Execution__ClientSecret", executionClientSecret)
+    .WithEnvironment("Execution__ConnectionsSecret", executionsSecretForConnections);
+
+var agentGateway = AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
+    .WithReference(identity)
+    .WithReference(execution)
+    .WithEnvironment(publicAddress.TellIssuer)
+    .WithExternalHttpEndpoints()
+    .WithEndpoint("http", reachedByWorkerContainers => reachedByWorkerContainers.TargetHost = "0.0.0.0");
+
+execution.WithEnvironment("Workers__AgentGatewayAddress", ReferenceExpression.Create(
+    $"http://{WorkerContainers.ReachTheBoxAt}:{agentGateway.GetEndpoint("http").Property(EndpointProperty.Port)}"));
 
 appGateway.WithReference(identity)
     .WithReference(connections)
     .WithReference(flow)
     .WithReference(execution)
+    .WithReference(records)
     .WithEnvironment(publicAddress.TellIssuer);
 
-AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
-    .WithReference(identity)
-    .WithEnvironment(publicAddress.TellIssuer)
-    .WithExternalHttpEndpoints();
-
 AddService(SofaServices.Intake, "Sofa.Intake");
-AddService(SofaServices.Records, "Sofa.Records");
 AddService(SofaServices.Code, "Sofa.Code");
 AddService(SofaServices.Knowledge, "Sofa.Knowledge");
 AddService(SofaServices.Notices, "Sofa.Notices");
 
 builder.Build().Run();
+
+static class WorkerContainers
+{
+    public const string ReachTheBoxAt = "host.docker.internal";
+}
 
 static class SofaAppHostSettings
 {

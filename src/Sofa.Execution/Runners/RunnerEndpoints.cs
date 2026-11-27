@@ -55,9 +55,7 @@ public static class RunnerEndpoints
                 title: "Only a subscription Runner signs in; an API key Runner has its key.");
         }
 
-        runner.SignedIn = seen.SignedIn;
-        runner.SignInEndsAt = seen.SignedIn ? seen.EndsAt : null;
-        runner.SignInCheckedAt = time.GetUtcNow();
+        runner.Saw(seen, time.GetUtcNow());
         await db.SaveChangesAsync(cancellation);
         logger.LogInformation("Subscription Runner {RunnerId} is {SignedIn}, until {EndsAt}",
             runner.Id, runner.SignedIn ? "signed in" : "not signed in", runner.SignInEndsAt);

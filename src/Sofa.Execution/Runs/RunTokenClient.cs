@@ -9,6 +9,8 @@ public sealed class RunTokenClientOptions
     public const string Section = "Execution";
 
     public string? ClientSecret { get; set; }
+
+    public string? ConnectionsSecret { get; set; }
 }
 
 public abstract record RunTokenOutcome
