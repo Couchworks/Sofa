@@ -1,42 +1,27 @@
-import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { AdminArea } from '@/admin/AdminArea'
 import { ReturnFromGitHub } from '@/admin/ReturnFromGitHub'
 import { api } from '@/api/client'
-import { signedInUser, signOut, startSigningIn } from '@/auth/session'
+import { signOut } from '@/auth/session'
 import { Centered } from '@/components/Centered'
+import { Navigation, SignedIn } from '@/components/SignedIn'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { goTo } from '@/lib/navigation'
 
 export function HomePage() {
-  const session = useQuery({ queryKey: ['session'], queryFn: signedInUser })
-  const signedOut = session.isSuccess && session.data === null
-
-  useEffect(() => {
-    if (signedOut) {
-      void startSigningIn()
-    }
-  }, [signedOut])
-
-  if (!session.data) {
-    return (
-      <Centered>
-        <p className="text-muted-foreground text-sm">Signing in…</p>
-      </Centered>
-    )
-  }
-
   return (
-    <Centered>
-      <div className="flex w-full max-w-sm flex-col gap-4">
-        <ReturnFromGitHub />
-      </div>
-      <SignedInUser />
-      <AdministeredWorkspace />
-      <GatewayStatus />
-    </Centered>
+    <SignedIn>
+      <Centered>
+        <Navigation />
+        <div className="flex w-full max-w-sm flex-col gap-4">
+          <ReturnFromGitHub />
+        </div>
+        <SignedInUser />
+        <AdministeredWorkspace />
+        <GatewayStatus />
+      </Centered>
+    </SignedIn>
   )
 }
 
