@@ -3,7 +3,7 @@ using Sofa.Contracts;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.AddSofaMessaging(SofaServices.Notices);
+builder.AddSofaMessaging(SofaServices.Notices, eventsSubscribedTo: [SofaEvents.SubscriptionSignedOut]);
 
 var app = builder.Build();
 
