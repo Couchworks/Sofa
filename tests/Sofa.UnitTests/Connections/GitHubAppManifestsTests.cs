@@ -18,6 +18,17 @@ public class GitHubAppManifestsTests
         Assert.True(manifest.GetProperty("hook_attributes").GetProperty("active").GetBoolean());
         Assert.Equal("https://sofa.example.dev/github-app/created", manifest.GetProperty("redirect_url").GetString());
         Assert.Equal("https://sofa.example.dev/github-app/installed", manifest.GetProperty("setup_url").GetString());
+        Assert.Equal(["https://sofa.example.dev/account/github/callback"],
+            manifest.GetProperty("callback_urls").EnumerateArray().Select(url => url.GetString()));
+    }
+
+    [Fact]
+    public void Lets_Users_sign_in_with_GitHub_and_read_their_verified_email()
+    {
+        var manifest = Parse(ManifestsAt(Tunnel).Manifest("acme", name: null));
+
+        Assert.Equal("read", manifest.GetProperty("default_permissions").GetProperty("emails").GetString());
+        Assert.False(manifest.GetProperty("request_oauth_on_install").GetBoolean());
     }
 
     [Fact]

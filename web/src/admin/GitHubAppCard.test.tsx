@@ -3,6 +3,11 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { fakeGateway, renderWithQueries } from '@/test/fakeGateway'
 import { GitHubAppCard } from './GitHubAppCard'
 
+const navigation = vi.hoisted(() => ({ goTo: vi.fn(), replaceWith: vi.fn() }))
+vi.mock('@/lib/navigation', () => navigation)
+
+const workspaceId = '0195e7a0-0000-7000-8000-000000000002'
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -22,15 +27,15 @@ const notCreated = {
 test('sends the manifest Connections made to GitHub as a form', async () => {
   const submit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
   const { requests } = fakeGateway({
-    'GET /api/github-app': { body: notCreated },
-    'POST /api/github-app/creations': {
+    [`GET /api/workspaces/${workspaceId}/github-app`]: { body: notCreated },
+    [`POST /api/workspaces/${workspaceId}/github-app/creations`]: {
       body: {
         formAction: 'https://github.com/organizations/acme/settings/apps/new?state=abc',
         manifest: '{"name":"Sofa acme"}',
       },
     },
   })
-  renderWithQueries(<GitHubAppCard />)
+  renderWithQueries(<GitHubAppCard workspaceId={workspaceId} />)
 
   fireEvent.change(await screen.findByLabelText('Organisation'), { target: { value: ' acme ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Create on GitHub' }))
@@ -46,34 +51,34 @@ test('sends the manifest Connections made to GitHub as a form', async () => {
 
 test('warns that webhooks stay off when GitHub cannot reach Sofa', async () => {
   fakeGateway({
-    'GET /api/github-app': {
+    [`GET /api/workspaces/${workspaceId}/github-app`]: {
       body: { ...notCreated, publicAddress: 'http://localhost:5176/', gitHubCanReachPublicAddress: false },
     },
   })
 
-  renderWithQueries(<GitHubAppCard />)
+  renderWithQueries(<GitHubAppCard workspaceId={workspaceId} />)
 
   expect(await screen.findByText('GitHub can’t reach http://localhost:5176/')).toBeDefined()
 })
 
 test('says why Connections refused to start the App', async () => {
   fakeGateway({
-    'GET /api/github-app': { body: notCreated },
-    'POST /api/github-app/creations': {
+    [`GET /api/workspaces/${workspaceId}/github-app`]: { body: notCreated },
+    [`POST /api/workspaces/${workspaceId}/github-app/creations`]: {
       status: 409,
       body: { title: 'Sofa’s GitHub App has already been created.', status: 409 },
     },
   })
-  renderWithQueries(<GitHubAppCard />)
+  renderWithQueries(<GitHubAppCard workspaceId={workspaceId} />)
 
   fireEvent.click(await screen.findByRole('button', { name: 'Create on GitHub' }))
 
   expect(await screen.findByText('Sofa’s GitHub App has already been created.')).toBeDefined()
 })
 
-test('offers to install a created App on GitHub', async () => {
+test('installs a created App through Sofa, which adds the state GitHub hands back', async () => {
   fakeGateway({
-    'GET /api/github-app': {
+    [`GET /api/workspaces/${workspaceId}/github-app`]: {
       body: {
         ...notCreated,
         created: true,
@@ -82,11 +87,16 @@ test('offers to install a created App on GitHub', async () => {
         installUrl: 'https://github.com/apps/sofa-acme/installations/new',
       },
     },
+    [`POST /api/workspaces/${workspaceId}/github-app/installations`]: {
+      body: { installUrl: 'https://github.com/apps/sofa-acme/installations/new?state=signed' },
+    },
   })
+  renderWithQueries(<GitHubAppCard workspaceId={workspaceId} />)
 
-  renderWithQueries(<GitHubAppCard />)
+  expect(await screen.findByText('Sofa acme')).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Install on GitHub' }))
 
-  const install = await screen.findByRole('button', { name: 'Install on GitHub' })
-  expect(install.getAttribute('href')).toBe('https://github.com/apps/sofa-acme/installations/new')
-  expect(screen.getByText('Sofa acme')).toBeDefined()
+  await waitFor(() =>
+    expect(navigation.goTo).toHaveBeenCalledWith('https://github.com/apps/sofa-acme/installations/new?state=signed'),
+  )
 })

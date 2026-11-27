@@ -22,6 +22,7 @@ const ada = {
   id: '0195e7a0-0000-7000-8000-000000000001',
   name: 'Ada Lovelace',
   email: 'ada@example.com',
+  gitHubLogin: null,
   workspaces: [
     { id: '0195e7a0-0000-7000-8000-000000000002', name: "Ada's Workspace", isAdmin: true, teams: [{ id: '0195e7a0-0000-7000-8000-000000000003', name: 'Engines' }] },
   ],
@@ -118,8 +119,7 @@ test('signing in posts the email and password, then goes back to the authorizati
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
   await waitFor(() => expect(navigation.goTo).toHaveBeenCalledWith('/connect/authorize?client_id=sofa-web'))
-  const [path, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-  expect(path).toBe('/account/sign-in')
+  const [, init] = fetch.mock.calls.find(([path]) => path === '/account/sign-in') as unknown as [string, RequestInit]
   expect(JSON.parse(init.body as string)).toEqual({ email: 'ada@example.com', password: 'a long enough password' })
 })
 
@@ -146,6 +146,73 @@ test('after signing in, a return address elsewhere is not followed', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
   await waitFor(() => expect(navigation.goTo).toHaveBeenCalledWith('/'))
+})
+
+test('a User who is no Admin sees no admin pages', async () => {
+  const bea = { ...ada, workspaces: [{ ...ada.workspaces[0], isAdmin: false }] }
+  answering({ '/api/me': () => Response.json(bea) })
+
+  renderAt('/')
+
+  expect(await screen.findByRole('button', { name: 'Link your GitHub account' })).toBeDefined()
+  expect(screen.queryByText('GitHub App')).toBeNull()
+})
+
+test('an Admin sees the admin pages of the Workspace they administer', async () => {
+  const fetch = answering({ '/api/me': () => Response.json(ada) })
+
+  renderAt('/')
+
+  expect(await screen.findByText('GitHub App')).toBeDefined()
+  await waitFor(() => expect(requestTo(fetch, `/api/workspaces/${ada.workspaces[0].id}/github-app`)).toBeDefined())
+})
+
+test('linking a GitHub account goes to GitHub where Sofa says', async () => {
+  answering({
+    '/api/me': () => Response.json(ada),
+    '/api/me/github-link': () => Response.json({ authorizeUrl: 'https://github.com/login/oauth/authorize?state=s' }),
+  })
+  renderAt('/')
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Link your GitHub account' }))
+
+  await waitFor(() => expect(navigation.goTo).toHaveBeenCalledWith('https://github.com/login/oauth/authorize?state=s'))
+})
+
+test('a linked GitHub account is shown instead of the link button', async () => {
+  answering({ '/api/me': () => Response.json({ ...ada, gitHubLogin: 'ada-gh' }) })
+
+  renderAt('/')
+
+  expect(await screen.findByText('Signs in with GitHub as ada-gh.')).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Link your GitHub account' })).toBeNull()
+})
+
+test('signing in with GitHub keeps the authorization request to come back to', async () => {
+  answering({ '/account/github': () => Response.json({ available: true }) })
+  renderAt('/sign-in', '?returnUrl=%2Fconnect%2Fauthorize%3Fclient_id%3Dsofa-web')
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Sign in with GitHub' }))
+
+  expect(navigation.goTo).toHaveBeenCalledWith(
+    '/account/github/sign-in?returnUrl=%2Fconnect%2Fauthorize%3Fclient_id%3Dsofa-web',
+  )
+})
+
+test('no GitHub button until the GitHub App exists', async () => {
+  const fetch = answering({ '/account/github': () => Response.json({ available: false }) })
+  renderAt('/sign-in')
+
+  await waitFor(() => expect(fetch).toHaveBeenCalled())
+  expect(screen.queryByRole('button', { name: 'Sign in with GitHub' })).toBeNull()
+})
+
+test('a GitHub sign-in Sofa refused says why', async () => {
+  answering({ '/account/github': () => Response.json({ available: true }) })
+
+  renderAt('/sign-in', '?problem=No%20User%20has%20the%20GitHub%20account%20mallory.')
+
+  expect((await screen.findByRole('alert')).textContent).toBe('No User has the GitHub account mallory.')
 })
 
 function fillInSetup(setupCode: string) {

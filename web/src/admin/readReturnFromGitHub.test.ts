@@ -15,3 +15,10 @@ test('reads why an installation did not become a Connection', () => {
 test('reads nothing when Sofa was not opened from GitHub', () => {
   expect(readReturnFromGitHub('')).toBeNull()
 })
+
+test('reads why a GitHub account was not linked', () => {
+  expect(readReturnFromGitHub('?github-link=failed&problem=It%20belongs%20to%20another%20User')).toEqual({
+    title: 'Your GitHub account wasn’t linked',
+    problem: 'It belongs to another User',
+  })
+})

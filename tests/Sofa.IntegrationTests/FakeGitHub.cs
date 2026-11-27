@@ -19,7 +19,14 @@ public sealed class FakeGitHub : IAsyncDisposable
     public const string ClientId = "Iv23.fake-client";
     public const string Organisation = "acme";
     public const long InstallationId = 777;
-    public const string WebAddress = "https://github.test/";
+    public const string ClientSecret = "fake-client-secret";
+    public const char CodeNamesItsAccount = ':';
+
+    public static readonly GitHubAccountOnFake Ada = new(5001, "ada-gh", "Ada Lovelace", "ada@example.com");
+    public static readonly GitHubAccountOnFake Bea = new(5002, "bea-gh", "Bea Kowalski", "bea@example.com");
+    public static readonly GitHubAccountOnFake Mallory = new(5003, "mallory", "Mallory", "mallory@example.com");
+
+    private static readonly GitHubAccountOnFake[] Accounts = [Ada, Bea, Mallory];
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
@@ -38,6 +45,12 @@ public sealed class FakeGitHub : IAsyncDisposable
 
     public Uri ApiAddress { get; private set; } = null!;
 
+    public string WebAddress => ApiAddress.ToString();
+
+    public ConcurrentBag<string> RedirectUris { get; } = [];
+
+    public static string CodeFor(GitHubAccountOnFake account) => $"{account.Login}{CodeNamesItsAccount}{Guid.NewGuid():N}";
+
     private FakeGitHub()
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -55,12 +68,38 @@ public sealed class FakeGitHub : IAsyncDisposable
                 name = "Sofa acme",
                 html_url = $"{WebAddress}apps/{AppSlug}",
                 client_id = ClientId,
-                client_secret = "fake-client-secret",
+                client_secret = ClientSecret,
                 webhook_secret = WebhookSecret,
                 pem = PrivateKeyPem,
                 owner = new { login = Organisation, type = "Organization" },
             }, statusCode: StatusCodes.Status201Created);
         });
+
+        _server.MapPost("/login/oauth/access_token", async (HttpRequest request) =>
+        {
+            var exchange = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+            RedirectUris.Add(exchange.GetProperty("redirect_uri").GetString()!);
+            var login = exchange.GetProperty("code").GetString()!.Split(CodeNamesItsAccount)[0];
+            var fromTheApp = exchange.GetProperty("client_id").GetString() == ClientId
+                && exchange.GetProperty("client_secret").GetString() == ClientSecret;
+            return fromTheApp && Accounts.Any(account => account.Login == login)
+                ? Results.Json(new { access_token = $"ghu_{login}", token_type = "bearer" })
+                : Results.Json(new { error = "bad_verification_code" });
+        });
+
+        _server.MapGet("/user", (HttpRequest request) =>
+            AccountOf(request) is { } account
+                ? Results.Json(new { id = account.Id, login = account.Login, name = account.Name })
+                : Results.Unauthorized());
+
+        _server.MapGet("/user/emails", (HttpRequest request) =>
+            AccountOf(request) is { } account
+                ? Results.Json(new[]
+                {
+                    new { email = $"unverified-{account.VerifiedEmail}", primary = false, verified = false },
+                    new { email = account.VerifiedEmail, primary = true, verified = true },
+                })
+                : Results.Unauthorized());
 
         _server.MapGet("/app/installations/{id:long}", (long id, HttpRequest request) =>
             !SignedByTheApp(request) ? Results.Unauthorized()
@@ -134,6 +173,9 @@ public sealed class FakeGitHub : IAsyncDisposable
     public string Sign(byte[] body) =>
         "sha256=" + Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body));
 
+    private static GitHubAccountOnFake? AccountOf(HttpRequest request) =>
+        Accounts.SingleOrDefault(account => request.Headers.Authorization.ToString() == $"Bearer ghu_{account.Login}");
+
     private bool SignedByTheApp(HttpRequest request)
     {
         var authorization = request.Headers.Authorization.ToString();
@@ -169,3 +211,5 @@ public sealed class FakeGitHub : IAsyncDisposable
         _appKey.Dispose();
     }
 }
+
+public sealed record GitHubAccountOnFake(long Id, string Login, string Name, string VerifiedEmail);

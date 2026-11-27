@@ -11,10 +11,9 @@ namespace Sofa.IntegrationTests;
 
 public class GitHubAppTests(SofaApp sofa)
 {
-    private const string OneTimeCode = "code-github-hands-back-once";
+    private const string ReturnCookie = "sofa_github_return";
     private static readonly TimeSpan EventTimeout = TimeSpan.FromSeconds(30);
     private static readonly SemaphoreSlim OneAtATime = new(1, 1);
-    private static CreatedApp? _created;
     private static string? _installed;
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -22,34 +21,36 @@ public class GitHubAppTests(SofaApp sofa)
     [Fact]
     public async Task An_Admin_creates_the_GitHub_App_from_its_manifest()
     {
-        var created = await TheAppCreatedOnce();
+        var created = await sofa.TheGitHubApp;
 
-        Assert.StartsWith($"{FakeGitHub.WebAddress}organizations/{FakeGitHub.Organisation}/settings/apps/new?state=", created.Form.FormAction);
+        Assert.StartsWith($"{sofa.GitHub.WebAddress}organizations/{FakeGitHub.Organisation}/settings/apps/new?state=", created.Form.FormAction);
         var manifest = JsonDocument.Parse(created.Form.Manifest).RootElement;
         Assert.EndsWith("/github-app/created", manifest.GetProperty("redirect_url").GetString());
         Assert.EndsWith("/webhooks/github", manifest.GetProperty("hook_attributes").GetProperty("url").GetString());
+        Assert.EndsWith("/account/github/callback", manifest.GetProperty("callback_urls")[0].GetString());
         Assert.Equal("/?github-app=done", created.BackInTheWebClient);
-        Assert.Contains(OneTimeCode, sofa.GitHub.ConvertedCodes);
+        Assert.Contains(CreatedGitHubApp.OneTimeCode, sofa.GitHub.ConvertedCodes);
 
-        using var gateway = sofa.CreateHttpClient(SofaServices.AppGateway);
-        var app = await gateway.GetFromJsonAsync<GitHubAppStatus>("/api/github-app", Cancellation);
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        using var answer = await ada.GetWithTokenAsync($"/api/workspaces/{await AdasWorkspace()}/github-app", Cancellation);
+        var app = await answer.Content.ReadFromJsonAsync<GitHubAppStatus>(Cancellation);
         Assert.True(app!.Created);
-        Assert.Equal($"{FakeGitHub.WebAddress}apps/{FakeGitHub.AppSlug}/installations/new", app.InstallUrl);
     }
 
     [Fact]
     public async Task A_second_App_is_refused_once_one_exists()
     {
-        await TheAppCreatedOnce();
-        using var gateway = sofa.CreateHttpClient(SofaServices.AppGateway);
+        await sofa.TheGitHubApp;
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
 
-        using var response = await gateway.PostAsJsonAsync("/api/github-app/creations", new { organisation = "acme" }, Cancellation);
+        using var response = await ada.PostAsJsonAsync(
+            $"/api/workspaces/{await AdasWorkspace()}/github-app/creations", new { organisation = "acme" }, Cancellation);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task A_return_from_GitHub_with_a_state_Sofa_never_issued_creates_nothing()
+    public async Task A_return_from_GitHub_with_a_state_Sofa_never_signed_creates_nothing()
     {
         using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
 
@@ -61,9 +62,50 @@ public class GitHubAppTests(SofaApp sofa)
     }
 
     [Fact]
+    public async Task A_return_without_any_state_is_refused()
+    {
+        await sofa.TheGitHubApp;
+        using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
+
+        using var response = await gateway.GetAsync(
+            $"/github-app/installed?installation_id={FakeGitHub.InstallationId}&setup_action=install", Cancellation);
+
+        Assert.StartsWith("/?connection=failed", response.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
+    public async Task A_signed_state_is_refused_in_a_browser_that_did_not_start_it()
+    {
+        await sofa.TheGitHubApp;
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        var state = await StartInstallingAsync(ada);
+        using var anotherBrowser = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
+
+        using var response = await anotherBrowser.GetAsync(InstalledReturn(state), Cancellation);
+
+        Assert.StartsWith("/?connection=failed", response.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
+    public async Task A_state_already_used_is_refused_even_with_its_cookie()
+    {
+        await TheAppInstalledOnce();
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        var state = await StartInstallingAsync(ada);
+        var cookie = ada.Cookies.GetCookies(new Uri(sofa.AddressOf(SofaServices.AppGateway), "/github-app/installed"))[ReturnCookie]!.Value;
+
+        using var first = await ReturnWithCookieAsync(state, cookie);
+        using var again = await ReturnWithCookieAsync(state, cookie);
+
+        Assert.Equal("/?connection=done", first.Headers.Location!.OriginalString);
+        Assert.StartsWith("/?connection=failed", again.Headers.Location!.OriginalString);
+        Assert.Contains("already used", Uri.UnescapeDataString(again.Headers.Location!.OriginalString));
+    }
+
+    [Fact]
     public async Task Keeps_the_Apps_credentials_sealed_at_rest()
     {
-        await TheAppCreatedOnce();
+        await sofa.TheGitHubApp;
         await using var database = new NpgsqlConnection(await sofa.App.GetConnectionStringAsync("sofa", Cancellation));
         await database.OpenAsync(Cancellation);
         await using var query = new NpgsqlCommand(
@@ -73,7 +115,7 @@ public class GitHubAppTests(SofaApp sofa)
 
         Assert.DoesNotContain("PRIVATE KEY", stored);
         Assert.DoesNotContain(sofa.GitHub.WebhookSecret, stored);
-        Assert.DoesNotContain("fake-client-secret", stored);
+        Assert.DoesNotContain(FakeGitHub.ClientSecret, stored);
     }
 
     [Fact]
@@ -86,15 +128,17 @@ public class GitHubAppTests(SofaApp sofa)
         Assert.Equal(FakeGitHub.Organisation, connection.Account);
         Assert.Equal("Organization", connection.AccountType);
         Assert.Equal("GitHub", connection.System);
+        Assert.Equal(await AdasWorkspace(), await WorkspaceOfConnection(connection.Id));
     }
 
     [Fact]
     public async Task An_installation_GitHub_does_not_know_is_no_Connection()
     {
-        await TheAppCreatedOnce();
-        using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
+        await sofa.TheGitHubApp;
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        var state = await StartInstallingAsync(ada);
 
-        using var response = await gateway.GetAsync("/github-app/installed?installation_id=31337&setup_action=install", Cancellation);
+        using var response = await ada.GetAsync(InstalledReturn(state, installationId: 31337), Cancellation);
 
         Assert.StartsWith("/?connection=failed", response.Headers.Location!.OriginalString);
     }
@@ -135,7 +179,7 @@ public class GitHubAppTests(SofaApp sofa)
     [Fact]
     public async Task A_webhook_failing_the_check_is_refused()
     {
-        await TheAppCreatedOnce();
+        await sofa.TheGitHubApp;
         var body = Encoding.UTF8.GetBytes("""{"action":"labeled"}""");
 
         using var response = await DeliverWebhook(Guid.NewGuid(), body, "sha256=" + new string('0', 64));
@@ -146,7 +190,7 @@ public class GitHubAppTests(SofaApp sofa)
     [Fact]
     public async Task A_delivery_GitHub_failed_to_make_is_redelivered()
     {
-        await TheAppCreatedOnce();
+        await sofa.TheGitHubApp;
         const long failedDelivery = 9001;
         sofa.GitHub.FailedToDeliver(failedDelivery, Guid.NewGuid());
 
@@ -198,44 +242,17 @@ public class GitHubAppTests(SofaApp sofa)
         return false;
     }
 
-    private async Task<CreatedApp> TheAppCreatedOnce()
-    {
-        await OneAtATime.WaitAsync(Cancellation);
-        try
-        {
-            return _created ??= await CreateTheApp();
-        }
-        finally
-        {
-            OneAtATime.Release();
-        }
-    }
-
-    private async Task<CreatedApp> CreateTheApp()
-    {
-        using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
-        using var started = await gateway.PostAsJsonAsync(
-            "/api/github-app/creations", new { organisation = FakeGitHub.Organisation }, Cancellation);
-        started.EnsureSuccessStatusCode();
-        var form = (await started.Content.ReadFromJsonAsync<GitHubAppCreationForm>(Cancellation))!;
-        var state = new Uri(form.FormAction).Query.Split("state=")[1];
-
-        using var returned = await gateway.GetAsync($"/github-app/created?code={OneTimeCode}&state={state}", Cancellation);
-        Assert.Equal(HttpStatusCode.Redirect, returned.StatusCode);
-        return new CreatedApp(form, returned.Headers.Location!.OriginalString);
-    }
-
     private async Task<string> TheAppInstalledOnce()
     {
-        await TheAppCreatedOnce();
+        await sofa.TheGitHubApp;
         await OneAtATime.WaitAsync(Cancellation);
         try
         {
             if (_installed is null)
             {
-                using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
-                using var returned = await gateway.GetAsync(
-                    $"/github-app/installed?installation_id={FakeGitHub.InstallationId}&setup_action=install", Cancellation);
+                using var ada = await sofa.AdaSignedInAsync(Cancellation);
+                var state = await StartInstallingAsync(ada);
+                using var returned = await ada.GetAsync(InstalledReturn(state), Cancellation);
                 _installed = returned.Headers.Location!.OriginalString;
             }
 
@@ -247,18 +264,50 @@ public class GitHubAppTests(SofaApp sofa)
         }
     }
 
+    private async Task<string> StartInstallingAsync(WebClientSignIn admin)
+    {
+        using var started = await admin.PostAsJsonAsync($"/api/workspaces/{await AdasWorkspace()}/github-app/installations", null, Cancellation);
+        started.EnsureSuccessStatusCode();
+        var installation = await started.Content.ReadFromJsonAsync<GitHubAppInstallation>(Cancellation);
+        Assert.StartsWith($"{sofa.GitHub.WebAddress}apps/{FakeGitHub.AppSlug}/installations/new?state=", installation!.InstallUrl);
+        return WebClientSignIn.StateIn(new Uri(installation.InstallUrl));
+    }
+
+    private static string InstalledReturn(string state, long installationId = FakeGitHub.InstallationId) =>
+        $"/github-app/installed?installation_id={installationId}&setup_action=install&state={Uri.EscapeDataString(state)}";
+
+    private async Task<HttpResponseMessage> ReturnWithCookieAsync(string state, string cookie)
+    {
+        using var browser = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
+        using var request = new HttpRequestMessage(HttpMethod.Get, InstalledReturn(state))
+        {
+            Headers = { { "Cookie", $"{ReturnCookie}={cookie}" } },
+        };
+        return await browser.SendAsync(request, Cancellation);
+    }
+
+    private async Task<Guid> AdasWorkspace() => (await sofa.SetUp).FirstUser.WorkspaceId;
+
+    private async Task<Guid> WorkspaceOfConnection(Guid connectionId)
+    {
+        await using var database = new NpgsqlConnection(await sofa.App.GetConnectionStringAsync("sofa", Cancellation));
+        await database.OpenAsync(Cancellation);
+        await using var query = new NpgsqlCommand("select workspace_id from connections.connections where id = @id", database);
+        query.Parameters.AddWithValue("id", connectionId);
+        return (Guid)(await query.ExecuteScalarAsync(Cancellation))!;
+    }
+
     private async Task<ConnectionSummary> TheConnection()
     {
-        using var gateway = sofa.CreateHttpClient(SofaServices.AppGateway);
-        var connections = await gateway.GetFromJsonAsync<List<ConnectionSummary>>("/api/connections", Cancellation);
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        using var answer = await ada.GetWithTokenAsync($"/api/workspaces/{await AdasWorkspace()}/connections", Cancellation);
+        var connections = await answer.Content.ReadFromJsonAsync<List<ConnectionSummary>>(Cancellation);
         return Assert.Single(connections!, c => c.Account == FakeGitHub.Organisation);
     }
 
-    private sealed record CreatedApp(GitHubAppCreationForm Form, string BackInTheWebClient);
-
-    private sealed record GitHubAppCreationForm(string FormAction, string Manifest);
-
     private sealed record GitHubAppStatus(bool Created, string? InstallUrl);
+
+    private sealed record GitHubAppInstallation(string InstallUrl);
 
     private sealed record ConnectionSummary(Guid Id, string System, string Account, string AccountType);
 

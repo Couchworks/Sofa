@@ -1,6 +1,7 @@
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Dotnet;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Sofa.Contracts;
 
@@ -45,7 +46,7 @@ public sealed class SofaApp : IAsyncLifetime
 
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Connections)
             .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString())
-            .WithEnvironment("GitHub__WebAddress", FakeGitHub.WebAddress)
+            .WithEnvironment("GitHub__WebAddress", GitHub.WebAddress)
             .WithEnvironment("GitHub__DeliverySweepInterval", QuickDeliverySweeps.ToString());
 
         App = await builder.BuildAsync(cancellation.Token);
@@ -64,12 +65,40 @@ public sealed class SofaApp : IAsyncLifetime
 
     public Task<FreshInstallation> SetUp => _setUp.Value;
 
+    public Task<CreatedGitHubApp> TheGitHubApp => _gitHubApp.Value;
+
+    public Task<Guid> BeaAddedByHerGitHubLogin => _beaAdded.Value;
+
     private readonly Lazy<Task<FreshInstallation>> _setUp;
+    private readonly Lazy<Task<CreatedGitHubApp>> _gitHubApp;
+    private readonly Lazy<Task<Guid>> _beaAdded;
 
     public SofaApp()
     {
         _setUp = new(() => FreshInstallation.SetUpAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
+        _gitHubApp = new(() => CreatedGitHubApp.CreateAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
+        _beaAdded = new(AddBeaAsync, LazyThreadSafetyMode.ExecutionAndPublication);
     }
+
+    public async Task<WebClientSignIn> AdaSignedInAsync(CancellationToken cancellation)
+    {
+        var ada = (await SetUp).FirstUser;
+        var browser = new WebClientSignIn(AddressOf(SofaServices.AppGateway));
+        await browser.SignInAsync(ada.Email, ada.Password, cancellation);
+        return browser;
+    }
+
+    private async Task<Guid> AddBeaAsync()
+    {
+        var workspaceId = (await SetUp).FirstUser.WorkspaceId;
+        using var ada = await AdaSignedInAsync(CancellationToken.None);
+        using var added = await ada.PostAsJsonAsync(
+            $"/api/workspaces/{workspaceId}/users", new { gitHubLogin = FakeGitHub.Bea.Login }, CancellationToken.None);
+        added.EnsureSuccessStatusCode();
+        return (await added.Content.ReadFromJsonAsync<AddedUser>())!.UserId;
+    }
+
+    private sealed record AddedUser(Guid UserId);
 
     public async ValueTask DisposeAsync()
     {
