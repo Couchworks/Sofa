@@ -45,7 +45,22 @@ public static class GitHubAppEndpoints
             .WithName("GetConnections")
             .WithSummary("The Workspace's Connections to outside systems.");
 
+        workspace.MapGet("/connections/{connectionId:guid}/repositories", RepositoriesOf)
+            .WithName("GetConnectionRepositories")
+            .WithSummary("The Repositories a Connection reaches, to bind a Project to.")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         return workspace;
+    }
+
+    private static async Task<Results<Ok<List<ConnectionRepository>>, ProblemHttpResult>> RepositoriesOf(
+        Guid connectionId, SignedInAdmin admin, ConnectionsClient connections, CancellationToken cancellation)
+    {
+        var answer = await connections.RepositoriesOf(admin.WorkspaceId, connectionId, cancellation);
+        return answer.Value is { } repositories
+            ? TypedResults.Ok(repositories)
+            : TypedResults.Problem(statusCode: answer.Status, title: answer.Problem);
     }
 
     public static IEndpointRouteBuilder MapGitHubAppReturns(this IEndpointRouteBuilder endpoints)

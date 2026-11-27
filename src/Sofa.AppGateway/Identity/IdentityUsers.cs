@@ -41,6 +41,28 @@ public sealed class IdentityUsers(HttpClient identity)
         using var response = await identity.PostAsJsonAsync($"/workspaces/{workspaceId}/users", added, cancellation);
         return await IdentityAnswer<UserAdded>.ReadAsync(response, cancellation);
     }
+
+    public async Task<List<WorkspaceTeam>> TeamsOfAsync(Guid workspaceId, CancellationToken cancellation) =>
+        (await identity.GetFromJsonAsync<List<WorkspaceTeam>>($"/workspaces/{workspaceId}/teams", cancellation))!;
+
+    public async Task<WorkspaceTeam?> TheWorkspacesTeamAsync(Guid workspaceId, CancellationToken cancellation) =>
+        (await TeamsOfAsync(workspaceId, cancellation)).FirstOrDefault();
+
+    public async Task<List<WorkspaceMember>> UsersOfAsync(Guid workspaceId, CancellationToken cancellation) =>
+        (await identity.GetFromJsonAsync<List<WorkspaceMember>>($"/workspaces/{workspaceId}/users", cancellation))!;
+
+    public async Task<ServiceAnswer<object>> AddToTeamAsync(Guid workspaceId, Guid teamId, Guid userId, CancellationToken cancellation)
+    {
+        using var response = await identity.PostAsJsonAsync(
+            $"/workspaces/{workspaceId}/teams/{teamId}/users", new TeamMemberToAdd(userId), cancellation);
+        return await ServiceAnswer<object>.ReadAsync(response, cancellation);
+    }
+
+    public async Task<ServiceAnswer<object>> RemoveFromTeamAsync(Guid workspaceId, Guid teamId, Guid userId, CancellationToken cancellation)
+    {
+        using var response = await identity.DeleteAsync($"/workspaces/{workspaceId}/teams/{teamId}/users/{userId}", cancellation);
+        return await ServiceAnswer<object>.ReadAsync(response, cancellation);
+    }
 }
 
 public sealed record IdentityAnswer<T>(T? Value, int Status, string? Problem)
