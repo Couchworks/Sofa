@@ -25,7 +25,7 @@ _Avoid_: Person, member, account
 ### Work
 
 **Request**:
-A ticket in an outside system, such as a GitHub issue or a Jira issue, brought in through a Provider. Sofa reads it and posts Reports back to it; it never holds Sofa's working state.
+A ticket in an outside system, such as a GitHub issue or a Jira issue, brought in through a Provider when a User marks it for Sofa (such as with a label) or imports it. The User who marked it is its delegating User, when their outside account is linked to one. Sofa reads it and posts Reports back to it, and may keep its state there, such as labels for the Phase it is in; it never holds Sofa's working state.
 _Avoid_: Ticket (for the outside one), issue, external ticket
 
 **Work Item**:
@@ -53,7 +53,7 @@ Sofa making the child Work Items, and the Blocks between them, that an approved 
 _Avoid_: Breakdown, decomposition, sub-tasking
 
 **Finding**:
-One issue a Review Run raises on a Work Item's work, settled by the Review's triage as **fix** (the Work Item goes back to Implement, as a round), **follow-up** (a new Work Item, waiting in its Delegating User's Inbox) or **dismiss** (with the reason kept).
+One issue a Review Run raises on a Work Item's work, settled by the Review's triage as **fix** (the Work Item goes back to Implement, as a round), **follow-up** (new work: a Work Item in Sofa under the Autonomous Validation mode, or else a new Request filed in the Request Provider, marked as waiting for a User, as the Project sets) or **dismiss** (with the reason kept).
 _Avoid_: Comment, issue, remark, defect
 
 **Validation guide**:
@@ -87,6 +87,10 @@ _Avoid_: Autonomy level, auto mode
 **Integration branch**:
 The branch where a Request's Work Items come together before they reach the main branch, with a Preview of its own.
 _Avoid_: Feature branch, staging branch
+
+**Question**:
+What a Run asks a User when it can't go on, ending the Run. The answer, given in Sofa's Inbox or in reply to Sofa's comment on the Request by someone linked to a User with access to the Project, starts a new Run of the same Phase. Runs never wait for an answer.
+_Avoid_: Prompt, clarification, blocker
 
 **Report**:
 What Sofa posts back to a Request when a Phase ends: a summary, such as the plan agreed or the decisions made, with a link to the full detail.
