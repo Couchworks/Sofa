@@ -41,8 +41,24 @@ One stage of a Flow: a Pattern, the Agents cast in it, its Gate and its Sandbox.
 _Avoid_: Step, stage, column
 
 **Pattern**:
-The shape in which Agents work together inside a Phase, chosen from a fixed set: Solo, Panel, Synthesis, Discussion, Split, and Review-and-triage. A Pattern goes on only once every Run it asks for has made its Contribution: Runs waiting for a Runner run later, one after another if need be, and a failed Run is retried up to its retry limit, after which the Work Item waits for a User.
+The shape in which Agents work together inside a Phase, chosen from a fixed set: Solo, Panel, Synthesis, Discussion and Review-and-triage. A Pattern goes on only once every Run it asks for has made its Contribution: Runs waiting for a Runner run later, one after another if need be, and a failed Run is retried up to its retry limit, after which the Work Item waits for a User.
 _Avoid_: Strategy, template, mode
+
+**Track**:
+How much of the Flow a Request goes through, chosen by Triage and changed by a User at will: **Small** (no Spec, a plan by one Agent, no Approve Gate on it) or **Full** (every Phase).
+_Avoid_: Size, lane, mode
+
+**Split**:
+Sofa making the child Work Items, and the Blocks between them, that an approved plan lists. It is no agent's work: the plan's synthesis lists them, and approving the plan makes them.
+_Avoid_: Breakdown, decomposition, sub-tasking
+
+**Finding**:
+One issue a Review Run raises on a Work Item's work, settled by the Review's triage as **fix** (the Work Item goes back to Implement, as a round), **follow-up** (a new Work Item, waiting in its Delegating User's Inbox) or **dismiss** (with the reason kept).
+_Avoid_: Comment, issue, remark, defect
+
+**Validation guide**:
+What the Showcase Phase writes for Validation: what changed, where to look in the Preview, a screenshot per acceptance criterion of the spec, and links to the code.
+_Avoid_: Demo, release notes, walkthrough
 
 **Gate**:
 What a Phase does when it ends: **Auto** (go straight on), **Approve** (wait for a User before going on) or **Review afterwards** (go on, and leave the result Unverified until a User looks).
@@ -121,7 +137,7 @@ Final, agreed material that every User should find without Sofa, such as accepte
 _Avoid_: Docs, wiki, documentation
 
 **Publish**:
-Sofa handing a proposal from the Working Record to a Knowledge Provider once it is agreed, such as an accepted decision or a new Term.
+Sofa handing a proposal from the Working Record to a Knowledge Provider once it is agreed, such as an accepted decision or a new Term. A decision a plan marks as new is Published when a User approves the plan with it unchanged; any other waits in the Inbox for its own acceptance.
 _Avoid_: Export, sync, promote
 
 **Usage**:
