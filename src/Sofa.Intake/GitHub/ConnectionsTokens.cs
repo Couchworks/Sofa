@@ -9,11 +9,20 @@ public sealed class ConnectionsTokens(HttpClient connections)
 
     private static readonly IReadOnlyDictionary<string, string> WritesIssues = new Dictionary<string, string> { ["issues"] = "write" };
 
-    public async Task<string> ToWriteIssuesOfAsync(Guid connectionId, string repository, CancellationToken cancellation)
+    private static readonly IReadOnlyDictionary<string, string> ReadsIssues = new Dictionary<string, string> { ["issues"] = "read" };
+
+    public Task<string> ToWriteIssuesOfAsync(Guid connectionId, string repository, CancellationToken cancellation) =>
+        TokenAsync(connectionId, repository, WritesIssues, cancellation);
+
+    public Task<string> ToReadIssuesOfAsync(Guid connectionId, string repository, CancellationToken cancellation) =>
+        TokenAsync(connectionId, repository, ReadsIssues, cancellation);
+
+    private async Task<string> TokenAsync(
+        Guid connectionId, string repository, IReadOnlyDictionary<string, string> permissions, CancellationToken cancellation)
     {
         var name = repository[(repository.IndexOf('/') + 1)..];
         using var response = await connections.PostAsJsonAsync(
-            $"/connections/{connectionId}/installation-tokens", new InstallationTokenRequest([name], WritesIssues), cancellation);
+            $"/connections/{connectionId}/installation-tokens", new InstallationTokenRequest([name], permissions), cancellation);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<InstallationToken>(cancellation))!.Token;
     }
