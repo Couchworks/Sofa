@@ -22,7 +22,7 @@ public sealed class TranscriptToRecords : IAsyncDisposable
         _sent = SendAsTheyComeAsync();
     }
 
-    public void Add(string line) => _lines.Writer.TryWrite(line);
+    public void Add(string line) => _lines.Writer.TryWrite(SecretScrubbing.ScrubLine(line));
 
     public async ValueTask DisposeAsync()
     {

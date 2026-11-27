@@ -24,7 +24,7 @@ public static class RunEndpoints
 
         workspace.MapGet("/runs/{runId:guid}/transcript", GetTranscript)
             .WithName("GetTranscript")
-            .WithSummary("The Run's Transcript as it arrived, line by line; `after` skips the lines already read.")
+            .WithSummary("The Run's Transcript: its messages and tool calls in order, with known secrets scrubbed; `after` skips the lines already read.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         workspace.MapPost("/runs/{runId:guid}/retry", RetryRun)

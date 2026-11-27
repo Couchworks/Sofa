@@ -9,7 +9,7 @@ public sealed class RecordsDb(DbContextOptions<RecordsDb> options) : DbContext(o
 {
     public static readonly string Schema = SofaServices.SchemaOf(SofaServices.Records);
 
-    public DbSet<StoredTranscriptLine> TranscriptLines => Set<StoredTranscriptLine>();
+    public DbSet<StoredTranscriptEntry> TranscriptEntries => Set<StoredTranscriptEntry>();
 
     public static void Configure(DbContextOptionsBuilder options, NpgsqlDataSource dataSource) =>
         options.UseNpgsql(dataSource, MigrationsInOwnSchema).UseSnakeCaseNamingConvention();
@@ -24,11 +24,16 @@ public sealed class RecordsDb(DbContextOptions<RecordsDb> options) : DbContext(o
     {
         model.HasDefaultSchema(Schema);
 
-        model.Entity<StoredTranscriptLine>(line =>
+        model.Entity<StoredTranscriptEntry>(entry =>
         {
-            line.ToTable("transcript_lines");
-            line.HasKey(l => new { l.RunId, l.Number });
-            line.HasIndex(l => new { l.WorkspaceId, l.RunId });
+            entry.ToTable("transcript_entries");
+            entry.HasKey(e => new { e.RunId, e.Line, e.Part });
+            entry.Property(e => e.Role).HasConversion<string>().HasMaxLength(20);
+            entry.Property(e => e.ToolUseId).HasMaxLength(200);
+            entry.Property(e => e.ToolName).HasMaxLength(200);
+            entry.Property(e => e.ToolInput).HasColumnType("jsonb");
+            entry.HasIndex(e => new { e.WorkspaceId, e.RunId });
+            entry.HasIndex(e => new { e.RunId, e.ToolUseId });
         });
     }
 }
