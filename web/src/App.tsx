@@ -11,7 +11,12 @@ export default function App({ location = window.location }: { location?: Pick<Lo
     case setupPath:
       return <SetupPage />
     case signInPath:
-      return <SignInPage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />
+      return (
+        <SignInPage
+          returnUrl={new URLSearchParams(location.search).get('returnUrl')}
+          problem={new URLSearchParams(location.search).get('problem')}
+        />
+      )
     case signedInPath:
       return <SignedInPage />
     default:

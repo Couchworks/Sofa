@@ -1,6 +1,8 @@
 using Sofa.AppGateway;
 using Sofa.AppGateway.Admins;
 using Sofa.AppGateway.Connections;
+using Sofa.AppGateway.GitHubReturns;
+using Sofa.AppGateway.Identity;
 using Sofa.Contracts;
 using Sofa.Contracts.Connections;
 using Wolverine.RabbitMQ;
@@ -19,10 +21,12 @@ builder.AcceptTokensFor(SofaServices.AppGateway);
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddHttpClient<IdentityUsers>(identity =>
-    identity.BaseAddress = new Uri($"http://{SofaServices.Identity}"));
-builder.Services.AddSingleton<IFindSignedInAdmin, EveryoneIsAdminOfOneWorkspaceUntilSignIn>();
+builder.Services.AddHttpClient<IdentityUsers>(identity => identity.BaseAddress = IdentityUsers.Address);
+builder.Services.AddScoped<WorkspaceAdmins>();
+builder.Services.AddScoped<IFindSignedInAdmin, AdminOfTheWorkspaceInTheRoute>();
 builder.Services.AddHttpClient<ConnectionsClient>(http => http.BaseAddress = ConnectionsClient.Address);
+builder.Services.AddOptions<GitHubReturnOptions>().BindConfiguration(GitHubReturnOptions.Section);
+builder.Services.AddSingleton<GitHubReturnStates>();
 
 builder.Services.AddReverseProxy()
     .LoadFromMemory(IdentityRoutes.Routes, IdentityRoutes.Clusters)
@@ -44,9 +48,10 @@ var api = app.MapGroup("/api");
 api.MapStatus();
 api.MapSignedInUser();
 
-var admins = app.MapAdminsOnly();
-admins.MapGroup("/api").MapGitHubAppApi();
-admins.MapGitHubAppReturns();
+app.MapAdminsOnly()
+    .MapGitHubAppApi()
+    .MapWorkspaceUsers();
+app.MapGitHubAppReturns();
 
 app.MapReverseProxy();
 

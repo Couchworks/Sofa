@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { goTo } from '@/lib/navigation'
 import { sendManifestToGitHub } from './sendManifestToGitHub'
 
 type GitHubAppStatus = components['schemas']['GitHubAppStatus']
 type NewGitHubApp = { organisation: string; name: string }
 
-export function GitHubAppCard() {
-  const app = api.useQuery('get', '/api/github-app')
+export function GitHubAppCard({ workspaceId }: { workspaceId: string }) {
+  const app = api.useQuery('get', '/api/workspaces/{workspaceId}/github-app', { params: { path: { workspaceId } } })
 
   return (
     <Card>
@@ -34,12 +35,21 @@ export function GitHubAppCard() {
           <Badge variant="destructive">Unreachable</Badge>
         </CardContent>
       )}
-      {app.data && (app.data.created ? <CreatedApp app={app.data} /> : <NewApp app={app.data} />)}
+      {app.data &&
+        (app.data.created ? (
+          <CreatedApp app={app.data} workspaceId={workspaceId} />
+        ) : (
+          <NewApp app={app.data} workspaceId={workspaceId} />
+        ))}
     </Card>
   )
 }
 
-function CreatedApp({ app }: { app: GitHubAppStatus }) {
+function CreatedApp({ app, workspaceId }: { app: GitHubAppStatus; workspaceId: string }) {
+  const installation = api.useMutation('post', '/api/workspaces/{workspaceId}/github-app/installations', {
+    onSuccess: ({ installUrl }) => goTo(installUrl),
+  })
+
   return (
     <>
       <CardContent className="flex items-center justify-between gap-2">
@@ -48,23 +58,36 @@ function CreatedApp({ app }: { app: GitHubAppStatus }) {
         </a>
         <Badge>Created</Badge>
       </CardContent>
-      {app.installUrl && (
-        <CardFooter>
-          <Button nativeButton={false} render={<a href={app.installUrl} />}>
-            Install on GitHub
-          </Button>
-        </CardFooter>
+      {installation.isError && (
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTitle>{installation.error?.title ?? 'The installation couldn’t be started'}</AlertTitle>
+          </Alert>
+        </CardContent>
       )}
+      <CardFooter>
+        <Button
+          disabled={installation.isPending}
+          onClick={() => installation.mutate({ params: { path: { workspaceId } } })}
+        >
+          Install on GitHub
+        </Button>
+      </CardFooter>
     </>
   )
 }
 
-function NewApp({ app }: { app: GitHubAppStatus }) {
+function NewApp({ app, workspaceId }: { app: GitHubAppStatus; workspaceId: string }) {
   const { register, handleSubmit } = useForm<NewGitHubApp>({ defaultValues: { organisation: '', name: '' } })
-  const creation = api.useMutation('post', '/api/github-app/creations', { onSuccess: sendManifestToGitHub })
+  const creation = api.useMutation('post', '/api/workspaces/{workspaceId}/github-app/creations', {
+    onSuccess: sendManifestToGitHub,
+  })
 
   const create = handleSubmit(({ organisation, name }) =>
-    creation.mutate({ body: { organisation: organisation.trim() || null, name: name.trim() || null } }),
+    creation.mutate({
+      params: { path: { workspaceId } },
+      body: { organisation: organisation.trim() || null, name: name.trim() || null },
+    }),
   )
 
   return (

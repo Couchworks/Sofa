@@ -53,13 +53,62 @@
         }
       }
     },
-    "/api/github-app": {
+    "/api/me/github-link": {
+      "post": {
+        "tags": [
+          "SignedInUserEndpoints"
+        ],
+        "summary": "Where to send the browser to link the signed-in User's GitHub account, through GitHub.",
+        "operationId": "StartGitHubLink",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubLink"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/github-app": {
       "get": {
         "tags": [
           "Sofa.AppGateway"
         ],
-        "summary": "Whether Sofa's GitHub App has been created, and where to install it.",
+        "summary": "Whether Sofa's GitHub App has been created.",
         "operationId": "GetGitHubApp",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "The Workspace the signed-in User is an Admin of.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -80,17 +129,39 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/github-app/creations": {
+    "/api/workspaces/{workspaceId}/github-app/creations": {
       "post": {
         "tags": [
           "GitHubAppEndpoints"
         ],
         "summary": "The form that sends the GitHub App's manifest to GitHub, to create the App there.",
         "operationId": "StartGitHubAppCreation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "The Workspace the signed-in User is an Admin of.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -122,6 +193,16 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Conflict",
             "content": {
@@ -135,13 +216,88 @@
         }
       }
     },
-    "/api/connections": {
+    "/api/workspaces/{workspaceId}/github-app/installations": {
+      "post": {
+        "tags": [
+          "GitHubAppEndpoints"
+        ],
+        "summary": "Where to send the browser to install Sofa's GitHub App on an organisation or account.",
+        "operationId": "StartGitHubAppInstallation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "The Workspace the signed-in User is an Admin of.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubAppInstallation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/connections": {
       "get": {
         "tags": [
           "Sofa.AppGateway"
         ],
         "summary": "The Workspace's Connections to outside systems.",
         "operationId": "GetConnections",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "The Workspace the signed-in User is an Admin of.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -165,6 +321,99 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/users": {
+      "post": {
+        "tags": [
+          "WorkspaceUserEndpoints"
+        ],
+        "summary": "Adds someone to the Workspace by their GitHub login; they sign in with GitHub to join.",
+        "operationId": "AddUserByGitHubLogin",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "The Workspace the signed-in User is an Admin of.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddUserByGitHubLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAdded"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -172,6 +421,17 @@
   },
   "components": {
     "schemas": {
+      "AddUserByGitHubLogin": {
+        "required": [
+          "gitHubLogin"
+        ],
+        "type": "object",
+        "properties": {
+          "gitHubLogin": {
+            "type": "string"
+          }
+        }
+      },
       "ConnectionSummary": {
         "required": [
           "id",
@@ -220,6 +480,17 @@
           }
         }
       },
+      "GitHubAppInstallation": {
+        "required": [
+          "installUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "installUrl": {
+            "type": "string"
+          }
+        }
+      },
       "GitHubAppStatus": {
         "required": [
           "created",
@@ -257,6 +528,17 @@
           },
           "gitHubCanReachPublicAddress": {
             "type": "boolean"
+          }
+        }
+      },
+      "GitHubLink": {
+        "required": [
+          "authorizeUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "authorizeUrl": {
+            "type": "string"
           }
         }
       },
@@ -339,11 +621,28 @@
           }
         }
       },
+      "UserAdded": {
+        "required": [
+          "userId",
+          "gitHubLogin"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gitHubLogin": {
+            "type": "string"
+          }
+        }
+      },
       "UserProfile": {
         "required": [
           "id",
           "name",
           "email",
+          "gitHubLogin",
           "workspaces"
         ],
         "type": "object",
@@ -356,7 +655,16 @@
             "type": "string"
           },
           "email": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gitHubLogin": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "workspaces": {
             "type": "array",
@@ -416,7 +724,13 @@
       "name": "GitHubAppEndpoints"
     },
     {
+      "name": "SignedInUserEndpoints"
+    },
+    {
       "name": "Sofa.AppGateway"
+    },
+    {
+      "name": "WorkspaceUserEndpoints"
     }
   ]
 }

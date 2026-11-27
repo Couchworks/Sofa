@@ -15,6 +15,12 @@ public static class GitHubInstallationHandler
         ILogger<AddGitHubInstallation> logger,
         CancellationToken cancellation)
     {
+        if (!await GitHubReturns.UseOnce(command.StartedBy, db, time, cancellation))
+        {
+            return new GitHubInstallationAdded(null, GitHubReturns.AlreadyUsed);
+        }
+
+        var workspaceId = command.StartedBy.WorkspaceId;
         var app = await access.FindApp(cancellation);
         if (app is null)
         {
@@ -34,7 +40,7 @@ public static class GitHubInstallationHandler
 
         var connection = await db.Connections.SingleOrDefaultAsync(
             c => c.GitHubInstallationId == installation.Id, cancellation);
-        if (connection is not null && connection.WorkspaceId != command.WorkspaceId)
+        if (connection is not null && connection.WorkspaceId != workspaceId)
         {
             return new GitHubInstallationAdded(null, "That installation is already a Connection of another Workspace.");
         }
@@ -44,7 +50,7 @@ public static class GitHubInstallationHandler
             connection = new Connection
             {
                 Id = Guid.CreateVersion7(),
-                WorkspaceId = command.WorkspaceId,
+                WorkspaceId = workspaceId,
                 GitHubInstallationId = installation.Id,
                 Account = installation.Account.Login,
                 AccountType = installation.Account.Type,
@@ -53,7 +59,7 @@ public static class GitHubInstallationHandler
             db.Connections.Add(connection);
             logger.LogInformation(
                 "Installation {InstallationId} on {Account} is now Connection {ConnectionId} of Workspace {WorkspaceId}",
-                installation.Id, installation.Account.Login, connection.Id, command.WorkspaceId);
+                installation.Id, installation.Account.Login, connection.Id, workspaceId);
         }
 
         connection.Account = installation.Account.Login;

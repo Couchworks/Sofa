@@ -32,6 +32,18 @@ export async function isSetupNeeded() {
   return needed
 }
 
+export async function isGitHubSignInAvailable() {
+  const response = await fetch('/account/github')
+  if (!response.ok) return false
+  const { available } = (await response.json()) as { available: boolean }
+  return available
+}
+
+export function gitHubSignInUrl(returnUrl: string | null) {
+  const safe = safeReturnUrl(returnUrl)
+  return safe === '/' ? '/account/github/sign-in' : `/account/github/sign-in?returnUrl=${encodeURIComponent(safe)}`
+}
+
 export function setUp(form: SetupForm) {
   return post<keyof SetupForm>('/account/setup', form)
 }

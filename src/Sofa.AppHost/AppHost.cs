@@ -21,6 +21,11 @@ var keyEncryptionKey = builder.AddParameter(
     new GenerateParameterDefault { MinLength = 48, Special = false },
     secret: true,
     persist: true);
+var gitHubReturnSigningKey = builder.AddParameter(
+    "app-gateway-github-return-signing-key",
+    new GenerateParameterDefault { MinLength = 48, Special = false },
+    secret: true,
+    persist: true);
 var configuredPublicAddress = builder.Configuration[SofaAppHostSettings.PublicAddress];
 
 IResourceBuilder<DotnetProjectResource> AddService(string name, string project) =>
@@ -35,7 +40,8 @@ var web = builder.AddViteApp("web", "../../web")
 var appGateway = AddService(SofaServices.AppGateway, "Sofa.AppGateway")
     .WithReference(web.GetEndpoint("http"))
     .WithExternalHttpEndpoints()
-    .PublishWithContainerFiles(web, "wwwroot");
+    .PublishWithContainerFiles(web, "wwwroot")
+    .WithEnvironment("GitHubReturns__SigningKey", gitHubReturnSigningKey);
 
 var publicAddress = new PublicAddress(configuredPublicAddress, appGateway);
 
@@ -44,6 +50,7 @@ var connections = AddService(SofaServices.Connections, "Sofa.Connections")
     .WithEnvironment(publicAddress.TellConnections);
 
 var identity = AddService(SofaServices.Identity, "Sofa.Identity")
+    .WithReference(connections)
     .WithEnvironment(publicAddress.TellWebClientOrigins)
     .WithEnvironment(publicAddress.TellIssuer)
     .WithEnvironment("Identity__ExecutionClientSecret", executionClientSecret);

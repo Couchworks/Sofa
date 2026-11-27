@@ -24,6 +24,9 @@ public sealed class GitHubAppAccess(ConnectionsDb db, ICredentialVault vault, Ti
     public ValueTask<string> WebhookSecret(GitHubApp app, CancellationToken cancellation) =>
         vault.Open(app.SealedWebhookSecret, WebhookSecretOf(app.Id), cancellation);
 
+    public ValueTask<string> ClientSecret(GitHubApp app, CancellationToken cancellation) =>
+        vault.Open(app.SealedClientSecret, ClientSecretOf(app.Id), cancellation);
+
     public async Task<GitHubApp> Keep(ConvertedManifest converted, CancellationToken cancellation)
     {
         var app = new GitHubApp

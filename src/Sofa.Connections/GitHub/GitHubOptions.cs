@@ -11,6 +11,4 @@ public sealed class GitHubOptions
     public TimeSpan DeliverySweepInterval { get; set; } = TimeSpan.FromMinutes(5);
 
     public TimeSpan DeliveriesKeptByGitHub { get; set; } = TimeSpan.FromDays(3);
-
-    public TimeSpan GitHubAppCreationLifetime { get; set; } = TimeSpan.FromHours(1);
 }

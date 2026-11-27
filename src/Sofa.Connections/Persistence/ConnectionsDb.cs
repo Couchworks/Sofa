@@ -12,7 +12,7 @@ public sealed partial class ConnectionsDb(DbContextOptions<ConnectionsDb> option
 
     public DbSet<GitHubApp> GitHubApps => Set<GitHubApp>();
 
-    public DbSet<GitHubAppCreation> GitHubAppCreations => Set<GitHubAppCreation>();
+    public DbSet<UsedGitHubReturn> UsedGitHubReturns => Set<UsedGitHubReturn>();
 
     public DbSet<Connection> Connections => Set<Connection>();
 
@@ -28,7 +28,11 @@ public sealed partial class ConnectionsDb(DbContextOptions<ConnectionsDb> option
             app.Property(a => a.Id).ValueGeneratedNever();
         });
 
-        model.Entity<GitHubAppCreation>().HasKey(c => c.State);
+        model.Entity<UsedGitHubReturn>(used =>
+        {
+            used.HasKey(u => u.Nonce);
+            used.HasIndex(u => u.ExpiresAt);
+        });
 
         model.Entity<Connection>(connection =>
         {

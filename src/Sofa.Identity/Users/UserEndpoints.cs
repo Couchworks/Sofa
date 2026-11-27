@@ -35,7 +35,7 @@ public static class UserEndpoints
             orderby team.Name
             select new { team.WorkspaceId, team.Id, team.Name }).ToListAsync(cancellation);
 
-        return new UserProfile(user.Id, user.Name, user.Email, workspaces
+        return new UserProfile(user.Id, user.Name, user.Email, user.GitHubLogin, workspaces
             .Select(w => new UserWorkspace(w.Id, w.Name, w.IsAdmin, teams
                 .Where(t => t.WorkspaceId == w.Id)
                 .Select(t => new UserTeam(t.Id, t.Name))
