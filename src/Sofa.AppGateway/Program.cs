@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Sofa.AppGateway;
 using Sofa.AppGateway.Admins;
 using Sofa.AppGateway.Connections;
@@ -18,6 +19,12 @@ builder.AddSofaMessaging(SofaServices.AppGateway, options =>
 });
 builder.AcceptTokensFor(SofaServices.AppGateway);
 
+builder.Services.Configure<ForwardedHeadersOptions>(theTunnelOrProxyInFront =>
+{
+    theTunnelOrProxyInFront.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    theTunnelOrProxyInFront.KnownIPNetworks.Clear();
+    theTunnelOrProxyInFront.KnownProxies.Clear();
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -36,6 +43,7 @@ var proxiesWebClient = builder.Configuration.GetSection("ReverseProxy:Routes:web
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseRouting();
 app.UseAuthentication();
