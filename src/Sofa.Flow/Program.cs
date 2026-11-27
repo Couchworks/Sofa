@@ -5,6 +5,7 @@ using Sofa.Contracts.Diagnostics;
 using Sofa.Contracts.Execution;
 using Sofa.Contracts.Flow;
 using Sofa.Contracts.Identity;
+using Sofa.Contracts.Intake;
 using Sofa.Flow.Agents;
 using Sofa.Flow.Data;
 using Sofa.Flow.Diagnostics;
@@ -22,10 +23,11 @@ builder.AddSofaMessaging(SofaServices.Flow, options =>
     options.PublishMessage<Ping>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<RegisterAgent>().ToRabbitQueue(SofaServices.Identity);
     options.PublishMessage<StartRun>().ToRabbitQueue(SofaServices.Execution);
+    options.PublishMessage<AskOnRequest>().ToRabbitQueue(SofaServices.Intake);
     options.PublishEvent<ProjectBound>(SofaEvents.ProjectBound);
     options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
     options.CodeGeneration.AlwaysUseServiceLocationFor<FlowDb>();
-}, eventsSubscribedTo: [SofaEvents.QuestionAnsweredOnRequest]);
+}, eventsSubscribedTo: [SofaEvents.QuestionAnsweredOnRequest, SofaEvents.RunEnded]);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
