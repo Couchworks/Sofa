@@ -7,16 +7,13 @@ using Sofa.Contracts;
 
 namespace Sofa.IntegrationTests;
 
-/// <summary>
-/// The whole of Sofa started once for the test run by Aspire's test host: every service,
-/// the web client, and real Postgres and RabbitMQ in containers.
-/// </summary>
 public sealed class SofaApp : IAsyncLifetime
 {
     private static readonly TimeSpan StartTimeout = TimeSpan.FromMinutes(5);
 
-    /// <summary>Set to 1 to see every resource's own output, as CI does.</summary>
     private const string ShowResourceLogs = "SOFA_TEST_RESOURCE_LOGS";
+    private const string HealthChecksFailingUntilContainersStart = "Microsoft.Extensions.Diagnostics.HealthChecks";
+    private const string ResourceOutputWithStderrAsErrors = "Sofa.AppHost.Resources";
 
     public DistributedApplication App { get; private set; } = null!;
 
@@ -28,13 +25,10 @@ public sealed class SofaApp : IAsyncLifetime
         builder.Services.AddLogging(logging =>
         {
             logging.AddFilter(level => level >= LogLevel.Warning);
-            // The app host's checks on Postgres and RabbitMQ fail until both have started; a check that
-            // never passes shows as a test timing out instead.
-            logging.AddFilter("Microsoft.Extensions.Diagnostics.HealthChecks", LogLevel.None);
-            // Resources' output arrives as errors whenever it goes to stderr, as Postgres's and npm's does.
+            logging.AddFilter(HealthChecksFailingUntilContainersStart, LogLevel.None);
             if (Environment.GetEnvironmentVariable(ShowResourceLogs) != "1")
             {
-                logging.AddFilter("Sofa.AppHost.Resources", LogLevel.None);
+                logging.AddFilter(ResourceOutputWithStderrAsErrors, LogLevel.None);
             }
         });
 

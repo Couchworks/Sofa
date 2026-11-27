@@ -3,7 +3,6 @@ using Sofa.Contracts;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// One Postgres database with a schema per service (ADR 0014), and RabbitMQ for Wolverine (ADR 0013).
 var postgres = builder.AddPostgres("postgres");
 var database = postgres.AddDatabase("sofa");
 var rabbitmq = builder.AddRabbitMQ("rabbitmq").WithManagementPlugin();

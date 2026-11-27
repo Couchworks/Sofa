@@ -8,17 +8,10 @@ using Wolverine.RabbitMQ;
 
 namespace Microsoft.Extensions.Hosting;
 
-/// <summary>
-/// Wolverine as every Sofa service uses it (ADRs 0013, 0014, 0023): RabbitMQ as the broker, an inbox
-/// and outbox in the service's own Postgres schema, and one durable queue named after the service
-/// that takes the commands sent to it and the replies to what it sent.
-/// </summary>
 public static class Messaging
 {
-    /// <summary>The Aspire name of the Postgres database every service keeps its schema in.</summary>
     public const string DatabaseName = "sofa";
 
-    /// <summary>The Aspire name of the RabbitMQ broker.</summary>
     public const string BrokerName = "rabbitmq";
 
     public static TBuilder AddSofaMessaging<TBuilder>(
@@ -29,14 +22,7 @@ public static class Messaging
     {
         if (IsGeneratingOpenApiDocument)
         {
-            // Building the OpenAPI description at build time starts the host, without Postgres or RabbitMQ.
-            builder.UseWolverine(options =>
-            {
-                options.ServiceName = service;
-                options.Durability.Mode = DurabilityMode.MediatorOnly;
-                options.UseRuntimeCompilation();
-            });
-            return builder;
+            return builder.UseWolverineWithoutBrokerOrDatabase(service);
         }
 
         builder.AddNpgsqlDataSource(DatabaseName);
@@ -44,8 +30,7 @@ public static class Messaging
         builder.UseWolverine(options =>
         {
             options.ServiceName = service;
-            // Called from this shared library, Wolverine would look for handlers here; they live in the service.
-            options.ApplicationAssembly = Assembly.GetEntryAssembly();
+            options.ApplicationAssembly = ServiceAssemblyWithTheHandlers;
             options.UseRuntimeCompilation();
 
             options.PersistMessagesWithPostgresqlUsingDataSourceFromContainer(
@@ -66,6 +51,20 @@ public static class Messaging
 
         return builder;
     }
+
+    private static TBuilder UseWolverineWithoutBrokerOrDatabase<TBuilder>(this TBuilder builder, string service)
+        where TBuilder : IHostApplicationBuilder
+    {
+        builder.UseWolverine(options =>
+        {
+            options.ServiceName = service;
+            options.Durability.Mode = DurabilityMode.MediatorOnly;
+            options.UseRuntimeCompilation();
+        });
+        return builder;
+    }
+
+    private static Assembly? ServiceAssemblyWithTheHandlers => Assembly.GetEntryAssembly();
 
     private static bool IsGeneratingOpenApiDocument =>
         Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";

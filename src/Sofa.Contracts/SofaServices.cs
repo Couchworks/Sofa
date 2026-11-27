@@ -1,9 +1,5 @@
 namespace Sofa.Contracts;
 
-/// <summary>
-/// The names of the services of ADR 0012. Each name is the service's Aspire resource,
-/// its Wolverine service name and its own queue on the broker (ADR 0023).
-/// </summary>
 public static class SofaServices
 {
     public const string AppGateway = "app-gateway";
@@ -24,6 +20,5 @@ public static class SofaServices
         Flow, Execution, Records, Code, Knowledge, Notices,
     ];
 
-    /// <summary>The Postgres schema a service keeps its data and its outbox in (ADR 0014).</summary>
     public static string SchemaOf(string service) => service.Replace('-', '_');
 }

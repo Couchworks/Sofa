@@ -3,10 +3,6 @@ using Wolverine;
 
 namespace Sofa.Flow.Diagnostics;
 
-/// <summary>
-/// Starts a test message to Execution and reports whether its answer came back.
-/// Internal to the cluster: Flow has no external endpoint.
-/// </summary>
 public static class RoundTripEndpoints
 {
     public static IEndpointRouteBuilder MapRoundTrips(this IEndpointRouteBuilder endpoints)

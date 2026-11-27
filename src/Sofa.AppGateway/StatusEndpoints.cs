@@ -1,6 +1,5 @@
 namespace Sofa.AppGateway;
 
-/// <summary>Whether the App Gateway is up: the one endpoint the web client calls in slice 1.</summary>
 public static class StatusEndpoints
 {
     public static RouteGroupBuilder MapStatus(this RouteGroupBuilder api)
