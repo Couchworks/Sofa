@@ -130,6 +130,10 @@ _Avoid_: Permissions, allowlist, environment, policy
 How urgent a Request is: Urgent, High, Medium, Low or None. Its Work Items and their Runs inherit it.
 _Avoid_: Severity, importance, rank
 
+**Outcome**:
+How a Run that finishes says its Phase went, one of the few its Phase names, such as **small** or **full** for Triage's Track or **specified** for Spec. Flow moves the Work Item on by it; a Run that can't go on asks a Question instead.
+_Avoid_: Result, status, verdict
+
 **Contribution**:
 What a Run produces, such as a spec, a plan, a critique, a review finding, a screenshot or code. Later Runs read earlier Contributions; agents share context only this way.
 _Avoid_: Output, artifact, result, report
