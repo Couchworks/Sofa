@@ -75,6 +75,7 @@ app.MapAdminsOnly()
     .MapProjectsForAdmins();
 app.MapUsersOfTheWorkspaceOnly()
     .MapProjects()
+    .MapWorkItems()
     .MapRunners();
 app.MapGitHubAppReturns();
 
