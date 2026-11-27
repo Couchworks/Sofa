@@ -37,7 +37,7 @@ The ordered Phases a Project's Work Items go through, such as Spec, Plan, Implem
 _Avoid_: Pipeline, workflow, board
 
 **Phase**:
-One stage of a Flow: a Pattern, the Agents cast in it, and its Gate.
+One stage of a Flow: a Pattern, the Agents cast in it, its Gate and its Sandbox.
 _Avoid_: Step, stage, column
 
 **Pattern**:
@@ -87,7 +87,7 @@ A User's handing of a Request to the agents, after which its Flow runs without t
 _Avoid_: Assignment, dispatch, hand-off
 
 **Runner**:
-A set of credentials Sofa may start Runs with, for one vendor: an API key, or a subscription signed in on a Worker. A **personal** Runner spends one User's credentials and runs only the Runs of Requests that User delegated; a **team** Runner spends a Team's API key, for anyone in the Team.
+A set of credentials Sofa may start Runs with, for one vendor: an API key, or a subscription signed in on a Worker. A **personal** Runner spends one User's credentials and runs only the Runs of Requests that User delegated; a **team** Runner spends a Team's API key, for anyone in the Team. Each has its own limit on Runs at once; Runs beyond it wait, highest Priority first.
 _Avoid_: Provider, backend, engine
 
 **Worker**:
@@ -95,8 +95,16 @@ A place that executes Runs and claims them from Sofa: a container or pod that So
 _Avoid_: Executor, host, node, agent (for the machine)
 
 **Run**:
-One execution of one Agent on one Work Item within one Phase.
+One execution of one Agent on one Work Item within one Phase, making one Contribution: one plan of a Panel, one synthesis, one comment of a Discussion round.
 _Avoid_: Session, job, execution
+
+**Sandbox**:
+What a Run may reach: the network, the Repositories and what it may push, and the tools it may use without asking. A Phase picks one of a few built-in Sandboxes, such as read-only for a Review or pushing to its own branch for an Implement, which a Project may adjust.
+_Avoid_: Permissions, allowlist, environment, policy
+
+**Priority**:
+How urgent a Request is: Urgent, High, Medium, Low or None. Its Work Items and their Runs inherit it.
+_Avoid_: Severity, importance, rank
 
 **Contribution**:
 What a Run produces, such as a spec, a plan, a critique, a review finding, a screenshot or code. Later Runs read earlier Contributions; agents share context only this way.
