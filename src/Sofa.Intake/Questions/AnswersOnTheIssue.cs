@@ -41,6 +41,14 @@ public static class AnswersOnTheIssue
             var question = answering.Question;
             if (!answering.AlreadyAnsweredByThisComment)
             {
+                if (AnswerText.Of(commented.Body) is not { } answer)
+                {
+                    logger.LogInformation(
+                        "Took {Login}'s comment on {Repository}#{Number} for no answer: it only quotes or mentions",
+                        commented.By.Login, request.Repository, request.Number);
+                    continue;
+                }
+
                 var answerer = await identity.HolderWithAccessToTheWorkspacesProjectsAsync(workspaceId, commented.By.Id, cancellation);
                 if (answerer is null)
                 {
@@ -52,7 +60,7 @@ public static class AnswersOnTheIssue
 
                 question.AnsweredByCommentId = commented.CommentId;
                 question.AnsweredByUserId = answerer.UserId;
-                question.Answer = commented.Body;
+                question.Answer = answer;
                 question.AnsweredAt = time.GetUtcNow();
                 await db.SaveChangesAsync(cancellation);
                 logger.LogInformation("{Login} answered Question {QuestionId} on {Key} in reply on the issue",
