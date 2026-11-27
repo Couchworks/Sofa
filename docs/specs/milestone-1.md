@@ -1,6 +1,6 @@
 # Milestone 1: One agent, one Request
 
-**Status:** draft. Vocabulary follows `CONTEXT.md`; decisions are in `docs/adr/`.
+**Status:** agreed. Vocabulary follows `CONTEXT.md`; decisions are in `docs/adr/`.
 
 ## Goal
 
@@ -69,7 +69,7 @@ Each slice is built and shown working before the next one that depends on it. Sl
 - Projects with a key (such as `DEMO`), bound to a Request Provider (a Repository and its label) and a Code Provider (Repositories) through a Connection.
 - Every Project starts with milestone 1's Flow and its default Agents: Triager (Haiku), Lead (Opus), Builder (Opus). Agents' configuration (role, instructions, vendor, model) lives in Flow; editing it is a form in the web client.
 - Runners in Execution: a personal subscription Runner (its Worker volume and its sign-in state, never the sign-in itself), personal and team API key Runners (keys held by Connections), each with its limit on Runs at once.
-- Signing a subscription Runner in: see the open questions.
+- Signing a subscription Runner in, from a terminal on the box (see Settled).
 
 **Shown when:** a Project is bound to the test Repository, and the User has one Runner of each kind.
 
@@ -126,9 +126,9 @@ Each slice is built and shown working before the next one that depends on it. Sl
 
 **Shown when:** the demo runs end to end from the web client.
 
-## Open questions
+## Settled
 
-1. **Signing a subscription Runner in.** The prototype signed in by running `claude auth login` in a terminal attached to the container. Relaying that sign-in through Sofa's web client (showing the link, taking the code back) may count as Sofa intermediating the sign-in, which Anthropic's terms forbid. Proposal: milestone 1 signs in from a terminal on the box (`sofa runner login <runner>`), and a way through the web client waits until it is checked against the terms.
-2. **Who reviews code.** Without a Review Phase, the User reviews Implement's pull request on GitHub. Proposal: yes, for this milestone.
-3. **Repository layout.** Proposal: one repository, `src/` for the services and shared libraries, `web/` for the web client, `worker/` for the Worker image, `docs/` as now.
-4. **Tests.** Proposal: unit tests per service; integration tests through Aspire's test host with real Postgres and RabbitMQ; one end-to-end test of the demo against a stub Runner that plays back recorded Runs, so CI spends no tokens.
+1. **Signing a subscription Runner in.** Relaying the sign-in through Sofa's web client (showing the link, taking the code back) may count as Sofa intermediating it, which Anthropic's terms forbid. So in this milestone a User signs in from a terminal on the box (`sofa runner login <runner>`); a way through the web client waits until it is checked against the terms.
+2. **Who reviews code.** Without a Review Phase, the User reviews Implement's pull request on GitHub.
+3. **Repository layout.** One repository: `src/` for the services and shared libraries, `web/` for the web client, `worker/` for the Worker image, `docs/` as now.
+4. **Tests.** Unit tests per service; integration tests through Aspire's test host with real Postgres and RabbitMQ; one end-to-end test of the demo against a stub Runner that plays back recorded Runs, so CI spends no tokens.
