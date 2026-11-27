@@ -270,3 +270,26 @@ test('coming back from Identity finishes signing in and goes home', async () => 
 
   await waitFor(() => expect(navigation.replaceWith).toHaveBeenCalledWith('/'))
 })
+
+test('a Work Item’s address from a Report opens its Project', async () => {
+  const workspace = ada.workspaces[0].id
+  const fetch = answering({
+    '/api/me': () => Response.json(ada),
+    [`/api/workspaces/${workspace}/projects/DEMO`]: () =>
+      Response.json({
+        id: 'p1',
+        key: 'DEMO',
+        name: 'The demo',
+        requests: { connectionId: 'c1', repository: 'acme/demo', label: 'sofa', keepsIssueState: false },
+        code: { connectionId: 'c1', repositories: ['acme/demo'] },
+        phases: [],
+        agents: [],
+      }),
+    [`/api/workspaces/${workspace}/projects/DEMO/work-items`]: () => Response.json([]),
+  })
+
+  renderAt('/projects/DEMO/work-items/DEMO-1')
+
+  expect(await screen.findByText('The demo')).toBeDefined()
+  await waitFor(() => expect(requestTo(fetch, `/api/workspaces/${workspace}/projects/DEMO/work-items`)).toBeDefined())
+})
