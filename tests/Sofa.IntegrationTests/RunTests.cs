@@ -66,7 +66,7 @@ public class RunTests(SofaApp sofa)
         var runId = await StartTestRunAsync(halId, "Implement");
         var run = await RunUntilAsync(hal, runId, r => r.State == "Finished");
         var spent = (await RunnersSeenByAsync(ada)).Single(r => r.Id == run.RunnerId);
-        var init = (await TranscriptAsync(hal, runId)).First();
+        var init = (await WholeTranscriptAsync(hal, runId)).First();
 
         Assert.Equal("Team", spent.Owner.Kind);
         Assert.Equal(teamRunner.Owner.Id, spent.Owner.Id);
