@@ -17,6 +17,7 @@ public sealed class SofaApp : IAsyncLifetime
     private const string ResourceOutputWithStderrAsErrors = "Sofa.AppHost.Resources";
 
     private static readonly TimeSpan QuickDeliverySweeps = TimeSpan.FromSeconds(2);
+    private const string EachTestRunStartsFresh = "--Sofa:FreshDatabaseEachStart=true";
 
     public DistributedApplication App { get; private set; } = null!;
 
@@ -26,7 +27,8 @@ public sealed class SofaApp : IAsyncLifetime
     {
         using var cancellation = new CancellationTokenSource(StartTimeout);
         GitHub = await FakeGitHub.Start(cancellation.Token);
-        var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Sofa_AppHost>(cancellation.Token);
+        var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Sofa_AppHost>(
+            [EachTestRunStartsFresh], cancellation.Token);
 
         builder.Services.AddLogging(logging =>
         {
