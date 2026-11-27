@@ -15,4 +15,7 @@
     <Project Path="src/Sofa.Records/Sofa.Records.csproj" />
     <Project Path="src/Sofa.ServiceDefaults/Sofa.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sofa.UnitTests/Sofa.UnitTests.csproj" />
+  </Folder>
 </Solution>
