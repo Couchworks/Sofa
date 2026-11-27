@@ -4,7 +4,8 @@ A software factory where AI agents take a Request through a Flow of Phases. The 
 
 ## Layout
 
-- `src/` the services of ADR 0012, `Sofa.Contracts`, `Sofa.ServiceDefaults` and the Aspire app host `Sofa.AppHost`
+- `src/` the services of ADR 0012, `Sofa.Contracts`, `Sofa.ServiceDefaults`, the Aspire app host `Sofa.AppHost`, and `Sofa.Cli`, the `sofa` command run on the box
+- `worker/` the Worker image: the unmodified Claude Code, nothing of Sofa's
 - `tests/` unit tests and integration tests through Aspire's test host
 - `web/` the web client (Vite, React, TypeScript, Tailwind, shadcn/ui)
 
@@ -86,16 +87,46 @@ Users added by login before Sofa kept their GitHub account id, and who never sig
 
 Connections seals the App's private key, webhook secret and client secret with envelope encryption under a key encryption key from configuration (`Credentials:KeyEncryptionKey`). Locally Aspire generates it once and keeps it as `Parameters:connections-key-encryption-key` in `~/.aspire/secrets/<the app host's UserSecretsId>/Development.json`, not in user secrets; lose it and the App's credentials can't be opened, so the App must be created again. To rotate it, set a new key and list the old one under `Credentials:RetiredKeyEncryptionKeys`.
 
-The pages for the GitHub App, Connections and adding Users are for a Workspace's Admins. Their API lives under `/api/workspaces/{workspaceId}/…`, and the App Gateway asks Identity whether the signed-in User is an Admin of that Workspace: 401 without a token, 403 for anyone else. The web client shows them for the Workspace the User administers; they live in `web/src/admin`.
+The pages for the GitHub App, Connections and adding Users are for a Workspace's Admins. Their API lives under `/api/workspaces/{workspaceId}/…`, and the App Gateway asks Identity whether the signed-in User is an Admin of that Workspace, or for the pages every User of it may use, whether they belong to it: 401 without a token, 403 for anyone else. The web client shows them for the Workspace the User administers; they live in `web/src/admin`.
+
+### Projects, Agents and the Flow
+
+**Projects** in the web client lists the Workspace's Projects. An Admin creates one with a key, such as `DEMO`, unique in the Workspace and never changed, and binds it through one of the Workspace's Connections to a Request Provider (the Repository whose issues come in, and the label that marks them for Sofa) and a Code Provider (one or more Repositories). Flow checks with Connections that the Connection is the Workspace's and reaches each Repository (ADR 0030). Only an Admin changes a binding.
+
+Every new Project starts with milestone 1's Flow, Triage → Spec → Plan → Implement, every Phase Solo, with the Gates and Sandboxes of `docs/default-flow.md`, and its own Triager (Haiku), Lead (Opus) and Builder (Opus), registered with Identity as actors owned by the Workspace's Team. A Project's page shows them; every User of the Workspace has Write in its Projects (ADR 0031), so they change an Agent's role, instructions and model (`opus`, `sonnet`, `haiku` or a full model name, passed to Claude Code's `--model`) and a Phase's cast, Gate and Sandbox. Nothing runs the Flow yet.
+
+### Runners
+
+**Runners** lists the signed-in User's personal Runners and their Team's Runners; an Admin sees every team Runner. Each runs at most its limit of Runs at once (2 unless changed).
+
+- **A subscription Runner** is always personal (ADR 0009). Execution keeps only its Worker volume's name (`sofa-worker-<runner id>`) and its sign-in state, never the sign-in.
+- **An API key Runner**, personal or, made by an Admin, the Team's. The key goes to Connections over HTTP, is sealed like every other credential, and is never shown or returned again (ADR 0032).
+
+#### Signing a subscription Runner in
+
+From a terminal on the box running Sofa, with Docker (ADR 0033):
+
+```sh
+docker build -t sofa-worker worker                                  # once, and after changing worker/
+dotnet run --project src/Sofa.Cli -- runner login <runner id>       # the Runners page shows this with the id
+```
+
+It starts a throwaway Worker container on the Runner's volume running `claude auth login --claudeai` in your terminal: open the link it shows, sign in with your Claude subscription, and paste the code back. A fresh container then reads `claude auth status`, and Execution records only whether the volume is signed in to a subscription and when that ends, which the Runners page shows. `runner status <runner id>` checks again without signing in. The command finds Execution at `http://localhost:5005`, where the app host serves it; set `SOFA_EXECUTION` for another address, and `SOFA_WORKER_IMAGE` for another image.
+
+### The Team
+
+**Team**, for Admins, shows who is in the Workspace's Team, adds any User of the Workspace and removes members. Users added by GitHub login join the Workspace's Team, so they can spend its team Runners; those added before this were put in it when Identity next started.
 
 ### Databases
 
-Identity and Connections keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
+Identity, Connections, Flow and Execution keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
 
 ```sh
 dotnet tool restore
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Identity --output-dir Data/Migrations
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Connections --output-dir Persistence/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Flow --output-dir Data/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Execution --output-dir Data/Migrations
 ```
 
 `SofaGeneratingMigrations` brings in EF's design package only for this, as its version of Roslyn clashes with Wolverine's runtime compilation.
