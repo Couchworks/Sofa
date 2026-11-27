@@ -49,6 +49,9 @@ public sealed class SofaApp : IAsyncLifetime
             .WithEnvironment("GitHub__WebAddress", GitHub.WebAddress)
             .WithEnvironment("GitHub__DeliverySweepInterval", QuickDeliverySweeps.ToString());
 
+        builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Intake)
+            .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString());
+
         App = await builder.BuildAsync(cancellation.Token);
         await App.StartAsync(cancellation.Token);
 
@@ -71,10 +74,13 @@ public sealed class SofaApp : IAsyncLifetime
 
     public Task<InstalledConnection> TheConnection => _connection.Value;
 
+    public Task<System.Text.Json.JsonElement> TheDemoProject => _demo.Value;
+
     private readonly Lazy<Task<FreshInstallation>> _setUp;
     private readonly Lazy<Task<CreatedGitHubApp>> _gitHubApp;
     private readonly Lazy<Task<Guid>> _beaAdded;
     private readonly Lazy<Task<InstalledConnection>> _connection;
+    private readonly Lazy<Task<System.Text.Json.JsonElement>> _demo;
 
     public SofaApp()
     {
@@ -82,6 +88,7 @@ public sealed class SofaApp : IAsyncLifetime
         _gitHubApp = new(() => CreatedGitHubApp.CreateAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
         _beaAdded = new(AddBeaAsync, LazyThreadSafetyMode.ExecutionAndPublication);
         _connection = new(() => InstalledConnection.InstallAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
+        _demo = new(() => TestProjects.CreateAsync(this, "DEMO"), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public async Task<WebClientSignIn> AdaSignedInAsync(CancellationToken cancellation)

@@ -60,6 +60,20 @@ public sealed class FakeGitHub : IAsyncDisposable
 
     public ConcurrentBag<string> RedirectUris { get; } = [];
 
+    public ConcurrentDictionary<long, CommentOnFake> Comments { get; } = new();
+
+    public ConcurrentQueue<IssueChangeOnFake> IssueChanges { get; } = new();
+
+    private long _lastCommentId = 1_000_000;
+
+    public long NextCommentId() => Interlocked.Increment(ref _lastCommentId);
+
+    public IReadOnlyList<CommentOnFake> CommentsOn(string repository, long number) =>
+        Comments.Values.Where(c => c.Repository == repository && c.Number == number).OrderBy(c => c.Id).ToList();
+
+    public IReadOnlyList<string> ChangesOf(string repository, long number) =>
+        IssueChanges.Where(c => c.Repository == repository && c.Number == number).Select(c => c.Change).ToList();
+
     public static string CodeFor(GitHubAccountOnFake account) => $"{account.Login}{CodeNamesItsAccount}{Guid.NewGuid():N}";
 
     private FakeGitHub()
@@ -145,6 +159,77 @@ public sealed class FakeGitHub : IAsyncDisposable
                 })
                 : Results.Unauthorized());
 
+        _server.MapPost("/repos/{owner}/{repo}/issues/{number:long}/comments", async (string owner, string repo, long number, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            var body = (await JsonSerializer.DeserializeAsync<JsonElement>(request.Body)).GetProperty("body").GetString()!;
+            var comment = new CommentOnFake(NextCommentId(), $"{owner}/{repo}", number, body, Edits: 0);
+            Comments[comment.Id] = comment;
+            return Results.Json(new { id = comment.Id, body }, statusCode: StatusCodes.Status201Created);
+        });
+
+        _server.MapMethods("/repos/{owner}/{repo}/issues/comments/{id:long}", ["PATCH"], async (long id, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!Comments.TryGetValue(id, out var comment))
+            {
+                return Results.NotFound();
+            }
+
+            var body = (await JsonSerializer.DeserializeAsync<JsonElement>(request.Body)).GetProperty("body").GetString()!;
+            Comments[id] = comment with { Body = body, Edits = comment.Edits + 1 };
+            return Results.Json(new { id, body });
+        });
+
+        _server.MapPost("/repos/{owner}/{repo}/issues/{number:long}/labels", async (string owner, string repo, long number, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            var labels = (await JsonSerializer.DeserializeAsync<JsonElement>(request.Body)).GetProperty("labels")
+                .EnumerateArray().Select(label => label.GetString()!).ToList();
+            foreach (var label in labels)
+            {
+                IssueChanges.Enqueue(new IssueChangeOnFake($"{owner}/{repo}", number, $"+{label}"));
+            }
+
+            return Results.Json(labels.Select(name => new { name }));
+        });
+
+        _server.MapDelete("/repos/{owner}/{repo}/issues/{number:long}/labels/{name}", (string owner, string repo, long number, string name, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            IssueChanges.Enqueue(new IssueChangeOnFake($"{owner}/{repo}", number, $"-{name}"));
+            return Results.Json(Array.Empty<object>());
+        });
+
+        _server.MapMethods("/repos/{owner}/{repo}/issues/{number:long}", ["PATCH"], async (string owner, string repo, long number, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            var change = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+            IssueChanges.Enqueue(new IssueChangeOnFake($"{owner}/{repo}", number,
+                $"{change.GetProperty("state").GetString()} as {change.GetProperty("state_reason").GetString()}"));
+            return Results.Json(new { number, state = change.GetProperty("state").GetString() });
+        });
+
         _server.MapGet("/app/hook/deliveries", (HttpRequest request) =>
         {
             if (!SignedByTheApp(request))
@@ -202,6 +287,9 @@ public sealed class FakeGitHub : IAsyncDisposable
 
     public void Rename(GitHubAccountOnFake account, string newLogin) => _accounts[account.Id] = account with { Login = newLogin };
 
+    private static bool ByTheInstallation(HttpRequest request) =>
+        request.Headers.Authorization.ToString() == $"Bearer ghs_fake_{InstallationId}";
+
     private GitHubAccountOnFake? AccountWithLogin(string login) =>
         _accounts.Values.SingleOrDefault(account => account.Login.Equals(login, StringComparison.OrdinalIgnoreCase));
 
@@ -247,3 +335,7 @@ public sealed class FakeGitHub : IAsyncDisposable
 public sealed record GitHubAccountOnFake(long Id, string Login, string Name, string VerifiedEmail);
 
 public sealed record RepositoryOnFake(string FullName, bool Private);
+
+public sealed record CommentOnFake(long Id, string Repository, long Number, string Body, int Edits);
+
+public sealed record IssueChangeOnFake(string Repository, long Number, string Change);
