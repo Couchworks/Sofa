@@ -29,6 +29,8 @@ var proxiesWebClient = builder.Configuration.GetSection("ReverseProxy:Routes:web
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseRouting();
+app.UseAdminsOnly();
 
 app.MapOpenApi();
 app.MapDefaultEndpoints();

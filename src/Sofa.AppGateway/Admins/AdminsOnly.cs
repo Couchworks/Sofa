@@ -4,20 +4,29 @@ public static class AdminsOnly
 {
     public static RouteGroupBuilder MapAdminsOnly(this IEndpointRouteBuilder endpoints) =>
         endpoints.MapGroup("")
-            .AddEndpointFilter(LetInOnlyASignedInAdmin)
+            .WithMetadata(new AdminsOnlyEndpoint())
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-    private static async ValueTask<object?> LetInOnlyASignedInAdmin(
-        EndpointFilterInvocationContext invocation, EndpointFilterDelegate next)
-    {
-        var context = invocation.HttpContext;
-        var admin = context.RequestServices.GetRequiredService<IFindSignedInAdmin>().Find(context);
-        if (admin is null)
+    public static IApplicationBuilder UseAdminsOnly(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
         {
-            return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Only a Workspace's Admin may do this.");
-        }
+            if (context.GetEndpoint()?.Metadata.GetMetadata<AdminsOnlyEndpoint>() is null)
+            {
+                await next(context);
+                return;
+            }
 
-        context.Features.Set(admin);
-        return await next(invocation);
-    }
+            var admin = context.RequestServices.GetRequiredService<IFindSignedInAdmin>().Find(context);
+            if (admin is null)
+            {
+                await Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Only a Workspace's Admin may do this.")
+                    .ExecuteAsync(context);
+                return;
+            }
+
+            context.Features.Set(admin);
+            await next(context);
+        });
+
+    private sealed class AdminsOnlyEndpoint;
 }
