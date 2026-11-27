@@ -13,6 +13,13 @@ public static class RunTokenEndpoints
         return endpoints;
     }
 
+    public static RunTokenHolder? TryHolderOf(ClaimsPrincipal run) =>
+        Guid.TryParse(run.FindFirstValue(SofaClaims.Run), out var runId)
+        && Guid.TryParse(run.FindFirstValue(Claims.Subject), out var agentId)
+        && Guid.TryParse(run.FindFirstValue(SofaClaims.Workspace), out var workspaceId)
+            ? new RunTokenHolder(runId, agentId, run.FindFirstValue(Claims.Name) ?? "", workspaceId)
+            : null;
+
     public static RunTokenHolder HolderOf(ClaimsPrincipal run) => new(
         Guid.Parse(run.FindFirstValue(SofaClaims.Run)!),
         Guid.Parse(run.FindFirstValue(Claims.Subject)!),
