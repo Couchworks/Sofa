@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/Sofa.Connections/Sofa.Connections.csproj" />
     <ProjectReference Include="../../src/Sofa.Contracts/Sofa.Contracts.csproj" />
     <ProjectReference Include="../../src/Sofa.Execution/Sofa.Execution.csproj" />
     <ProjectReference Include="../../src/Sofa.Flow/Sofa.Flow.csproj" />
