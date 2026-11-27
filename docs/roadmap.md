@@ -12,7 +12,8 @@ Choices that aren't ADRs but shouldn't be reopened without reason.
 - **Observability.** OpenTelemetry in every service.
 - **Secrets.** Connections encrypts what it holds with envelope encryption behind an interface: a key from configuration on one box, a key vault later.
 - **First Runners.** A Sofa-hosted Worker running Claude Code on an API key, and one running Claude Code on a User's own subscription. A User's own machine, Managed Agents and other vendors come after.
-- **Frontends.** The web client comes first; desktop and mobile follow, as clients of the same API.
+- **Frontends.** The web client comes first; desktop and mobile follow, as clients of the same API (ADR 0020).
+- **Web client libraries.** shadcn/ui with Tailwind for components, TanStack Query beside the generated API client, TanStack Table for lists, React Hook Form for forms. A diff viewer is chosen when code review's screens are.
 
 ## Milestones
 
@@ -25,7 +26,3 @@ Each is usable before the next starts.
 5. **Later.** A User's own machine, Managed Agents, other vendors, Jira and Confluence.
 
 Sofa isn't used to build itself yet; that starts once it runs on small real Projects.
-
-## Open
-
-- The web client's component library.
