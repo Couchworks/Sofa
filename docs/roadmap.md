@@ -35,3 +35,8 @@ Sofa isn't used to build itself yet; that starts once it runs on small real Proj
 Small things left behind by merged slices, waiting for a slice of their own or a `fix:`.
 
 - **Unclaimed API keys.** An API key saved for a Runner that Execution then refuses stays sealed in Connections, never read (from #5). Connections should remove a key no Runner claimed, when the Runner is refused and in a periodic sweep.
+- **Removing a binding.** Flow can't remove a Project's Request Provider binding yet; Intake's side is unit-tested only (from #6).
+- **A Report posted twice.** A crash between GitHub accepting a Report's comment and Intake saving its id posts it again on retry (from #6).
+- **An issue in several Projects.** An issue matching the bindings of several Projects becomes a Request in each (from #6).
+- **Delegation fixed at labelling.** A Request's delegating User is whoever labelled it, and can't be changed afterwards (from #6).
+- **One Execution per box.** Execution runs as a single copy; running several needs claiming Runs safely (from #7).
