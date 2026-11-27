@@ -1940,6 +1940,152 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/runs/{runId}/contribution": {
+      "get": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "The Contribution the Run finished with: its Outcome, its Markdown and its attachments.",
+        "operationId": "GetContribution",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/runs/{runId}/contribution/attachments/{attachmentId}": {
+      "get": {
+        "tags": [
+          "RunEndpoints"
+        ],
+        "summary": "One file attached to the Run's Contribution, such as a screenshot.",
+        "operationId": "GetAttachment",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/runs/{runId}/retry": {
       "post": {
         "tags": [
@@ -2204,6 +2350,51 @@
           "Builder"
         ]
       },
+      "AskedQuestion": {
+        "required": [
+          "questionId",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "AttachmentDetails": {
+        "required": [
+          "id",
+          "name",
+          "contentType",
+          "size"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "size": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "CodeProviderBinding": {
         "required": [
           "connectionId",
@@ -2268,6 +2459,52 @@
           },
           "suspended": {
             "type": "boolean"
+          }
+        }
+      },
+      "ContributionDetails": {
+        "required": [
+          "runId",
+          "workItemId",
+          "phase",
+          "agentId",
+          "outcome",
+          "markdown",
+          "attachments",
+          "madeAt"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseName"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentDetails"
+            }
+          },
+          "madeAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -2789,7 +3026,8 @@
           "retryOf",
           "retriedBy",
           "waitsForRetry",
-          "summary",
+          "outcome",
+          "question",
           "queuedAt",
           "startedAt",
           "endedAt"
@@ -2891,10 +3129,20 @@
           "waitsForRetry": {
             "type": "boolean"
           },
-          "summary": {
+          "outcome": {
             "type": [
               "null",
               "string"
+            ]
+          },
+          "question": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AskedQuestion"
+              }
             ]
           },
           "queuedAt": {

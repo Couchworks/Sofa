@@ -27,6 +27,17 @@ public static class RunEndpoints
             .WithSummary("The Run's Transcript as it arrived, line by line; `after` skips the lines already read.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        workspace.MapGet("/runs/{runId:guid}/contribution", GetContribution)
+            .WithName("GetContribution")
+            .WithSummary("The Contribution the Run finished with: its Outcome, its Markdown and its attachments.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        workspace.MapGet("/runs/{runId:guid}/contribution/attachments/{attachmentId:guid}", GetAttachment)
+            .WithName("GetAttachment")
+            .WithSummary("One file attached to the Run's Contribution, such as a screenshot.")
+            .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         workspace.MapPost("/runs/{runId:guid}/retry", RetryRun)
             .WithName("RetryRun")
             .WithSummary("Retries a Run that failed, was lost or was refused, as a new Run.")
@@ -56,6 +67,26 @@ public static class RunEndpoints
         await execution.RunAsync(user.WorkspaceId, runId, cancellation) is null
             ? NoSuchRun
             : TypedResults.Ok(await records.TranscriptOfAsync(user.WorkspaceId, runId, after, cancellation));
+
+    private static async Task<Results<Ok<ContributionDetails>, ProblemHttpResult>> GetContribution(
+        Guid runId, SignedInWorkspaceUser user, RecordsClient records, CancellationToken cancellation) =>
+        await records.ContributionOfAsync(user.WorkspaceId, runId, cancellation) is { } contribution
+            ? TypedResults.Ok(contribution)
+            : TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, title: "The Run has made no Contribution.");
+
+    private static async Task<IResult> GetAttachment(
+        Guid runId, Guid attachmentId, SignedInWorkspaceUser user, RecordsClient records, HttpContext http, CancellationToken cancellation)
+    {
+        if (await records.AttachmentAsync(user.WorkspaceId, runId, attachmentId, cancellation) is not { } attachment)
+        {
+            return TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, title: "The Contribution has no such attachment.");
+        }
+
+        http.Response.RegisterForDispose(attachment.Response);
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        http.Response.Headers.ContentSecurityPolicy = "sandbox; default-src 'none'";
+        return TypedResults.Stream(attachment.Content, attachment.ContentType, attachment.DownloadName);
+    }
 
     private static async Task<Results<Ok<RunDetails>, ProblemHttpResult>> RetryRun(
         Guid runId, SignedInWorkspaceUser user, ExecutionClient execution, IMessageBus bus, CancellationToken cancellation) =>
