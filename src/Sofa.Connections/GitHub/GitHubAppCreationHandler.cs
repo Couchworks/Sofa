@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Sofa.Connections.Persistence;
 using Sofa.Contracts.Connections;
 
@@ -8,15 +5,10 @@ namespace Sofa.Connections.GitHub;
 
 public static class GitHubAppCreationHandler
 {
-    private const int StateBytes = 32;
-
     public static async Task<GitHubAppCreationStarted> Handle(
         StartGitHubAppCreation command,
-        ConnectionsDb db,
         GitHubAppAccess access,
         GitHubAppManifests manifests,
-        IOptions<GitHubOptions> github,
-        TimeProvider time,
         CancellationToken cancellation)
     {
         if (await access.FindApp(cancellation) is not null)
@@ -30,20 +22,8 @@ public static class GitHubAppCreationHandler
             return new GitHubAppCreationStarted(null, null, $"'{organisation}' is not a GitHub organisation's name.");
         }
 
-        var now = time.GetUtcNow();
-        await db.GitHubAppCreations.Where(c => c.ExpiresAt < now).ExecuteDeleteAsync(cancellation);
-
-        var state = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(StateBytes));
-        db.GitHubAppCreations.Add(new GitHubAppCreation
-        {
-            State = state,
-            WorkspaceId = command.WorkspaceId,
-            ExpiresAt = now + github.Value.GitHubAppCreationLifetime,
-        });
-        await db.SaveChangesAsync(cancellation);
-
         return new GitHubAppCreationStarted(
-            manifests.FormAction(state, organisation).ToString(),
+            manifests.FormAction(command.State, organisation).ToString(),
             manifests.Manifest(organisation, command.Name),
             Problem: null);
     }
@@ -57,14 +37,10 @@ public static class GitHubAppCreationHandler
         ILogger<FinishGitHubAppCreation> logger,
         CancellationToken cancellation)
     {
-        var started = await db.GitHubAppCreations.FindAsync([command.State], cancellation);
-        if (started is null || started.ExpiresAt < time.GetUtcNow())
+        if (!await GitHubReturns.UseOnce(command.StartedBy, db, time, cancellation))
         {
-            return new GitHubAppCreationFinished("GitHub came back with a creation Sofa didn't start, or one that has expired.");
+            return new GitHubAppCreationFinished(GitHubReturns.AlreadyUsed);
         }
-
-        db.GitHubAppCreations.Remove(started);
-        await db.SaveChangesAsync(cancellation);
 
         if (await access.FindApp(cancellation) is not null)
         {
@@ -83,7 +59,8 @@ public static class GitHubAppCreationHandler
         }
 
         var app = await access.Keep(converted, cancellation);
-        logger.LogInformation("Created GitHub App {Slug} ({AppId}) owned by {Owner}", app.Slug, app.Id, app.OwnerLogin);
+        logger.LogInformation("Created GitHub App {Slug} ({AppId}) owned by {Owner}, for Admin {AdminUserId} of Workspace {WorkspaceId}",
+            app.Slug, app.Id, app.OwnerLogin, command.StartedBy.AdminUserId, command.StartedBy.WorkspaceId);
         return new GitHubAppCreationFinished(Problem: null);
     }
 }

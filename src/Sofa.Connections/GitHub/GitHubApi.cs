@@ -30,6 +30,51 @@ public sealed class GitHubApi(HttpClient http)
         return await Read<ConvertedManifest>(response, cancellation);
     }
 
+    public async Task<string?> UserAccessToken(
+        Uri webAddress, string clientId, string clientSecret, string code, Uri redirectUri, CancellationToken cancellation)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(webAddress, "login/oauth/access_token"))
+        {
+            Content = JsonContent.Create(
+                new { ClientId = clientId, ClientSecret = clientSecret, Code = code, RedirectUri = redirectUri.ToString() }, options: Json),
+        };
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var response = await http.SendAsync(request, cancellation);
+        var answer = await Read<UserAccessTokenAnswer>(response, cancellation);
+        return string.IsNullOrEmpty(answer.AccessToken) ? null : answer.AccessToken;
+    }
+
+    public async Task<GitHubUser> User(string userAccessToken, CancellationToken cancellation)
+    {
+        using var request = AsUser(HttpMethod.Get, "user", userAccessToken);
+        using var response = await http.SendAsync(request, cancellation);
+        return await Read<GitHubUser>(response, cancellation);
+    }
+
+    public async Task<string?> VerifiedPrimaryEmail(string userAccessToken, CancellationToken cancellation)
+    {
+        using var request = AsUser(HttpMethod.Get, "user/emails", userAccessToken);
+        using var response = await http.SendAsync(request, cancellation);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var emails = await response.Content.ReadFromJsonAsync<List<GitHubEmail>>(Json, cancellation) ?? [];
+        return emails.FirstOrDefault(email => email.Primary && email.Verified)?.Email;
+    }
+
+    public async Task<GitHubAccountLookup?> AccountOfLogin(string login, CancellationToken cancellation)
+    {
+        using var response = await http.GetAsync($"users/{Uri.EscapeDataString(login)}", cancellation);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        return await Read<GitHubAccountLookup>(response, cancellation);
+    }
+
     public async Task<GitHubInstallation> Installation(string appJwt, long installationId, CancellationToken cancellation)
     {
         using var request = AsApp(HttpMethod.Get, $"app/installations/{installationId}", appJwt);
@@ -72,6 +117,9 @@ public sealed class GitHubApi(HttpClient http)
 
     private static HttpRequestMessage AsApp(HttpMethod method, string path, string appJwt) =>
         new(method, path) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", appJwt) } };
+
+    private static HttpRequestMessage AsUser(HttpMethod method, string path, string userAccessToken) =>
+        new(method, path) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", userAccessToken) } };
 
     private static async Task<T> Read<T>(HttpResponseMessage response, CancellationToken cancellation)
     {
@@ -129,6 +177,19 @@ public sealed record ConvertedManifest(
     GitHubAccount Owner);
 
 public sealed record GitHubInstallation(long Id, GitHubAccount Account, DateTimeOffset? SuspendedAt);
+
+public sealed record UserAccessTokenAnswer(string? AccessToken, string? Error);
+
+public sealed record GitHubUser(long Id, string Login, string? Name);
+
+public sealed record GitHubAccountLookup(long Id, string Login, string Type)
+{
+    public const string PersonalAccount = "User";
+
+    public bool IsPersonal => Type == PersonalAccount;
+}
+
+public sealed record GitHubEmail(string Email, bool Primary, bool Verified);
 
 public sealed record CreatedInstallationToken(string Token, DateTimeOffset ExpiresAt);
 

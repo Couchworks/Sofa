@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const addedOn = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
-export function ConnectionsCard() {
-  const connections = api.useQuery('get', '/api/connections')
+export function ConnectionsCard({ workspaceId }: { workspaceId: string }) {
+  const connections = api.useQuery('get', '/api/workspaces/{workspaceId}/connections', {
+    params: { path: { workspaceId } },
+  })
 
   return (
     <Card>

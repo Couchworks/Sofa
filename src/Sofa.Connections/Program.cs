@@ -29,5 +29,6 @@ app.UseExceptionHandler();
 app.MapDefaultEndpoints();
 app.MapConnections();
 app.MapGitHubWebhooks();
+app.MapGitHubSignIn();
 
 app.Run();

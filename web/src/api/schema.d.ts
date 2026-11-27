@@ -38,14 +38,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/github-app": {
+    "/api/me/github-link": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Whether Sofa's GitHub App has been created, and where to install it. */
+        get?: never;
+        put?: never;
+        /** Where to send the browser to link the signed-in User's GitHub account, through GitHub. */
+        post: operations["StartGitHubLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/github-app": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether Sofa's GitHub App has been created. */
         get: operations["GetGitHubApp"];
         put?: never;
         post?: never;
@@ -55,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/github-app/creations": {
+    "/api/workspaces/{workspaceId}/github-app/creations": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,7 +89,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/connections": {
+    "/api/workspaces/{workspaceId}/github-app/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Where to send the browser to install Sofa's GitHub App on an organisation or account. */
+        post: operations["StartGitHubAppInstallation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/connections": {
         parameters: {
             query?: never;
             header?: never;
@@ -89,10 +123,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adds someone to the Workspace by their GitHub login; they sign in with GitHub to join. */
+        post: operations["AddUserByGitHubLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AddUserByGitHubLogin: {
+            gitHubLogin: string;
+        };
         ConnectionSummary: {
             /** Format: uuid */
             id: string;
@@ -107,6 +161,9 @@ export interface components {
             formAction: string;
             manifest: string;
         };
+        GitHubAppInstallation: {
+            installUrl: string;
+        };
         GitHubAppStatus: {
             created: boolean;
             name: null | string;
@@ -114,6 +171,9 @@ export interface components {
             installUrl: null | string;
             publicAddress: string;
             gitHubCanReachPublicAddress: boolean;
+        };
+        GitHubLink: {
+            authorizeUrl: string;
         };
         NewGitHubApp: {
             organisation: null | string;
@@ -133,11 +193,17 @@ export interface components {
             /** Format: date-time */
             time: string;
         };
+        UserAdded: {
+            /** Format: uuid */
+            userId: string;
+            gitHubLogin: string;
+        };
         UserProfile: {
             /** Format: uuid */
             id: string;
             name: string;
-            email: string;
+            email: null | string;
+            gitHubLogin: null | string;
             workspaces: components["schemas"]["UserWorkspace"][];
         };
         UserTeam: {
@@ -215,11 +281,57 @@ export interface operations {
             };
         };
     };
-    GetGitHubApp: {
+    StartGitHubLink: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetGitHubApp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Workspace the signed-in User is an Admin of. */
+                workspaceId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -242,13 +354,25 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     StartGitHubAppCreation: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The Workspace the signed-in User is an Admin of. */
+                workspaceId: string;
+            };
             cookie?: never;
         };
         requestBody: {
@@ -275,6 +399,65 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    StartGitHubAppInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Workspace the signed-in User is an Admin of. */
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubAppInstallation"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Conflict */
             409: {
                 headers: {
@@ -290,7 +473,10 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The Workspace the signed-in User is an Admin of. */
+                workspaceId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -306,6 +492,78 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddUserByGitHubLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Workspace the signed-in User is an Admin of. */
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddUserByGitHubLogin"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdded"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

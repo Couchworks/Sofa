@@ -25,11 +25,9 @@ public sealed class GitHubApp
     public DateTimeOffset? DeliveriesCheckedUntil { get; set; }
 }
 
-public sealed class GitHubAppCreation
+public sealed class UsedGitHubReturn
 {
-    public required string State { get; init; }
-
-    public required Guid WorkspaceId { get; init; }
+    public required Guid Nonce { get; init; }
 
     public required DateTimeOffset ExpiresAt { get; init; }
 }

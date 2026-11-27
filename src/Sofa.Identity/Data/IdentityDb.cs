@@ -4,6 +4,7 @@ using Npgsql;
 using OpenIddict.EntityFrameworkCore.Models;
 using Sofa.Contracts;
 using Sofa.Identity.Agents;
+using Sofa.Identity.GitHub;
 using Sofa.Identity.Setup;
 using Sofa.Identity.Tokens;
 using Sofa.Identity.Users;
@@ -23,6 +24,7 @@ public sealed class IdentityDb(DbContextOptions<IdentityDb> options) : DbContext
     public DbSet<TeamUser> TeamUsers => Set<TeamUser>();
     public DbSet<Agent> Agents => Set<Agent>();
     public DbSet<TokenKey> TokenKeys => Set<TokenKey>();
+    public DbSet<GitHubAuthorization> GitHubAuthorizations => Set<GitHubAuthorization>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public static void Configure(DbContextOptionsBuilder options, NpgsqlDataSource dataSource) =>
@@ -73,6 +75,20 @@ public sealed class IdentityDb(DbContextOptions<IdentityDb> options) : DbContext
             user.Property(u => u.Email).HasMaxLength(320);
             user.Property(u => u.NormalizedEmail).HasMaxLength(320);
             user.HasIndex(u => u.NormalizedEmail).IsUnique();
+            user.Property(u => u.GitHubAccountId).HasColumnName("github_account_id");
+            user.Property(u => u.GitHubLogin).HasColumnName("github_login").HasMaxLength(GitHubLogins.Longest);
+            user.HasIndex(u => u.GitHubAccountId).IsUnique();
+            user.Ignore(u => u.HasPassword);
+            user.Ignore(u => u.IsAddedAndNeverSignedIn);
+        });
+
+        model.Entity<GitHubAuthorization>(authorization =>
+        {
+            authorization.ToTable("github_authorizations");
+            authorization.HasKey(a => a.StateHash);
+            authorization.Property(a => a.StateHash).HasMaxLength(64);
+            authorization.Property(a => a.ReturnUrl).HasMaxLength(2048);
+            authorization.HasIndex(a => a.ExpiresAt);
         });
 
         model.Entity<WorkspaceUser>(workspaceUser =>

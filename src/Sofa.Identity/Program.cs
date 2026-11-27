@@ -8,6 +8,7 @@ using Sofa.Contracts;
 using Sofa.Contracts.Identity;
 using Sofa.Identity;
 using Sofa.Identity.Data;
+using Sofa.Identity.GitHub;
 using Sofa.Identity.Setup;
 using Sofa.Identity.SignIn;
 using Sofa.Identity.Tokens;
@@ -50,6 +51,10 @@ builder.Services.AddSingleton<IConfigureOptions<OpenIddictServerOptions>, TokenK
 
 builder.Services.AddSignInCookie();
 
+builder.Services.AddHttpClient<ConnectionsGitHub>(connections => connections.BaseAddress = ConnectionsGitHub.Address);
+builder.Services.AddScoped<GitHubAuthorizations>();
+builder.Services.AddScoped<GitHubAccountLinks>();
+
 builder.Services.AddOpenIddict()
     .AddCore(core => core.UseEntityFrameworkCore().UseDbContext<IdentityDb>().ReplaceDefaultEntities<Guid>())
     .AddServer(server =>
@@ -89,5 +94,6 @@ app.MapDefaultEndpoints();
 app.MapAccount();
 app.MapConnect();
 app.MapUsers();
+app.MapGitHubSignIn();
 
 app.Run();

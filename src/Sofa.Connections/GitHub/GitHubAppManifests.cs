@@ -22,6 +22,10 @@ public sealed partial class GitHubAppManifests(IOptions<GitHubOptions> github, P
         return new Uri(github.Value.WebAddress, $"{newAppPage}?state={Uri.EscapeDataString(state)}");
     }
 
+    public Uri SignInCallback => publicAddress.Resolve(GitHubAppPaths.SignInCallback);
+
+    public Uri AuthorizeAddress => new(github.Value.WebAddress, "login/oauth/authorize");
+
     public string Manifest(string? organisation, string? name)
     {
         var manifest = new JsonObject
@@ -36,6 +40,8 @@ public sealed partial class GitHubAppManifests(IOptions<GitHubOptions> github, P
             ["redirect_url"] = publicAddress.Resolve(GitHubAppPaths.Created).ToString(),
             ["setup_url"] = publicAddress.Resolve(GitHubAppPaths.Installed).ToString(),
             ["setup_on_update"] = true,
+            ["callback_urls"] = new JsonArray(SignInCallback.ToString()),
+            ["request_oauth_on_install"] = false,
             ["public"] = false,
             ["default_permissions"] = new JsonObject
             {
@@ -43,6 +49,7 @@ public sealed partial class GitHubAppManifests(IOptions<GitHubOptions> github, P
                 ["issues"] = "write",
                 ["contents"] = "write",
                 ["pull_requests"] = "write",
+                ["emails"] = "read",
             },
             ["default_events"] = new JsonArray(EventsSofaReads.Select(e => (JsonNode)e).ToArray()),
         };

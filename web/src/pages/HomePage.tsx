@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { AdminArea } from '@/admin/AdminArea'
+import { ReturnFromGitHub } from '@/admin/ReturnFromGitHub'
 import { api } from '@/api/client'
 import { signedInUser, signOut, startSigningIn } from '@/auth/session'
 import { Centered } from '@/components/Centered'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { goTo } from '@/lib/navigation'
 
 export function HomePage() {
   const session = useQuery({ queryKey: ['session'], queryFn: signedInUser })
@@ -28,11 +30,20 @@ export function HomePage() {
 
   return (
     <Centered>
+      <div className="flex w-full max-w-sm flex-col gap-4">
+        <ReturnFromGitHub />
+      </div>
       <SignedInUser />
-      <AdminArea />
+      <AdministeredWorkspace />
       <GatewayStatus />
     </Centered>
   )
+}
+
+function AdministeredWorkspace() {
+  const me = api.useQuery('get', '/api/me')
+  const administered = me.data?.workspaces.find((workspace) => workspace.isAdmin)
+  return administered ? <AdminArea workspaceId={administered.id} /> : null
 }
 
 function SignedInUser() {
@@ -42,7 +53,13 @@ function SignedInUser() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>{me.data?.name ?? 'Signed in'}</CardTitle>
-        <CardDescription>{me.data?.email ?? (me.isError ? 'Sofa could not say who you are.' : 'Finding out who you are…')}</CardDescription>
+        <CardDescription>
+          {me.data
+            ? (me.data.email ?? me.data.gitHubLogin)
+            : me.isError
+              ? 'Sofa could not say who you are.'
+              : 'Finding out who you are…'}
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {me.data?.workspaces.map((workspace) => (
@@ -56,11 +73,33 @@ function SignedInUser() {
             ))}
           </div>
         ))}
+        {me.data && <GitHubAccount login={me.data.gitHubLogin} />}
         <Button variant="outline" onClick={() => void signOut()}>
           Sign out
         </Button>
       </CardContent>
     </Card>
+  )
+}
+
+function GitHubAccount({ login }: { login: string | null }) {
+  const link = api.useMutation('post', '/api/me/github-link', { onSuccess: ({ authorizeUrl }) => goTo(authorizeUrl) })
+
+  if (login) {
+    return <p className="text-muted-foreground text-sm">Signs in with GitHub as {login}.</p>
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Button variant="outline" disabled={link.isPending} onClick={() => link.mutate({})}>
+        Link your GitHub account
+      </Button>
+      {link.isError && (
+        <p role="alert" className="text-destructive text-sm">
+          {link.error?.title ?? 'Linking couldn’t start.'}
+        </p>
+      )}
+    </div>
   )
 }
 

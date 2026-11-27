@@ -16,7 +16,7 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127152324_IdentityRecords";
+    public override string LastMigrationId => "20261127181833_MatchAddedUsersByGitHubAccount";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -359,6 +359,35 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                     });
             });
 
+        modelBuilder.Entity("Sofa.Identity.GitHub.GitHubAuthorization", b =>
+            {
+                b.Property<string>("StateHash")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("state_hash");
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.Property<Guid?>("LinkingUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("linking_user_id");
+
+                b.Property<string>("ReturnUrl")
+                    .HasMaxLength(2048)
+                    .HasColumnType("character varying(2048)")
+                    .HasColumnName("return_url");
+
+                b.HasKey("StateHash")
+                    .HasName("pk_github_authorizations");
+
+                b.HasIndex("ExpiresAt")
+                    .HasDatabaseName("ix_github_authorizations_expires_at");
+
+                b.ToTable("github_authorizations", "identity");
+            });
+
         modelBuilder.Entity("Sofa.Identity.Setup.Installation", b =>
             {
                 b.Property<int>("Id")
@@ -422,10 +451,22 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                     .HasColumnName("created_at");
 
                 b.Property<string>("Email")
-                    .IsRequired()
                     .HasMaxLength(320)
                     .HasColumnType("character varying(320)")
                     .HasColumnName("email");
+
+                b.Property<DateTimeOffset?>("FirstSignedInAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("first_signed_in_at");
+
+                b.Property<long?>("GitHubAccountId")
+                    .HasColumnType("bigint")
+                    .HasColumnName("github_account_id");
+
+                b.Property<string>("GitHubLogin")
+                    .HasMaxLength(39)
+                    .HasColumnType("character varying(39)")
+                    .HasColumnName("github_login");
 
                 b.Property<string>("Name")
                     .IsRequired()
@@ -434,7 +475,6 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                     .HasColumnName("name");
 
                 b.Property<string>("NormalizedEmail")
-                    .IsRequired()
                     .HasMaxLength(320)
                     .HasColumnType("character varying(320)")
                     .HasColumnName("normalized_email");
@@ -446,6 +486,10 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
 
                 b.HasKey("Id")
                     .HasName("pk_users");
+
+                b.HasIndex("GitHubAccountId")
+                    .IsUnique()
+                    .HasDatabaseName("ix_users_github_account_id");
 
                 b.HasIndex("NormalizedEmail")
                     .IsUnique()

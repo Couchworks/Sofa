@@ -10,7 +10,7 @@ afterEach(() => {
 
 test('lists the Workspace’s Connections', async () => {
   fakeGateway({
-    'GET /api/connections': {
+    'GET /api/workspaces/0195e7a0-0000-7000-8000-000000000002/connections': {
       body: [
         {
           id: '0190a0a0-0000-7000-8000-000000000001',
@@ -32,7 +32,7 @@ test('lists the Workspace’s Connections', async () => {
     },
   })
 
-  renderWithQueries(<ConnectionsCard />)
+  renderWithQueries(<ConnectionsCard workspaceId="0195e7a0-0000-7000-8000-000000000002" />)
 
   expect(await screen.findByText('acme')).toBeDefined()
   expect(screen.getByText('ada')).toBeDefined()
@@ -40,9 +40,9 @@ test('lists the Workspace’s Connections', async () => {
 })
 
 test('says how to add the first Connection', async () => {
-  fakeGateway({ 'GET /api/connections': { body: [] } })
+  fakeGateway({ 'GET /api/workspaces/0195e7a0-0000-7000-8000-000000000002/connections': { body: [] } })
 
-  renderWithQueries(<ConnectionsCard />)
+  renderWithQueries(<ConnectionsCard workspaceId="0195e7a0-0000-7000-8000-000000000002" />)
 
   expect(await screen.findByText(/Install the GitHub App/)).toBeDefined()
 })

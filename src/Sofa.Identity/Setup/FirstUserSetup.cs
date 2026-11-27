@@ -53,6 +53,7 @@ public sealed class FirstUserSetup(IdentityDb db, IPasswordHasher<User> password
             Email = request.Email.Trim(),
             NormalizedEmail = User.Normalize(request.Email),
             CreatedAt = now,
+            FirstSignedInAt = now,
         };
         user.PasswordHash = passwords.HashPassword(user, request.Password);
         var workspace = new Workspace { Name = request.WorkspaceName.Trim(), CreatedAt = now };
