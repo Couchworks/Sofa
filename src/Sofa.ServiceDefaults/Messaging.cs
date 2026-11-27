@@ -17,7 +17,8 @@ public static class Messaging
     public static TBuilder AddSofaMessaging<TBuilder>(
         this TBuilder builder,
         string service,
-        Action<WolverineOptions>? configure = null)
+        Action<WolverineOptions>? configure = null,
+        IReadOnlyList<string>? eventsSubscribedTo = null)
         where TBuilder : IHostApplicationBuilder
     {
         if (IsGeneratingOpenApiDocument)
@@ -37,9 +38,14 @@ public static class Messaging
                 services => services.GetRequiredService<NpgsqlDataSource>(),
                 SofaServices.SchemaOf(service));
 
-            options.UseRabbitMqUsingNamedConnection(BrokerName)
+            var rabbit = options.UseRabbitMqUsingNamedConnection(BrokerName)
                 .AutoProvision()
                 .DisableSystemRequestReplyQueueDeclaration();
+
+            foreach (var exchange in eventsSubscribedTo ?? [])
+            {
+                rabbit.BindExchange(exchange, ExchangeType.Fanout).ToQueue(service);
+            }
 
             options.ListenToRabbitQueue(service).UseForReplies();
 
@@ -51,6 +57,10 @@ public static class Messaging
 
         return builder;
     }
+
+    public static void PublishEvent<TEvent>(this WolverineOptions options, string exchange) =>
+        options.PublishMessage<TEvent>()
+            .ToRabbitExchange(exchange, declared => declared.ExchangeType = ExchangeType.Fanout);
 
     private static TBuilder UseWolverineWithoutBrokerOrDatabase<TBuilder>(this TBuilder builder, string service)
         where TBuilder : IHostApplicationBuilder

@@ -11,6 +11,12 @@ var executionClientSecret = builder.AddParameter(
     new GenerateParameterDefault { MinLength = 32, Special = false },
     secret: true,
     persist: true);
+var keyEncryptionKey = builder.AddParameter(
+    "connections-key-encryption-key",
+    new GenerateParameterDefault { MinLength = 48, Special = false },
+    secret: true,
+    persist: true);
+var publicAddress = builder.Configuration["Sofa:PublicAddress"];
 
 IResourceBuilder<DotnetProjectResource> AddService(string name, string project) =>
     builder.AddDotnetProject(name, $"../{project}/{project}.csproj")
@@ -38,7 +44,20 @@ AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
     .WithReference(identity)
     .WithEnvironment(context => PublicAddresses.TellIssuer(context, appGateway))
     .WithExternalHttpEndpoints();
-AddService(SofaServices.Connections, "Sofa.Connections");
+
+var connections = AddService(SofaServices.Connections, "Sofa.Connections")
+    .WithEnvironment("Credentials__KeyEncryptionKey", keyEncryptionKey);
+if (string.IsNullOrWhiteSpace(publicAddress))
+{
+    connections.WithEnvironment("Sofa__PublicAddress", appGateway.GetEndpoint("http"));
+}
+else
+{
+    connections.WithEnvironment("Sofa__PublicAddress", publicAddress);
+}
+
+appGateway.WithReference(connections);
+
 AddService(SofaServices.Intake, "Sofa.Intake");
 AddService(SofaServices.Flow, "Sofa.Flow");
 AddService(SofaServices.Execution, "Sofa.Execution")

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { AdminArea } from '@/admin/AdminArea'
 import { api } from '@/api/client'
 import { signedInUser, signOut, startSigningIn } from '@/auth/session'
 import { Centered } from '@/components/Centered'
@@ -28,6 +29,7 @@ export function HomePage() {
   return (
     <Centered>
       <SignedInUser />
+      <AdminArea />
       <GatewayStatus />
     </Centered>
   )
