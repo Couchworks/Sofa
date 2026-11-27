@@ -29,8 +29,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Create a development certificate
-        run: dotnet dev-certs https
+      - name: Trust the development certificate
+        run: |
+          dotnet dev-certs https --trust
+          echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" >> "$GITHUB_ENV"
 
       - name: Build
         run: dotnet build Sofa.slnx --configuration Release
