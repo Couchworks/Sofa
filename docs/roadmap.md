@@ -28,4 +28,4 @@ Sofa isn't used to build itself yet; that starts once it runs on small real Proj
 
 ## Open
 
-- The web client's framework.
+- The web client's component library.
