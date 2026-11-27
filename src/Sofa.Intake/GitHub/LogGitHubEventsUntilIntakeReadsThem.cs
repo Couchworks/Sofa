@@ -1,7 +1,9 @@
 using Sofa.Contracts.Connections;
+using Wolverine.Attributes;
 
 namespace Sofa.Intake.GitHub;
 
+[WolverineHandler]
 public static class LogGitHubEventsUntilIntakeReadsThem
 {
     public static void Handle(GitHubEventReceived received, ILogger<GitHubEventReceived> logger) =>
