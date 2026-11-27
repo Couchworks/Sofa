@@ -6,10 +6,10 @@ namespace Sofa.UnitTests.Identity;
 
 public class GitHubLinkRulesTests
 {
-    private static readonly GitHubUserAccount BeaOnGitHub = new(1002, "Bea-GH", "Bea", "bea@example.com");
+    private static readonly GitHubUserAccount BeaOnGitHub = new(1002, "bea-gh", "Bea", "bea@example.com");
 
     [Fact]
-    public void A_linked_account_signs_in_as_its_User()
+    public void An_account_signs_in_as_the_User_who_holds_its_id()
     {
         var bea = WithPassword("bea@example.com");
         bea.GitHubAccountId = BeaOnGitHub.Id;
@@ -18,16 +18,23 @@ public class GitHubLinkRulesTests
     }
 
     [Fact]
-    public void An_account_first_signs_in_as_the_User_an_Admin_added_by_its_login()
+    public void An_account_first_signs_in_as_the_User_an_Admin_added_for_it()
     {
-        var added = AddedByLogin("bea-gh");
-        var someoneElseWithTheEmail = WithPassword("bea@example.com");
-        someoneElseWithTheEmail.GitHubLogin = "not-bea";
+        var added = AddedFor(BeaOnGitHub.Id);
 
-        var match = GitHubLinkRules.UserSigningInAs(BeaOnGitHub with { VerifiedPrimaryEmail = null }, [added, someoneElseWithTheEmail]);
+        var match = GitHubLinkRules.UserSigningInAs(BeaOnGitHub with { VerifiedPrimaryEmail = null }, [added]);
 
         Assert.Same(added, match!.User);
-        Assert.Null(match.AddedByLoginToMergeIn);
+        Assert.Null(match.AddedAndNeverSignedInToMergeIn);
+    }
+
+    [Fact]
+    public void A_renamed_account_still_signs_in_as_the_User_added_for_it()
+    {
+        var added = AddedFor(BeaOnGitHub.Id);
+        added.GitHubLogin = "bea-gh";
+
+        Assert.Same(added, GitHubLinkRules.UserSigningInAs(BeaOnGitHub with { Login = "bea-renamed" }, [added])!.User);
     }
 
     [Fact]
@@ -55,35 +62,48 @@ public class GitHubLinkRulesTests
     }
 
     [Fact]
-    public void Someone_added_by_login_who_already_has_a_User_by_email_is_one_person()
+    public void Someone_added_for_an_account_who_already_has_a_User_by_email_is_one_person()
     {
-        var added = AddedByLogin("bea-gh");
+        var added = AddedFor(BeaOnGitHub.Id);
         var bea = WithPassword("bea@example.com");
 
         var match = GitHubLinkRules.UserSigningInAs(BeaOnGitHub, [added, bea]);
 
         Assert.Same(bea, match!.User);
-        Assert.Same(added, match.AddedByLoginToMergeIn);
+        Assert.Same(added, match.AddedAndNeverSignedInToMergeIn);
     }
 
     [Fact]
-    public void Linking_takes_over_the_User_an_Admin_added_by_that_login()
+    public void A_User_added_for_an_account_who_has_signed_in_stays_their_own()
+    {
+        var added = AddedFor(BeaOnGitHub.Id);
+        added.SignedIn(DateTimeOffset.UnixEpoch);
+        var someoneWithTheEmail = WithPassword("bea@example.com");
+
+        var match = GitHubLinkRules.UserSigningInAs(BeaOnGitHub, [added, someoneWithTheEmail]);
+
+        Assert.Same(added, match!.User);
+        Assert.Null(match.AddedAndNeverSignedInToMergeIn);
+    }
+
+    [Fact]
+    public void Linking_takes_over_the_User_an_Admin_added_for_that_account()
     {
         var ada = WithPassword("ada@example.com");
-        var added = AddedByLogin("bea-gh");
+        var added = AddedFor(BeaOnGitHub.Id);
 
         var match = GitHubLinkRules.Linking(ada, BeaOnGitHub, [ada, added]);
 
         Assert.Null(match.Refusal);
-        Assert.Same(added, match.AddedByLoginToMergeIn);
+        Assert.Same(added, match.AddedAndNeverSignedInToMergeIn);
     }
 
     [Fact]
-    public void Linking_an_account_another_User_has_is_refused()
+    public void Linking_an_account_another_User_has_signed_in_with_is_refused()
     {
         var ada = WithPassword("ada@example.com");
-        var bea = WithPassword("bea@example.com");
-        bea.GitHubAccountId = BeaOnGitHub.Id;
+        var bea = AddedFor(BeaOnGitHub.Id);
+        bea.SignedIn(DateTimeOffset.UnixEpoch);
 
         Assert.Equal(LinkRefusal.GitHubAccountHasAnotherUser, GitHubLinkRules.Linking(ada, BeaOnGitHub, [ada, bea]).Refusal);
     }
@@ -102,8 +122,8 @@ public class GitHubLinkRulesTests
         Name = email, Email = email, NormalizedEmail = User.Normalize(email), PasswordHash = "hashed", CreatedAt = DateTimeOffset.UnixEpoch,
     };
 
-    private static User AddedByLogin(string login) => new()
+    private static User AddedFor(long accountId) => new()
     {
-        Name = login, GitHubLogin = login, NormalizedGitHubLogin = User.NormalizeGitHubLogin(login), CreatedAt = DateTimeOffset.UnixEpoch,
+        Name = "added", GitHubAccountId = accountId, GitHubLogin = "added", CreatedAt = DateTimeOffset.UnixEpoch,
     };
 }

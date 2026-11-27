@@ -48,6 +48,23 @@ public class GitHubUserAccountTests
         Assert.Null(await ApiOver(gitHub).VerifiedPrimaryEmail("ghu_1", Cancellation));
     }
 
+    [Fact]
+    public async Task Looks_up_whose_a_login_is()
+    {
+        var gitHub = new Answering(("GET", "/users/bea-gh", """{"id":1002,"login":"Bea-GH","type":"User"}"""));
+
+        var account = await ApiOver(gitHub).AccountOfLogin("bea-gh", Cancellation);
+
+        Assert.Equal(new GitHubAccountLookup(1002, "Bea-GH", "User"), account);
+        Assert.True(account!.IsPersonal);
+    }
+
+    [Fact]
+    public async Task A_login_GitHub_does_not_know_is_no_one()
+    {
+        Assert.Null(await ApiOver(new Answering()).AccountOfLogin("nobody", Cancellation));
+    }
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     private static GitHubApi ApiOver(HttpMessageHandler gitHub) =>

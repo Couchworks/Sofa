@@ -102,6 +102,42 @@ public class GitHubSignInTests(SofaApp sofa)
             && cookies.Any(cookie => cookie.StartsWith("sofa_sign_in=", StringComparison.Ordinal)));
     }
 
+    [Fact]
+    public async Task A_login_that_is_no_person_on_GitHub_is_refused_when_added()
+    {
+        var workspaceId = (await sofa.SetUp).FirstUser.WorkspaceId;
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+
+        using var nobody = await ada.PostAsJsonAsync($"/api/workspaces/{workspaceId}/users", new { gitHubLogin = "nobody-on-github" }, Cancellation);
+        using var organisation = await ada.PostAsJsonAsync($"/api/workspaces/{workspaceId}/users", new { gitHubLogin = FakeGitHub.Organisation }, Cancellation);
+
+        Assert.Equal(HttpStatusCode.BadRequest, nobody.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, organisation.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_login_renamed_and_taken_by_someone_else_before_the_first_sign_in_reaches_only_its_first_holder()
+    {
+        var workspaceId = (await sofa.SetUp).FirstUser.WorkspaceId;
+        await sofa.TheGitHubApp;
+        using var ada = await sofa.AdaSignedInAsync(Cancellation);
+        using var added = await ada.PostAsJsonAsync(
+            $"/api/workspaces/{workspaceId}/users", new { gitHubLogin = FakeGitHub.Carol.Login }, Cancellation);
+        var carolId = (await added.Content.ReadFromJsonAsync<UserAdded>(Cancellation))!.UserId;
+
+        sofa.GitHub.Rename(FakeGitHub.Carol, "carol-renamed");
+        sofa.GitHub.Rename(FakeGitHub.Dave, FakeGitHub.Carol.Login);
+        using var dave = new WebClientSignIn(sofa.AddressOf(SofaServices.AppGateway));
+        var daveSignsIn = await dave.SignInWithGitHubAsync(FakeGitHub.CodeFor(FakeGitHub.Carol), Cancellation);
+        using var carol = new WebClientSignIn(sofa.AddressOf(SofaServices.AppGateway));
+        var carolSignsIn = await carol.SignInWithGitHubAsync($"carol-renamed{FakeGitHub.CodeNamesItsAccount}{Guid.NewGuid():N}", Cancellation);
+
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        Assert.Null(daveSignsIn.Tokens);
+        var profile = await ProfileAsync(carolSignsIn.Tokens!);
+        Assert.Equal((carolId, "carol-renamed"), (profile.Id, profile.GitHubLogin));
+    }
+
     private async Task<UserProfile> ProfileAsync(Tokens tokens)
     {
         using var gateway = sofa.CreateHttpClient(SofaServices.AppGateway);

@@ -74,6 +74,18 @@ public class GitHubAppTests(SofaApp sofa)
     }
 
     [Fact]
+    public async Task GitHubs_own_return_after_an_installation_changes_lands_without_acting()
+    {
+        await TheAppInstalledOnce();
+        using var gateway = sofa.CreateHttpClientThatStaysOnRedirects(SofaServices.AppGateway);
+
+        using var response = await gateway.GetAsync(
+            $"/github-app/installed?installation_id={FakeGitHub.InstallationId}&setup_action=update", Cancellation);
+
+        Assert.Equal("/?connection=updated", response.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
     public async Task A_signed_state_is_refused_in_a_browser_that_did_not_start_it()
     {
         await sofa.TheGitHubApp;

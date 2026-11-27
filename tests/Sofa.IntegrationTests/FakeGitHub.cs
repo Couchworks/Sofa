@@ -25,8 +25,11 @@ public sealed class FakeGitHub : IAsyncDisposable
     public static readonly GitHubAccountOnFake Ada = new(5001, "ada-gh", "Ada Lovelace", "ada@example.com");
     public static readonly GitHubAccountOnFake Bea = new(5002, "bea-gh", "Bea Kowalski", "bea@example.com");
     public static readonly GitHubAccountOnFake Mallory = new(5003, "mallory", "Mallory", "mallory@example.com");
+    public static readonly GitHubAccountOnFake Carol = new(5004, "carol-gh", "Carol Shaw", "carol@example.com");
+    public static readonly GitHubAccountOnFake Dave = new(5005, "dave-gh", "Dave", "dave@example.com");
 
-    private static readonly GitHubAccountOnFake[] Accounts = [Ada, Bea, Mallory];
+    private readonly ConcurrentDictionary<long, GitHubAccountOnFake> _accounts =
+        new(new[] { Ada, Bea, Mallory, Carol, Dave }.Select(account => KeyValuePair.Create(account.Id, account)));
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
@@ -82,10 +85,17 @@ public sealed class FakeGitHub : IAsyncDisposable
             var login = exchange.GetProperty("code").GetString()!.Split(CodeNamesItsAccount)[0];
             var fromTheApp = exchange.GetProperty("client_id").GetString() == ClientId
                 && exchange.GetProperty("client_secret").GetString() == ClientSecret;
-            return fromTheApp && Accounts.Any(account => account.Login == login)
-                ? Results.Json(new { access_token = $"ghu_{login}", token_type = "bearer" })
+            return fromTheApp && AccountWithLogin(login) is { } account
+                ? Results.Json(new { access_token = $"ghu_{account.Id}", token_type = "bearer" })
                 : Results.Json(new { error = "bad_verification_code" });
         });
+
+        _server.MapGet("/users/{login}", (string login) =>
+            login.Equals(Organisation, StringComparison.OrdinalIgnoreCase)
+                ? Results.Json(new { id = 9100, login = Organisation, type = "Organization" })
+                : AccountWithLogin(login) is { } account
+                    ? Results.Json(new { id = account.Id, login = account.Login, type = "User" })
+                    : Results.NotFound());
 
         _server.MapGet("/user", (HttpRequest request) =>
             AccountOf(request) is { } account
@@ -173,8 +183,13 @@ public sealed class FakeGitHub : IAsyncDisposable
     public string Sign(byte[] body) =>
         "sha256=" + Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body));
 
-    private static GitHubAccountOnFake? AccountOf(HttpRequest request) =>
-        Accounts.SingleOrDefault(account => request.Headers.Authorization.ToString() == $"Bearer ghu_{account.Login}");
+    public void Rename(GitHubAccountOnFake account, string newLogin) => _accounts[account.Id] = account with { Login = newLogin };
+
+    private GitHubAccountOnFake? AccountWithLogin(string login) =>
+        _accounts.Values.SingleOrDefault(account => account.Login.Equals(login, StringComparison.OrdinalIgnoreCase));
+
+    private GitHubAccountOnFake? AccountOf(HttpRequest request) =>
+        _accounts.Values.SingleOrDefault(account => request.Headers.Authorization.ToString() == $"Bearer ghu_{account.Id}");
 
     private bool SignedByTheApp(HttpRequest request)
     {

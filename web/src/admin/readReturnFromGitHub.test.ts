@@ -22,3 +22,10 @@ test('reads why a GitHub account was not linked', () => {
     problem: 'It belongs to another User',
   })
 })
+
+test('reads GitHub’s own return after an installation changed as a note, not a failure', () => {
+  expect(readReturnFromGitHub('?connection=updated')).toEqual({
+    title: 'The installation was changed on GitHub. Sofa follows it through GitHub’s events.',
+    problem: null,
+  })
+})
