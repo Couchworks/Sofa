@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.Contracts.Connections;
 
 namespace Sofa.AppGateway.GitHubReturns;

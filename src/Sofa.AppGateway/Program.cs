@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Sofa.AppGateway;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.AppGateway.Connections;
 using Sofa.AppGateway.GitHubReturns;
 using Sofa.AppGateway.Identity;
@@ -30,7 +30,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IdentityUsers>(identity => identity.BaseAddress = IdentityUsers.Address);
 builder.Services.AddScoped<WorkspaceAdmins>();
-builder.Services.AddScoped<IFindSignedInAdmin, AdminOfTheWorkspaceInTheRoute>();
+builder.Services.AddScoped<IFindSignedInWorkspaceUser, WorkspaceUserInTheRoute>();
 builder.Services.AddHttpClient<ConnectionsClient>(http => http.BaseAddress = ConnectionsClient.Address);
 builder.Services.AddOptions<GitHubReturnOptions>().BindConfiguration(GitHubReturnOptions.Section);
 builder.Services.AddSingleton<GitHubReturnStates>();
@@ -48,7 +48,7 @@ app.UseExceptionHandler();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAdminsOnly();
+app.UseWorkspaceAccess();
 
 app.MapOpenApi();
 app.MapDefaultEndpoints();

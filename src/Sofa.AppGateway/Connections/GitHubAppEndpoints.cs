@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.AppGateway.GitHubReturns;
 using Sofa.Contracts.Connections;
 using Wolverine;
