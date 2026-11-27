@@ -1,8 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
-using Aspire.Hosting.ApplicationModel;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Sofa.Contracts;
 
@@ -24,17 +21,17 @@ public class RunTests(SofaApp sofa)
         var runId = await StartTestRunAsync(fayId, "Triage");
         var run = await RunUntilAsync(fay, runId, r => r.State == "Finished");
         var transcript = await WholeTranscriptAsync(fay, runId);
-        var init = transcript.First();
+        var start = StartOf(transcript);
         var signedIn = (await RunnersSeenByAsync(fay)).Single(r => r.Id == runner.Id).SignIn!;
 
         Assert.Equal(runner.Id, run.RunnerId);
         Assert.Equal("The stub played back a recorded Run.", run.Summary);
-        Assert.Equal("haiku", init.GetProperty("model").GetString());
-        Assert.Equal("none", init.GetProperty("apiKeySource").GetString());
-        Assert.Contains("mcp__sofa__end_test_run", Tools(init));
-        Assert.DoesNotContain("Edit", Tools(init));
-        Assert.Equal("success", transcript.Last().GetProperty("subtype").GetString());
-        Assert.DoesNotContain(transcript, line => line.GetRawText().Contains("stub@example.com", StringComparison.Ordinal));
+        Assert.Contains("started on haiku.", start);
+        Assert.Contains("Credentials: none.", start);
+        Assert.Contains("mcp__sofa__end_test_run", start);
+        Assert.DoesNotContain("Edit", start);
+        Assert.StartsWith("Ended: success", transcript.Last().Text);
+        Assert.DoesNotContain(transcript, entry => entry.Everything.Contains("stub@example.com", StringComparison.Ordinal));
         Assert.True(signedIn.SignedIn);
         Assert.Equal(new DateTimeOffset(2026, 12, 24, 10, 0, 0, TimeSpan.Zero), signedIn.EndsAt);
     }
@@ -51,9 +48,9 @@ public class RunTests(SofaApp sofa)
         var transcript = await WholeTranscriptAsync(gus, runId);
 
         Assert.Equal(runner.Id, run.RunnerId);
-        Assert.Equal("opus", transcript.First().GetProperty("model").GetString());
-        Assert.Equal("ANTHROPIC_API_KEY", transcript.First().GetProperty("apiKeySource").GetString());
-        Assert.DoesNotContain(transcript, line => line.GetRawText().Contains(apiKey, StringComparison.Ordinal));
+        Assert.Contains("started on opus.", StartOf(transcript));
+        Assert.Contains("Credentials: ANTHROPIC_API_KEY.", StartOf(transcript));
+        Assert.DoesNotContain(transcript, entry => entry.Everything.Contains(apiKey, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -66,12 +63,12 @@ public class RunTests(SofaApp sofa)
         var runId = await StartTestRunAsync(halId, "Implement");
         var run = await RunUntilAsync(hal, runId, r => r.State == "Finished");
         var spent = (await RunnersSeenByAsync(ada)).Single(r => r.Id == run.RunnerId);
-        var init = (await WholeTranscriptAsync(hal, runId)).First();
+        var start = StartOf(await WholeTranscriptAsync(hal, runId));
 
         Assert.Equal("Team", spent.Owner.Kind);
         Assert.Equal(teamRunner.Owner.Id, spent.Owner.Id);
-        Assert.Contains("Edit", Tools(init));
-        Assert.Contains("Bash(git:*)", Tools(init));
+        Assert.Contains("Edit", start);
+        Assert.Contains("Bash(git push:*)", start);
     }
 
     [Fact]
@@ -110,7 +107,7 @@ public class RunTests(SofaApp sofa)
         var failedAgain = await RunUntilAsync(jo, retry, r => r.State == "Failed");
 
         using var retriedByJo = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{retry}/retry", null, Cancellation);
-        var third = (await retriedByJo.Content.ReadFromJsonAsync<Run>(Cancellation))!;
+        var third = (await retriedByJo.Content.ReadFromJsonAsync<TestRuns.Run>(Cancellation))!;
         using var stopped = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{third.Id}/stop", null, Cancellation);
         var thirdStopped = await RunUntilAsync(jo, third.Id, r => r.State == "Stopped");
         using var retryingTheStopped = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{third.Id}/retry", null, Cancellation);
@@ -208,127 +205,29 @@ public class RunTests(SofaApp sofa)
         Assert.Equal(HttpStatusCode.NotFound, noSuchRun.StatusCode);
     }
 
-    private static IEnumerable<string?> Tools(JsonElement init) => init.GetProperty("tools").EnumerateArray().Select(tool => tool.GetString());
+    private readonly TestRuns _runs = new(sofa);
 
-    private async Task<(WebClientSignIn User, Guid UserId)> UserOfTheirOwnAsync(GitHubAccountOnFake account)
-    {
-        var userId = await sofa.UserOnceAsync(account);
-        return (await sofa.SignedInWithGitHubAsync(account, Cancellation), userId);
-    }
+    private static string StartOf(List<TestRuns.TranscriptEntry> transcript) => transcript.First().Text!;
 
-    private async Task<Guid> StartTestRunAsync(
-        Guid delegatingUserId, string phase, string? task = null, int? retryLimit = null, string? projectKey = null)
-    {
-        var project = projectKey ?? (await sofa.TheProjectForRuns).Key;
-        using var flow = sofa.CreateHttpClient(SofaServices.Flow);
-        using var started = await flow.PostAsJsonAsync("/diagnostics/test-runs", new
-        {
-            workspaceId = (await sofa.SetUp).FirstUser.WorkspaceId,
-            projectKey = project,
-            phase,
-            delegatingUserId,
-            task,
-            retryLimit,
-        }, Cancellation);
-        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
-        return (await started.Content.ReadFromJsonAsync<TestRunStarted>(Cancellation))!.RunId;
-    }
+    private Task<(WebClientSignIn User, Guid UserId)> UserOfTheirOwnAsync(GitHubAccountOnFake account) => _runs.UserOfTheirOwnAsync(account);
 
-    private async Task<Run> RunUntilAsync(WebClientSignIn user, Guid runId, Func<Run, bool> until)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
-        timeout.CancelAfter(RunsSettleWithin);
-        Run? last = null;
-        try
-        {
-            while (true)
-            {
-                using var read = await user.GetWithTokenAsync($"{await WorkspaceApiAsync()}/runs/{runId}", timeout.Token);
-                if (read.StatusCode == HttpStatusCode.OK)
-                {
-                    last = (await read.Content.ReadFromJsonAsync<Run>(timeout.Token))!;
-                    if (until(last))
-                    {
-                        return last;
-                    }
-                }
+    private Task<Guid> StartTestRunAsync(Guid delegatingUserId, string phase, string? task = null, int? retryLimit = null, string? projectKey = null) =>
+        _runs.StartAsync(delegatingUserId, phase, task, retryLimit, projectKey);
 
-                await Task.Delay(TimeSpan.FromMilliseconds(200), timeout.Token);
-            }
-        }
-        catch (OperationCanceledException) when (!Cancellation.IsCancellationRequested)
-        {
-            throw new TimeoutException($"Run {runId} never got there; it was last {last?.State}: {last?.Why}");
-        }
-    }
+    private Task<TestRuns.Run> RunUntilAsync(WebClientSignIn user, Guid runId, Func<TestRuns.Run, bool> until) => _runs.UntilAsync(user, runId, until);
 
-    private async Task RunningContainerAsync(WebClientSignIn user, Guid runId)
-    {
-        await RunUntilAsync(user, runId, r => r.State == "Running");
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
-        timeout.CancelAfter(RunsSettleWithin);
-        while ((await TranscriptAsync(user, runId)).Count == 0)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(200), timeout.Token);
-        }
-    }
+    private Task RunningContainerAsync(WebClientSignIn user, Guid runId) => _runs.RunningContainerAsync(user, runId);
 
-    private async Task<List<JsonElement>> WholeTranscriptAsync(WebClientSignIn user, Guid runId)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
-        timeout.CancelAfter(RunsSettleWithin);
-        while (true)
-        {
-            var transcript = await TranscriptAsync(user, runId);
-            if (transcript.Count > 0 && transcript.Last().GetProperty("type").GetString() == "result")
-            {
-                return transcript;
-            }
+    private Task<List<TestRuns.TranscriptEntry>> WholeTranscriptAsync(WebClientSignIn user, Guid runId) => _runs.WholeTranscriptAsync(user, runId);
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), timeout.Token);
-        }
-    }
+    private async Task<List<TestRuns.TranscriptEntry>> TranscriptAsync(WebClientSignIn user, Guid runId) =>
+        (await _runs.TranscriptAsync(user, runId)).Entries;
 
-    private async Task<List<JsonElement>> TranscriptAsync(WebClientSignIn user, Guid runId)
-    {
-        using var read = await user.GetWithTokenAsync($"{await WorkspaceApiAsync()}/runs/{runId}/transcript", Cancellation);
-        read.EnsureSuccessStatusCode();
-        var transcript = (await read.Content.ReadFromJsonAsync<Transcript>(Cancellation))!;
-        Assert.Equal(Enumerable.Range(1, transcript.Lines.Count), transcript.Lines.Select(line => line.Number));
-        return transcript.Lines.Select(line => JsonDocument.Parse(line.Text).RootElement.Clone()).ToList();
-    }
+    private Task<TestRuns.Runner> AddRunnerAsync(WebClientSignIn user, string kind, object runner) => _runs.AddRunnerAsync(user, kind, runner);
 
-    private async Task<Runner> AddRunnerAsync(WebClientSignIn user, string kind, object runner)
-    {
-        using var created = await user.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runners/{kind}", runner, Cancellation);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        return (await created.Content.ReadFromJsonAsync<Runner>(Cancellation))!;
-    }
+    private Task<List<TestRuns.Runner>> RunnersSeenByAsync(WebClientSignIn user) => _runs.RunnersSeenByAsync(user);
 
-    private async Task<List<Runner>> RunnersSeenByAsync(WebClientSignIn user)
-    {
-        using var response = await user.GetWithTokenAsync($"{await WorkspaceApiAsync()}/runners", Cancellation);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<List<Runner>>(Cancellation))!;
-    }
-
-    private async Task<string> NoticesLoggedAsync(Func<string, bool> matching)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
-        timeout.CancelAfter(RunsSettleWithin);
-        var logs = sofa.App.Services.GetRequiredService<ResourceLoggerService>();
-        var notices = sofa.App.Services.GetRequiredService<DistributedApplicationModel>()
-            .Resources.Single(resource => resource.Name == SofaServices.Notices);
-        await foreach (var batch in logs.WatchAsync(notices).WithCancellation(timeout.Token))
-        {
-            if (batch.Select(line => line.Content).FirstOrDefault(matching) is { } content)
-            {
-                return content;
-            }
-        }
-
-        throw new InvalidOperationException("Notices never logged it.");
-    }
+    private Task<string> NoticesLoggedAsync(Func<string, bool> matching) => _runs.LoggedByAsync(SofaServices.Notices, matching);
 
     private async Task ForgetInIdentityAsync(Guid agentId)
     {
@@ -339,31 +238,5 @@ public class RunTests(SofaApp sofa)
         Assert.Equal(1, await forget.ExecuteNonQueryAsync(Cancellation));
     }
 
-    private async Task<string> WorkspaceApiAsync() => $"/api/workspaces/{(await sofa.SetUp).FirstUser.WorkspaceId}";
-
-    private sealed record TestRunStarted(Guid RunId);
-
-    private sealed record Run(
-        Guid Id,
-        string State,
-        string? Why,
-        string? RefusedAs,
-        Guid? RunnerId,
-        int Attempt,
-        Guid? RetryOf,
-        Guid? RetriedBy,
-        bool WaitsForRetry,
-        string? Summary,
-        DateTimeOffset? StartedAt,
-        DateTimeOffset? EndedAt);
-
-    private sealed record Transcript(Guid RunId, List<TranscriptLine> Lines);
-
-    private sealed record TranscriptLine(int Number, string Text);
-
-    private sealed record Runner(Guid Id, string Kind, Owner Owner, string? WorkerVolume, SignIn? SignIn);
-
-    private sealed record Owner(string Kind, Guid Id);
-
-    private sealed record SignIn(bool SignedIn, DateTimeOffset? EndsAt, DateTimeOffset? CheckedAt);
+    private Task<string> WorkspaceApiAsync() => _runs.WorkspaceApiAsync();
 }

@@ -40,6 +40,14 @@ public static class StubWorker
         }
     }
 
+    public static async Task RemoveTheWorkerNetworkAsync(int agentGatewayPort)
+    {
+        var network = $"sofa-workers-{agentGatewayPort}";
+        await DockerAsync(["rm", "--force", $"{network}-relay"], CancellationToken.None);
+        await DockerAsync(["network", "rm", $"{network}-egress"], CancellationToken.None);
+        await DockerAsync(["network", "rm", network], CancellationToken.None);
+    }
+
     public static async Task RemoveTheVolumesMadeAsync()
     {
         foreach (var volume in VolumesMade.Distinct())

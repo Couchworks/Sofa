@@ -20,6 +20,9 @@ public sealed class FakeGitHub : IAsyncDisposable
     public const string Organisation = "acme";
     public const long InstallationId = 777;
     public const string ClientSecret = "fake-client-secret";
+    public const string AppBot = $"{AppSlug}[bot]";
+
+    public static readonly string InstallationToken = $"ghs_fake{InstallationId}{new string('0', 32)}";
     public const char CodeNamesItsAccount = ':';
 
     public static readonly GitHubAccountOnFake Ada = new(5001, "ada-gh", "Ada Lovelace", "ada@example.com");
@@ -36,6 +39,9 @@ public sealed class FakeGitHub : IAsyncDisposable
     public static readonly GitHubAccountOnFake Kim = new(5012, "kim-gh", "Kim", "kim@example.com");
     public static readonly GitHubAccountOnFake Lu = new(5013, "lu-gh", "Lu", "lu@example.com");
     public static readonly GitHubAccountOnFake Max = new(5014, "max-gh", "Max", "max@example.com");
+    public static readonly GitHubAccountOnFake Nia = new(5015, "nia-gh", "Nia", "nia@example.com");
+    public static readonly GitHubAccountOnFake Oz = new(5016, "oz-gh", "Oz", "oz@example.com");
+    public static readonly GitHubAccountOnFake Pia = new(5017, "pia-gh", "Pia", "pia@example.com");
 
     public static readonly RepositoryOnFake[] Repositories =
     [
@@ -45,7 +51,7 @@ public sealed class FakeGitHub : IAsyncDisposable
     ];
 
     private readonly ConcurrentDictionary<long, GitHubAccountOnFake> _accounts =
-        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max }.Select(account => KeyValuePair.Create(account.Id, account)));
+        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max, Nia, Oz, Pia }.Select(account => KeyValuePair.Create(account.Id, account)));
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
@@ -71,6 +77,10 @@ public sealed class FakeGitHub : IAsyncDisposable
     public ConcurrentDictionary<long, CommentOnFake> Comments { get; } = new();
 
     public ConcurrentQueue<IssueChangeOnFake> IssueChanges { get; } = new();
+
+    public ConcurrentQueue<RefChangeOnFake> RefChanges { get; } = new();
+
+    public ConcurrentDictionary<(string Repository, long Number), PullRequestOnFake> PullRequests { get; } = new();
 
     private long _lastCommentId = 1_000_000;
 
@@ -154,12 +164,12 @@ public sealed class FakeGitHub : IAsyncDisposable
             }
 
             TokenRequests.Add(await JsonSerializer.DeserializeAsync<JsonElement>(request.Body));
-            return Results.Json(new { token = $"ghs_fake_{id}", expires_at = DateTimeOffset.UtcNow.AddHours(1) },
+            return Results.Json(new { token = InstallationToken, expires_at = DateTimeOffset.UtcNow.AddHours(1) },
                 statusCode: StatusCodes.Status201Created);
         });
 
         _server.MapGet("/installation/repositories", (HttpRequest request) =>
-            request.Headers.Authorization.ToString() == $"Bearer ghs_fake_{InstallationId}"
+            ByTheInstallation(request)
                 ? Results.Json(new
                 {
                     total_count = Repositories.Length,
@@ -263,9 +273,55 @@ public sealed class FakeGitHub : IAsyncDisposable
         });
     }
 
+    private void ServeRefsAndPullRequests()
+    {
+        _server.MapGet("/repos/{owner}/{repo}/pulls/{number:long}", (string owner, string repo, long number, HttpRequest request) =>
+            !ByTheInstallation(request) ? Results.Unauthorized()
+            : PullRequests.TryGetValue(($"{owner}/{repo}", number), out var pull)
+                ? Results.Json(new
+                {
+                    number,
+                    title = pull.Title,
+                    html_url = $"https://github.com/{owner}/{repo}/pull/{number}",
+                    state = pull.Merged || pull.Closed ? "closed" : "open",
+                    merged = pull.Merged,
+                    head = new { @ref = pull.HeadBranch },
+                    @base = new { @ref = "main" },
+                    created_at = DateTimeOffset.UtcNow.AddHours(-1),
+                    closed_at = pull.Merged || pull.Closed ? DateTimeOffset.UtcNow : (DateTimeOffset?)null,
+                })
+                : Results.NotFound());
+
+        _server.MapMethods("/repos/{owner}/{repo}/git/refs/{**name}", ["PATCH", "DELETE"], async (string owner, string repo, string name, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            var body = request.Method == "PATCH" ? await new StreamReader(request.Body).ReadToEndAsync() : "";
+            RefChanges.Enqueue(new RefChangeOnFake($"{owner}/{repo}", $"refs/{name}", request.Method, body));
+            return request.Method == "PATCH" ? Results.Json(new { @ref = $"refs/{name}" }) : Results.NoContent();
+        });
+
+        _server.MapPost("/repos/{owner}/{repo}/git/refs", async (string owner, string repo, HttpRequest request) =>
+        {
+            if (!ByTheInstallation(request))
+            {
+                return Results.Unauthorized();
+            }
+
+            var body = await new StreamReader(request.Body).ReadToEndAsync();
+            var created = JsonDocument.Parse(body).RootElement.GetProperty("ref").GetString()!;
+            RefChanges.Enqueue(new RefChangeOnFake($"{owner}/{repo}", created, "POST", body));
+            return Results.Json(new { @ref = created }, statusCode: StatusCodes.Status201Created);
+        });
+    }
+
     public static async Task<FakeGitHub> Start(CancellationToken cancellation)
     {
         var gitHub = new FakeGitHub();
+        gitHub.ServeRefsAndPullRequests();
         await gitHub._server.StartAsync(cancellation);
         var address = gitHub._server.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!.Addresses.Single();
@@ -296,7 +352,7 @@ public sealed class FakeGitHub : IAsyncDisposable
     public void Rename(GitHubAccountOnFake account, string newLogin) => _accounts[account.Id] = account with { Login = newLogin };
 
     private static bool ByTheInstallation(HttpRequest request) =>
-        request.Headers.Authorization.ToString() == $"Bearer ghs_fake_{InstallationId}";
+        request.Headers.Authorization.ToString() == $"Bearer {InstallationToken}";
 
     private GitHubAccountOnFake? AccountWithLogin(string login) =>
         _accounts.Values.SingleOrDefault(account => account.Login.Equals(login, StringComparison.OrdinalIgnoreCase));
@@ -347,3 +403,7 @@ public sealed record RepositoryOnFake(string FullName, bool Private);
 public sealed record CommentOnFake(long Id, string Repository, long Number, string Body, int Edits);
 
 public sealed record IssueChangeOnFake(string Repository, long Number, string Change);
+
+public sealed record RefChangeOnFake(string Repository, string Ref, string Method, string Body);
+
+public sealed record PullRequestOnFake(string Title, string HeadBranch, bool Merged, bool Closed);
