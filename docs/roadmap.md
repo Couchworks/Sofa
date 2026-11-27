@@ -25,4 +25,6 @@ Each is usable before the next starts.
 4. **Knowledge and Usage.** Reading and Publishing Knowledge; Usage.
 5. **Later.** A User's own machine, Managed Agents, other vendors, Jira and Confluence.
 
+Milestone 1 also warns a User in their Inbox before their subscription's sign-in on a Worker ends, until the prototype shows whether Runs keep it alive.
+
 Sofa isn't used to build itself yet; that starts once it runs on small real Projects.
