@@ -4,7 +4,7 @@ using Sofa.Contracts;
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres");
-if (!bool.TryParse(builder.Configuration["Sofa:FreshDatabaseEachStart"], out var freshDatabase) || !freshDatabase)
+if (!bool.TryParse(builder.Configuration[SofaAppHostSettings.FreshDatabaseEachStart], out var freshDatabase) || !freshDatabase)
 {
     postgres.WithDataVolume();
 }
@@ -21,7 +21,7 @@ var keyEncryptionKey = builder.AddParameter(
     new GenerateParameterDefault { MinLength = 48, Special = false },
     secret: true,
     persist: true);
-var publicAddress = builder.Configuration["Sofa:PublicAddress"];
+var configuredPublicAddress = builder.Configuration[SofaAppHostSettings.PublicAddress];
 
 IResourceBuilder<DotnetProjectResource> AddService(string name, string project) =>
     builder.AddDotnetProject(name, $"../{project}/{project}.csproj")
@@ -37,31 +37,25 @@ var appGateway = AddService(SofaServices.AppGateway, "Sofa.AppGateway")
     .WithExternalHttpEndpoints()
     .PublishWithContainerFiles(web, "wwwroot");
 
+var publicAddress = new PublicAddress(configuredPublicAddress, appGateway);
+
+var connections = AddService(SofaServices.Connections, "Sofa.Connections")
+    .WithEnvironment("Credentials__KeyEncryptionKey", keyEncryptionKey)
+    .WithEnvironment(publicAddress.TellConnections);
+
 var identity = AddService(SofaServices.Identity, "Sofa.Identity")
-    .WithEnvironment(context => PublicAddresses.TellIdentity(context, appGateway))
-    .WithEnvironment(context => PublicAddresses.TellIssuer(context, appGateway))
+    .WithEnvironment(publicAddress.TellWebClientOrigins)
+    .WithEnvironment(publicAddress.TellIssuer)
     .WithEnvironment("Identity__ExecutionClientSecret", executionClientSecret);
 
 appGateway.WithReference(identity)
-    .WithEnvironment(context => PublicAddresses.TellIssuer(context, appGateway));
+    .WithReference(connections)
+    .WithEnvironment(publicAddress.TellIssuer);
 
 AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
     .WithReference(identity)
-    .WithEnvironment(context => PublicAddresses.TellIssuer(context, appGateway))
+    .WithEnvironment(publicAddress.TellIssuer)
     .WithExternalHttpEndpoints();
-
-var connections = AddService(SofaServices.Connections, "Sofa.Connections")
-    .WithEnvironment("Credentials__KeyEncryptionKey", keyEncryptionKey);
-if (string.IsNullOrWhiteSpace(publicAddress))
-{
-    connections.WithEnvironment("Sofa__PublicAddress", appGateway.GetEndpoint("http"));
-}
-else
-{
-    connections.WithEnvironment("Sofa__PublicAddress", publicAddress);
-}
-
-appGateway.WithReference(connections);
 
 AddService(SofaServices.Intake, "Sofa.Intake");
 AddService(SofaServices.Flow, "Sofa.Flow");
@@ -75,21 +69,37 @@ AddService(SofaServices.Notices, "Sofa.Notices");
 
 builder.Build().Run();
 
-static class PublicAddresses
+static class SofaAppHostSettings
 {
-    public static void TellIdentity(EnvironmentCallbackContext context, IResourceBuilder<DotnetProjectResource> appGateway)
+    public const string PublicAddress = "Sofa:PublicAddress";
+    public const string FreshDatabaseEachStart = "Sofa:FreshDatabaseEachStart";
+}
+
+sealed class PublicAddress(string? configured, IResourceBuilder<DotnetProjectResource> appGateway)
+{
+    private bool IsConfigured => !string.IsNullOrWhiteSpace(configured);
+
+    public void TellConnections(EnvironmentCallbackContext context) =>
+        context.EnvironmentVariables["Sofa__PublicAddress"] = IsConfigured ? configured! : appGateway.GetEndpoint("http");
+
+    public void TellIssuer(EnvironmentCallbackContext context) =>
+        context.EnvironmentVariables["Identity__Issuer"] = IsConfigured ? configured! : AppGatewaysOwnAddresses()[0];
+
+    public void TellWebClientOrigins(EnvironmentCallbackContext context)
     {
-        var addresses = Of(appGateway);
-        for (var index = 0; index < addresses.Count; index++)
+        List<object> origins = [.. AppGatewaysOwnAddresses()];
+        if (IsConfigured)
         {
-            context.EnvironmentVariables[$"Identity__WebClientOrigins__{index}"] = addresses[index];
+            origins.Insert(0, configured!);
+        }
+
+        for (var index = 0; index < origins.Count; index++)
+        {
+            context.EnvironmentVariables[$"Identity__WebClientOrigins__{index}"] = origins[index];
         }
     }
 
-    public static void TellIssuer(EnvironmentCallbackContext context, IResourceBuilder<DotnetProjectResource> appGateway) =>
-        context.EnvironmentVariables["Identity__Issuer"] = Of(appGateway)[0];
-
-    private static List<EndpointReference> Of(IResourceBuilder<DotnetProjectResource> appGateway) =>
+    private List<EndpointReference> AppGatewaysOwnAddresses() =>
         appGateway.Resource.Annotations.OfType<EndpointAnnotation>()
             .Where(endpoint => endpoint.UriScheme is "http" or "https")
             .OrderByDescending(endpoint => endpoint.UriScheme == "https")
