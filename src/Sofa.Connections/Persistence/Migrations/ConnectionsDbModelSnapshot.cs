@@ -16,7 +16,7 @@ partial class ConnectionsDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127163514_UseEachGitHubReturnOnce";
+    public override string LastMigrationId => "20261127185621_KeepApiKeys";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -27,6 +27,41 @@ partial class ConnectionsDbModelSnapshot : ModelSnapshot
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("Sofa.Connections.Persistence.ApiKey", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<DateTimeOffset>("SavedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("saved_at");
+
+                b.Property<string>("SealedKey")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("sealed_key");
+
+                b.Property<string>("Vendor")
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("vendor");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_api_keys");
+
+                b.HasIndex("WorkspaceId")
+                    .HasDatabaseName("ix_api_keys_workspace_id");
+
+                b.ToTable("api_keys", "connections");
+            });
 
         modelBuilder.Entity("Sofa.Connections.Persistence.Connection", b =>
             {

@@ -1,4 +1,5 @@
 using Sofa.Connections;
+using Sofa.Connections.ApiKeys;
 using Sofa.Connections.GitHub;
 using Sofa.Connections.Persistence;
 using Sofa.Contracts;
@@ -30,5 +31,6 @@ app.MapDefaultEndpoints();
 app.MapConnections();
 app.MapGitHubWebhooks();
 app.MapGitHubSignIn();
+app.MapApiKeys();
 
 app.Run();
