@@ -44,6 +44,17 @@ public sealed class SofaApp : IAsyncLifetime
 
     public HttpClient CreateHttpClient(string service) => App.CreateHttpClient(service, "http");
 
+    public Uri AddressOf(string service) => App.GetEndpoint(service, "http");
+
+    public Task<FreshInstallation> SetUp => _setUp.Value;
+
+    private readonly Lazy<Task<FreshInstallation>> _setUp;
+
+    public SofaApp()
+    {
+        _setUp = new(() => FreshInstallation.SetUpAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (App is not null)

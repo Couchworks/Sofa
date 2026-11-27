@@ -11,9 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/Sofa.AgentGateway/Sofa.AgentGateway.csproj" />
     <ProjectReference Include="../../src/Sofa.Contracts/Sofa.Contracts.csproj" />
     <ProjectReference Include="../../src/Sofa.Execution/Sofa.Execution.csproj" />
     <ProjectReference Include="../../src/Sofa.Flow/Sofa.Flow.csproj" />
+    <ProjectReference Include="../../src/Sofa.Identity/Sofa.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>
