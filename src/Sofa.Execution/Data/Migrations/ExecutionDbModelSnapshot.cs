@@ -16,7 +16,7 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127203020_KeepRuns";
+    public override string LastMigrationId => "20261127221705_RunsEndWithAnOutcomeOrAQuestion";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -148,6 +148,11 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(100)")
                     .HasColumnName("model");
 
+                b.Property<string>("Outcome")
+                    .HasMaxLength(50)
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("outcome");
+
                 b.Property<string>("Phase")
                     .IsRequired()
                     .HasMaxLength(20)
@@ -163,6 +168,15 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
                 b.Property<Guid>("ProjectId")
                     .HasColumnType("uuid")
                     .HasColumnName("project_id");
+
+                b.Property<string>("Question")
+                    .HasMaxLength(4000)
+                    .HasColumnType("character varying(4000)")
+                    .HasColumnName("question");
+
+                b.Property<Guid?>("QuestionId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("question_id");
 
                 b.Property<DateTimeOffset>("QueuedAt")
                     .HasColumnType("timestamp with time zone")
@@ -208,11 +222,6 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
                     .HasMaxLength(20)
                     .HasColumnType("character varying(20)")
                     .HasColumnName("state");
-
-                b.Property<string>("Summary")
-                    .HasMaxLength(4000)
-                    .HasColumnType("character varying(4000)")
-                    .HasColumnName("summary");
 
                 b.Property<string>("Vendor")
                     .IsRequired()
@@ -260,6 +269,10 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
 
                 b.ToTable("runs", "execution", t =>
                     {
+                        t.HasCheckConstraint("ck_runs_end_with_an_outcome_or_a_question", "outcome is null or question_id is null");
+
+                        t.HasCheckConstraint("ck_runs_questions_have_their_text", "(question_id is null) = (question is null)");
+
                         t.HasCheckConstraint("ck_runs_retries_left_within_the_limit", "retries_left >= 0 and retries_left <= retry_limit");
 
                         t.HasCheckConstraint("ck_runs_running_on_a_runner", "state <> 'Running' or runner_id is not null");

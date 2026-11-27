@@ -60,7 +60,9 @@ public sealed class ExecutionDb(DbContextOptions<ExecutionDb> options) : DbConte
             run.Property(r => r.Model).HasMaxLength(100);
             run.Property(r => r.Brief).HasMaxLength(Contracts.Execution.RunLimits.LongestBrief);
             run.Property(r => r.Why).HasMaxLength(4000);
-            run.Property(r => r.Summary).HasMaxLength(4000);
+            run.Property(r => r.Outcome).HasMaxLength(50);
+            run.Property(r => r.Question).HasMaxLength(Contracts.Execution.RunLimits.LongestQuestion);
+            run.Ignore(r => r.Asked);
             run.Property(r => r.Version).IsRowVersion();
             run.Ignore(r => r.HasEnded);
             run.Ignore(r => r.IsRetriedOnItsOwn);
@@ -75,6 +77,8 @@ public sealed class ExecutionDb(DbContextOptions<ExecutionDb> options) : DbConte
             {
                 table.HasCheckConstraint("ck_runs_running_on_a_runner", "state <> 'Running' or runner_id is not null");
                 table.HasCheckConstraint("ck_runs_retries_left_within_the_limit", "retries_left >= 0 and retries_left <= retry_limit");
+                table.HasCheckConstraint("ck_runs_end_with_an_outcome_or_a_question", "outcome is null or question_id is null");
+                table.HasCheckConstraint("ck_runs_questions_have_their_text", "(question_id is null) = (question is null)");
             });
         });
     }

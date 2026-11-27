@@ -110,6 +110,31 @@ public sealed class DockerWorkerContainers : IWorkerContainers
 
         public Task StopAsync(CancellationToken cancellation) => _containers.RemoveAsync(_name, cancellation);
 
+        public async Task<OutputInside> RunInsideAsync(IReadOnlyList<string> command, long mostBytesRead, CancellationToken cancellation)
+        {
+            using var docker = Process.Start(Docker(["exec", _name, .. command])) ?? throw new InvalidOperationException("Docker didn't start.");
+            var errors = docker.StandardError.ReadToEndAsync(cancellation);
+            using var output = new MemoryStream();
+            var buffer = new byte[81920];
+            var cutShort = false;
+            int read;
+            while ((read = await docker.StandardOutput.BaseStream.ReadAsync(buffer, cancellation)) > 0)
+            {
+                var kept = (int)Math.Min(read, mostBytesRead - output.Length);
+                output.Write(buffer, 0, kept);
+                if (kept < read)
+                {
+                    cutShort = true;
+                    docker.Kill(entireProcessTree: true);
+                    break;
+                }
+            }
+
+            await docker.WaitForExitAsync(cancellation);
+            await errors;
+            return new OutputInside(docker.ExitCode, output.ToArray(), cutShort);
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (!_docker.HasExited)

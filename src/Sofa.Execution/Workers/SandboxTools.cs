@@ -11,7 +11,7 @@ public static class SandboxTools
 
     public static IReadOnlyList<string> AllowedIn(Sandbox sandbox) =>
     [
-        .. SofaTools.EveryRunsTools.Select(tool => tool.AsClaudeCodeNamesIt),
+        .. SofaTools.AllowedIn(sandbox).Select(tool => tool.AsClaudeCodeNamesIt),
         .. Reading,
         .. sandbox switch
         {

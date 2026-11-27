@@ -8,6 +8,13 @@ using Wolverine;
 
 namespace Sofa.Execution.Runs;
 
+public abstract record CopiedOut
+{
+    public sealed record Copied(AttachmentCopied Attachment) : CopiedOut;
+
+    public sealed record Refused(string Why) : CopiedOut;
+}
+
 public sealed class RunsInContainers(
     IServiceScopeFactory scopes,
     IWorkerContainers containers,
@@ -50,6 +57,28 @@ public sealed class RunsInContainers(
         {
             watched.EndAfter(options.Value.GraceAfterTheRunEnds);
         }
+    }
+
+    public async Task<CopiedOut> CopyOutAsync(Guid runId, string path, CancellationToken cancellation)
+    {
+        if (!_watched.TryGetValue(runId, out var watched) || watched.Container is not { } container)
+        {
+            return new CopiedOut.Refused("The Run's container is no longer there to copy its attachments from.");
+        }
+
+        var inside = RunRules.InTheWorkingDirectory(path)
+            ?? throw new ArgumentException($"{path} is not in the working directory.", nameof(path));
+        var output = await container.RunInsideAsync(
+            WorkerCommand.CopyingOutAttachment(inside, RunLimits.LargestAttachment), RunLimits.LargestAttachment + 1, cancellation);
+        return output switch
+        {
+            { CutShort: true } or { Output.LongLength: > RunLimits.LargestAttachment } =>
+                new CopiedOut.Refused($"{path} is larger than an attachment may be, {RunLimits.LargestAttachment} bytes."),
+            { ExitCode: 0 } => new CopiedOut.Copied(new AttachmentCopied(Path.GetFileName(inside), output.Output)),
+            { ExitCode: WorkerCommand.AttachmentOutsideTheWorkingDirectory } =>
+                new CopiedOut.Refused($"{path} leads out of your working directory, {WorkerCommand.WorkingDirectory}, so Sofa doesn't attach it."),
+            _ => new CopiedOut.Refused($"There is no file {path} in your working directory, {WorkerCommand.WorkingDirectory}."),
+        };
     }
 
     public async Task StopEveryRunAsync()
