@@ -29,3 +29,9 @@ Each is usable before the next starts.
 Milestone 1 also warns a User in their Inbox before their subscription's sign-in on a Worker ends, until the prototype shows whether Runs keep it alive.
 
 Sofa isn't used to build itself yet; that starts once it runs on small real Projects.
+
+## Known gaps
+
+Small things left behind by merged slices, waiting for a slice of their own or a `fix:`.
+
+- **Unclaimed API keys.** An API key saved for a Runner that Execution then refuses stays sealed in Connections, never read (from #5). Connections should remove a key no Runner claimed, when the Runner is refused and in a periodic sweep.
