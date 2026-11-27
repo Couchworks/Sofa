@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Sofa.AppHost/Sofa.AppHost.csproj" />
+    <ProjectReference Include="../../src/Sofa.Cli/Sofa.Cli.csproj" />
     <ProjectReference Include="../../src/Sofa.Contracts/Sofa.Contracts.csproj" />
   </ItemGroup>
 

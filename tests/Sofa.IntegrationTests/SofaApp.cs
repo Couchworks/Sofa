@@ -69,15 +69,19 @@ public sealed class SofaApp : IAsyncLifetime
 
     public Task<Guid> BeaAddedByHerGitHubLogin => _beaAdded.Value;
 
+    public Task<InstalledConnection> TheConnection => _connection.Value;
+
     private readonly Lazy<Task<FreshInstallation>> _setUp;
     private readonly Lazy<Task<CreatedGitHubApp>> _gitHubApp;
     private readonly Lazy<Task<Guid>> _beaAdded;
+    private readonly Lazy<Task<InstalledConnection>> _connection;
 
     public SofaApp()
     {
         _setUp = new(() => FreshInstallation.SetUpAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
         _gitHubApp = new(() => CreatedGitHubApp.CreateAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
         _beaAdded = new(AddBeaAsync, LazyThreadSafetyMode.ExecutionAndPublication);
+        _connection = new(() => InstalledConnection.InstallAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public async Task<WebClientSignIn> AdaSignedInAsync(CancellationToken cancellation)
@@ -96,6 +100,36 @@ public sealed class SofaApp : IAsyncLifetime
             $"/api/workspaces/{workspaceId}/users", new { gitHubLogin = FakeGitHub.Bea.Login }, CancellationToken.None);
         added.EnsureSuccessStatusCode();
         return (await added.Content.ReadFromJsonAsync<AddedUser>())!.UserId;
+    }
+
+    public async Task<Guid> AddedByGitHubLoginAsync(GitHubAccountOnFake account)
+    {
+        var workspaceId = (await SetUp).FirstUser.WorkspaceId;
+        using var ada = await AdaSignedInAsync(CancellationToken.None);
+        using var added = await ada.PostAsJsonAsync(
+            $"/api/workspaces/{workspaceId}/users", new { gitHubLogin = account.Login }, CancellationToken.None);
+        added.EnsureSuccessStatusCode();
+        return (await added.Content.ReadFromJsonAsync<AddedUser>())!.UserId;
+    }
+
+    public async Task<WebClientSignIn> SignedInWithGitHubAsync(GitHubAccountOnFake account, CancellationToken cancellation)
+    {
+        await TheGitHubApp;
+        var browser = new WebClientSignIn(AddressOf(SofaServices.AppGateway));
+        var signedIn = await browser.SignInWithGitHubAsync(FakeGitHub.CodeFor(account), cancellation);
+        if (signedIn.Tokens is null)
+        {
+            browser.Dispose();
+            throw new InvalidOperationException($"{account.Login} couldn't sign in with GitHub: {signedIn.LandedOn}");
+        }
+
+        return browser;
+    }
+
+    public async Task<WebClientSignIn> BeaSignedInAsync(CancellationToken cancellation)
+    {
+        await BeaAddedByHerGitHubLogin;
+        return await SignedInWithGitHubAsync(FakeGitHub.Bea, cancellation);
     }
 
     private sealed record AddedUser(Guid UserId);
