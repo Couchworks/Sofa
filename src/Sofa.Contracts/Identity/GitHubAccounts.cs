@@ -12,3 +12,5 @@ public sealed record GitHubLinkStarted(string AuthorizeUrl, string State);
 public sealed record AddUserByGitHubLogin(string GitHubLogin);
 
 public sealed record UserAdded(Guid UserId, string GitHubLogin);
+
+public sealed record GitHubAccountHolder(Guid UserId, string Name);
