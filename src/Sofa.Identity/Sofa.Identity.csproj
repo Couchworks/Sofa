@@ -1,6 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="OpenIddict.AspNetCore" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(SofaGeneratingMigrations)' == 'true'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Microsoft.CodeAnalysis" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Scripting" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Sofa.ServiceDefaults/Sofa.ServiceDefaults.csproj" />
   </ItemGroup>
 
