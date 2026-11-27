@@ -132,6 +132,10 @@ _Avoid_: Analytics, metrics, telemetry, stats
 A connection to an outside system that Sofa works through, of one kind: Requests (GitHub Issues, Jira), Knowledge (Confluence, a repository's docs), code (GitHub, GitLab) or Previews (Cloudflare and the like).
 _Avoid_: Integration, plugin, connector, adapter
 
+**Connection**:
+A Workspace's link to one outside system, such as its GitHub organisation or its Atlassian site, with the sign-in Sofa uses there. One Connection may serve several Providers: a GitHub Connection serves Requests, Knowledge, code and Previews alike.
+_Avoid_: Integration, credential, account, installation
+
 **Preview**:
 A running or downloadable version of a Project's software with a set of changes in it, built and hosted by the Project's own pipeline outside Sofa, which only learns where it is.
 _Avoid_: Review build, staging, demo, environment
