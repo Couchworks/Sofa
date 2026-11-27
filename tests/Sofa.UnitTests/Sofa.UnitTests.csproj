@@ -14,6 +14,7 @@
     <ProjectReference Include="../../src/Sofa.AgentGateway/Sofa.AgentGateway.csproj" />
     <ProjectReference Include="../../src/Sofa.AppGateway/Sofa.AppGateway.csproj" />
     <ProjectReference Include="../../src/Sofa.Cli/Sofa.Cli.csproj" />
+    <ProjectReference Include="../../src/Sofa.Code/Sofa.Code.csproj" />
     <ProjectReference Include="../../src/Sofa.Connections/Sofa.Connections.csproj" />
     <ProjectReference Include="../../src/Sofa.Contracts/Sofa.Contracts.csproj" />
     <ProjectReference Include="../../src/Sofa.Execution/Sofa.Execution.csproj" />
