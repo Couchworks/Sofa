@@ -67,11 +67,11 @@ Port 5176 is the App Gateway's. The public address becomes Sofa's issuer and one
 4. Choose **Link your GitHub account**, and authorize the App on GitHub. Sofa shows the GitHub login you sign in with; sign out, and **Sign in with GitHub** signs you in as yourself.
 5. Label an issue in one of its Repositories. In Aspire's dashboard, Intake's structured logs show the `issues.labeled` event, with its trace through the App Gateway and Connections.
 
-GitHub's returns from creating and installing the App carry a signed `state` that Sofa made when you pressed the button, naming you and your Workspace; it works once, for 30 minutes, in the browser that started it (ADR 0028). A return without one, such as GitHub's own after changing an installation's repositories, is refused: start again from Sofa.
+GitHub's returns from creating and installing the App carry a signed `state` that Sofa made when you pressed the button, naming you and your Workspace; it works once, for 30 minutes, in the browser that started it (ADR 0028). Any other return is refused: start again from Sofa. GitHub's own return after someone changes an installation's repositories changes nothing in Sofa and just lands back on the home page with a note, as Sofa hears of the change through GitHub's events.
 
 #### Signing in with GitHub
 
-Through the App's own sign-in (ADR 0029): a GitHub account signs in as the User it is linked to. At its first sign-in it is linked to the User an Admin added by that GitHub login (**Add a User** on the home page), or else to the User whose email is the account's verified primary email. A GitHub account no User has is refused. A signed-in User links their account with **Link your GitHub account**.
+Through the App's own sign-in (ADR 0029): a GitHub account signs in as the User it is linked to. An Admin adds someone by GitHub login (**Add a User** on the home page): Sofa asks GitHub whose login it is and keeps that account's id, so it refuses a login that is no person on GitHub, and a login renamed later still reaches the same person. An account signs in as the User holding its id, or else, at its first sign-in, is linked to the User whose email is the account's verified primary email. A GitHub account no User has is refused. A signed-in User links their account with **Link your GitHub account**.
 
 #### An App created before signing in with GitHub
 
@@ -81,6 +81,8 @@ A new manifest can't change an App that exists, so an App created before this ne
 2. **Permissions & events → Account permissions → Email addresses**: *Read-only*. Save, then accept the new permission on each installation (GitHub asks on the installation's page).
 
 Without the email permission, GitHub accounts still sign in when linked or added by login, but none is matched by email.
+
+Users added by login before Sofa kept their GitHub account id, and who never signed in, are removed when Identity next starts; add them again.
 
 Connections seals the App's private key, webhook secret and client secret with envelope encryption under a key encryption key from configuration (`Credentials:KeyEncryptionKey`). Locally Aspire generates it once and keeps it as `Parameters:connections-key-encryption-key` in `~/.aspire/secrets/<the app host's UserSecretsId>/Development.json`, not in user secrets; lose it and the App's credentials can't be opened, so the App must be created again. To rotate it, set a new key and list the old one under `Credentials:RetiredKeyEncryptionKeys`.
 
