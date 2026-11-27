@@ -11,4 +11,4 @@ GitHub sends the browser back to the App Gateway after creating or installing So
 ## Consequences
 
 - The signing key is an app host parameter (`app-gateway-github-return-signing-key`), generated once; changing it only fails returns already under way.
-- Returns that GitHub starts on its own, such as changing an installation's repositories with `setup_on_update`, are refused and say to start again from Sofa.
+- GitHub's own return after someone changes an installation (`setup_action=update`, with no state) changes nothing in Sofa, which hears of the change through webhooks, so it lands back in the web client with a note. Any other return without a valid state, such as a new installation started on GitHub, is refused and says to start again from Sofa.
