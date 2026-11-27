@@ -55,4 +55,8 @@ interface IPreviewSource { Task<PreviewState> For(RepoRef r, string commitSha); 
 ## Connections
 
 - **GitHub**: a GitHub App. A self-hosted Sofa creates its own through GitHub's manifest flow; a hosted Sofa has one. Each Workspace installs it on its organisations, and each installation is a Connection.
+  - The App is private to the organisation or account that owns it, so a self-hosted Sofa's App is created by the organisation it will be installed on.
+  - Connections keeps the App's private key, webhook secret and client secret sealed by envelope encryption, and is the only service that ever opens them. Other services ask it for short-lived installation tokens, over HTTP (ADR 0026).
+  - Webhooks reach the App Gateway, which passes them to Connections to check against the webhook secret; a delivery that fails is refused. Each accepted delivery is published as `GitHubEventReceived` to its own exchange (ADR 0025), at least once, carrying GitHub's delivery id.
+  - GitHub doesn't retry a failed delivery, so on starting and every five minutes Connections lists the App's recent deliveries and asks GitHub to redeliver each that failed and never arrived, once.
 - **Atlassian**: one OAuth connection per site, serving Jira and Confluence alike.
