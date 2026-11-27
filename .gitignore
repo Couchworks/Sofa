@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+.idea/
+TestResults/
+
+# Web
+node_modules/
+web/dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Tools
+.playwright-mcp/

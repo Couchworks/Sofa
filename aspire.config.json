@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/Sofa.AppHost/Sofa.AppHost.csproj"
+  }
+}

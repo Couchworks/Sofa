@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sofa.AgentGateway/Sofa.AgentGateway.csproj" />
+    <Project Path="src/Sofa.AppGateway/Sofa.AppGateway.csproj" />
+    <Project Path="src/Sofa.AppHost/Sofa.AppHost.csproj" />
+    <Project Path="src/Sofa.Code/Sofa.Code.csproj" />
+    <Project Path="src/Sofa.Connections/Sofa.Connections.csproj" />
+    <Project Path="src/Sofa.Contracts/Sofa.Contracts.csproj" />
+    <Project Path="src/Sofa.Execution/Sofa.Execution.csproj" />
+    <Project Path="src/Sofa.Flow/Sofa.Flow.csproj" />
+    <Project Path="src/Sofa.Identity/Sofa.Identity.csproj" />
+    <Project Path="src/Sofa.Intake/Sofa.Intake.csproj" />
+    <Project Path="src/Sofa.Knowledge/Sofa.Knowledge.csproj" />
+    <Project Path="src/Sofa.Notices/Sofa.Notices.csproj" />
+    <Project Path="src/Sofa.Records/Sofa.Records.csproj" />
+    <Project Path="src/Sofa.ServiceDefaults/Sofa.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sofa.IntegrationTests/Sofa.IntegrationTests.csproj" />
+    <Project Path="tests/Sofa.UnitTests/Sofa.UnitTests.csproj" />
+  </Folder>
+</Solution>

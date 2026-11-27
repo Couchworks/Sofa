@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Messages and names that Sofa's services share. Nothing here depends on a service.</Description>
+  </PropertyGroup>
+
+</Project>
