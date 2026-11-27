@@ -20,6 +20,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddConnectionsDb();
 builder.Services.AddCredentialVault(builder.Configuration);
 builder.Services.AddGitHub(builder.Configuration);
+builder.Services.AddOptions<ApiKeyOptions>().BindConfiguration(ApiKeyOptions.Section);
 
 var app = builder.Build();
 
