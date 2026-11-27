@@ -93,6 +93,11 @@ public sealed class GitHubAccountLinks(IdentityDb db, ConnectionsGitHub connecti
         }
 
         db.WorkspaceUsers.Add(new WorkspaceUser { WorkspaceId = workspaceId, UserId = user.Id, IsAdmin = false, JoinedAt = now });
+        if (TheWorkspacesTeam.Of(await db.Teams.Where(team => team.WorkspaceId == workspaceId).ToListAsync(cancellation)) is { } team)
+        {
+            db.TeamUsers.Add(new TeamUser { WorkspaceId = workspaceId, TeamId = team.Id, UserId = user.Id, JoinedAt = now });
+        }
+
         await db.SaveChangesAsync(cancellation);
         return (new UserAdded(user.Id, user.GitHubLogin!), null);
     }
@@ -138,8 +143,10 @@ public sealed class GitHubAccountLinks(IdentityDb db, ConnectionsGitHub connecti
         var addedTo = await db.WorkspaceUsers.Where(w => w.UserId == added.Id).ToListAsync(cancellation);
         var alreadyIn = await db.WorkspaceUsers.Where(w => w.UserId == into.Id).Select(w => w.WorkspaceId).ToListAsync(cancellation);
         var now = time.GetUtcNow();
+        var addedsTeams = await db.TeamUsers.Where(t => t.UserId == added.Id).ToListAsync(cancellation);
+        var teamsInto = await db.TeamUsers.Where(t => t.UserId == into.Id).Select(t => t.TeamId).ToListAsync(cancellation);
 
-        db.TeamUsers.RemoveRange(await db.TeamUsers.Where(t => t.UserId == added.Id).ToListAsync(cancellation));
+        db.TeamUsers.RemoveRange(addedsTeams);
         db.WorkspaceUsers.RemoveRange(addedTo);
         foreach (var membership in addedTo.Where(m => !alreadyIn.Contains(m.WorkspaceId)))
         {
@@ -149,6 +156,8 @@ public sealed class GitHubAccountLinks(IdentityDb db, ConnectionsGitHub connecti
             });
         }
 
+        db.TeamUsers.AddRange(TheWorkspacesTeam.CarriedOver(
+            addedsTeams, into.Id, addedTo.Select(m => m.WorkspaceId).Concat(alreadyIn).ToHashSet(), teamsInto.ToHashSet(), now));
         db.Users.Remove(added);
         await db.SaveChangesAsync(cancellation);
     }
