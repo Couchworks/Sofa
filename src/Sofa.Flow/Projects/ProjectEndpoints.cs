@@ -12,6 +12,11 @@ public static class ProjectEndpoints
         endpoints.MapGet("/workspaces/{workspaceId:guid}/projects/{key}", async (
             Guid workspaceId, string key, FlowDb db, CancellationToken cancellation) =>
             await DetailsOfAsync(db, workspaceId, key, cancellation) is { } project ? Results.Ok(project) : Results.NotFound());
+        endpoints.MapGet("/workspaces/{workspaceId:guid}/projects-by-id/{projectId:guid}/binding", async (
+            Guid workspaceId, Guid projectId, FlowDb db, CancellationToken cancellation) =>
+            await db.Projects.AsNoTracking().SingleOrDefaultAsync(p => p.Id == projectId && p.WorkspaceId == workspaceId, cancellation) is { } project
+                ? Results.Ok(project.Bound)
+                : Results.NotFound());
         return endpoints;
     }
 

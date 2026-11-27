@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Sofa.AppGateway;
 using Sofa.AppGateway.Access;
+using Sofa.AppGateway.Code;
 using Sofa.AppGateway.Connections;
 using Sofa.AppGateway.Execution;
 using Sofa.AppGateway.Flow;
@@ -49,6 +50,7 @@ builder.Services.AddHttpClient<ConnectionsClient>(http => http.BaseAddress = Con
 builder.Services.AddHttpClient<FlowClient>(http => http.BaseAddress = FlowClient.Address);
 builder.Services.AddHttpClient<ExecutionClient>(http => http.BaseAddress = ExecutionClient.Address);
 builder.Services.AddHttpClient<RecordsClient>(http => http.BaseAddress = RecordsClient.Address);
+builder.Services.AddHttpClient<CodeClient>(http => http.BaseAddress = CodeClient.Address);
 builder.Services.AddOptions<GitHubReturnOptions>().BindConfiguration(GitHubReturnOptions.Section);
 builder.Services.AddSingleton<GitHubReturnStates>();
 
@@ -81,6 +83,7 @@ app.MapAdminsOnly()
 app.MapUsersOfTheWorkspaceOnly()
     .MapProjects()
     .MapWorkItems()
+    .MapPullRequests()
     .MapRunners()
     .MapRuns();
 app.MapGitHubAppReturns();

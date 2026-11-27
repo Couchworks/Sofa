@@ -329,6 +329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The pull requests naming the Work Item in their title or branch, oldest first, each as GitHub has it now. */
+        get: operations["GetPullRequestsOfWorkItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/runners": {
         parameters: {
             query?: never;
@@ -438,7 +455,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The Run's Transcript as it arrived, line by line; `after` skips the lines already read. */
+        /** The Run's Transcript: its messages and tool calls in order, with known secrets scrubbed; `after` skips the lines already read. */
         get: operations["GetTranscript"];
         put?: never;
         post?: never;
@@ -554,6 +571,7 @@ export interface components {
         GitHubLink: {
             authorizeUrl: string;
         };
+        JsonElement: unknown;
         NewApiKeyRunner: {
             name: null | string;
             apiKey: null | string;
@@ -631,8 +649,30 @@ export interface components {
             requestRepository: string;
             requestLabel: string;
         };
+        PullRequestOfWorkItem: {
+            /** Format: uuid */
+            workspaceId: string;
+            /** Format: uuid */
+            projectId: string;
+            projectKey: string;
+            workItemKey: string;
+            repository: string;
+            /** Format: int64 */
+            number: number | string;
+            title: string;
+            url: string;
+            headBranch: string;
+            baseBranch: string;
+            state: components["schemas"]["PullRequestState"];
+            /** Format: date-time */
+            openedAt: string;
+            /** Format: date-time */
+            closedAt: null | string;
+        };
         /** @enum {unknown} */
-        RefusedAs: "SignInAgain" | "AgentNotRegistered" | "ApiKeyUnavailable" | null;
+        PullRequestState: "Open" | "Merged" | "ClosedUnmerged";
+        /** @enum {unknown} */
+        RefusedAs: "SignInAgain" | "AgentNotRegistered" | "ApiKeyUnavailable" | "NoRepositoryToken" | "LeftItsSandbox" | null;
         RequestProviderBinding: {
             /** Format: uuid */
             connectionId: string;
@@ -742,13 +782,44 @@ export interface components {
         Transcript: {
             /** Format: uuid */
             runId: string;
-            lines: components["schemas"]["TranscriptLine"][];
+            entries: components["schemas"]["TranscriptEntry"][];
+            /**
+             * Format: int32
+             * @description The last line of the Run's output read into these entries: pass it as `after` to read only what came since.
+             */
+            readUpToLine: number | string;
         };
-        TranscriptLine: {
-            /** Format: int32 */
-            number: number | string;
-            text: string;
+        TranscriptEntry: {
+            /**
+             * Format: int32
+             * @description The line of the Run's output it came from, from 1.
+             */
+            line: number | string;
+            /**
+             * Format: int32
+             * @description Its place among the entries of that line, from 1.
+             */
+            part: number | string;
+            role: components["schemas"]["TranscriptRole"];
+            /** @description A message's text; null for a tool call. */
+            text: null | string;
+            /** @description The tool called, for a tool call. */
+            toolName: null | string;
+            toolInput: null | components["schemas"]["JsonElement"];
+            toolInputCut: boolean;
+            /** @description What the tool answered, once it has; cut to its first 20 KB, with `toolResultCut` set. */
+            toolResult: null | string;
+            toolResultCut: boolean;
+            /**
+             * Format: int32
+             * @description The line its tool result came on, which a reader reading with `after` sees again.
+             */
+            toolResultLine: null | number | string;
+            /** Format: date-time */
+            at: string;
         };
+        /** @enum {unknown} */
+        TranscriptRole: "User" | "Assistant" | "System";
         UserAdded: {
             /** Format: uuid */
             userId: string;
@@ -1839,6 +1910,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkItemOfProject"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPullRequestsOfWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestOfWorkItem"][];
                 };
             };
             /** @description Unauthorized */
