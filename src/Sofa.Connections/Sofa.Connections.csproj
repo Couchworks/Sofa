@@ -4,13 +4,10 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 
-  <PropertyGroup Condition="'$(GeneratingMigrations)' == 'true'">
-    <NoWarn>$(NoWarn);NU1608</NoWarn>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$(GeneratingMigrations)' == 'true'">
+  <ItemGroup Condition="'$(SofaGeneratingMigrations)' == 'true'">
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
-    <PackageReference Include="Microsoft.CodeAnalysis" VersionOverride="5.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Scripting" />
   </ItemGroup>
 
   <ItemGroup>

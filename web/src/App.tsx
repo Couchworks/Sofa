@@ -1,26 +1,20 @@
-import { api } from '@/api/client'
-import { AdminArea } from '@/admin/AdminArea'
-import { Badge } from '@/components/ui/badge'
+import { HomePage } from '@/pages/HomePage'
+import { SetupPage } from '@/pages/SetupPage'
+import { SignedInPage } from '@/pages/SignedInPage'
+import { SignInPage } from '@/pages/SignInPage'
+import { setupPath, signedInPath } from '@/auth/session'
 
-export default function App() {
-  const status = api.useQuery('get', '/api/status')
+export const signInPath = '/sign-in'
 
-  return (
-    <main className="mx-auto flex min-h-svh w-full max-w-xl flex-col gap-6 p-4">
-      <header className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Sofa</h1>
-        <div className="flex items-center gap-2">
-          {status.isPending && <Badge variant="secondary">Checking…</Badge>}
-          {status.isError && <Badge variant="destructive">Unreachable</Badge>}
-          {status.data && (
-            <>
-              <span className="text-muted-foreground text-sm">{status.data.environment}</span>
-              <Badge>Up</Badge>
-            </>
-          )}
-        </div>
-      </header>
-      <AdminArea />
-    </main>
-  )
+export default function App({ location = window.location }: { location?: Pick<Location, 'pathname' | 'search'> }) {
+  switch (location.pathname) {
+    case setupPath:
+      return <SetupPage />
+    case signInPath:
+      return <SignInPage returnUrl={new URLSearchParams(location.search).get('returnUrl')} />
+    case signedInPath:
+      return <SignedInPage />
+    default:
+      return <HomePage />
+  }
 }

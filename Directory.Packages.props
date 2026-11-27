@@ -14,11 +14,6 @@
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.65.1" />
   </ItemGroup>
-  <ItemGroup Label="Persistence">
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0" />
-    <PackageVersion Include="Npgsql" Version="11.0.0" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />
-  </ItemGroup>
   <ItemGroup Label="ASP.NET Core">
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="11.0.0" />
@@ -26,6 +21,21 @@
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.1" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="11.0.1" />
     <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+  <ItemGroup Label="Data">
+    <PackageVersion Include="EFCore.NamingConventions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Scripting" Version="5.9.0" />
+    <PackageVersion Include="Npgsql" Version="11.0.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />
+  </ItemGroup>
+  <ItemGroup Label="Identity">
+    <PackageVersion Include="OpenIddict.AspNetCore" Version="7.9.0" />
+    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.9.0" />
+    <PackageVersion Include="OpenIddict.Validation.AspNetCore" Version="7.9.0" />
+    <PackageVersion Include="OpenIddict.Validation.SystemNetHttp" Version="7.9.0" />
   </ItemGroup>
   <ItemGroup Label="OpenTelemetry">
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />

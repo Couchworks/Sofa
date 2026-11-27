@@ -26,6 +26,33 @@
         }
       }
     },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Sofa.AppGateway"
+        ],
+        "summary": "The signed-in User, with their Workspaces and Teams.",
+        "operationId": "GetSignedInUser",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/github-app": {
       "get": {
         "tags": [
@@ -309,6 +336,76 @@
           "time": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "UserProfile": {
+        "required": [
+          "id",
+          "name",
+          "email",
+          "workspaces"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserWorkspace"
+            }
+          }
+        }
+      },
+      "UserTeam": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "UserWorkspace": {
+        "required": [
+          "id",
+          "name",
+          "isAdmin",
+          "teams"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserTeam"
+            }
           }
         }
       }

@@ -18,7 +18,25 @@ dotnet run --project src/Sofa.AppHost
 
 This starts every service, Postgres, RabbitMQ and the web client, and prints the link to Aspire's dashboard. The web client is served through the App Gateway: open `app-gateway`'s address from the dashboard.
 
-## Trying the GitHub App
+### Setting Sofa up and signing in
+
+A fresh installation has no Users. While nobody has set it up, each start of Identity logs a new setup code: in the dashboard, open `identity`'s console logs and find `Sofa is not set up yet. Open it and enter this setup code: sofa_setup_…`. Open the web client, which shows the setup page, and enter the code with the first User's name, email and password and the names of their Workspace and Team. The code works once; the first User is then signed in, and signs in again later with their email and password. Postgres keeps no volume yet, so every start of the app host is a fresh installation.
+
+### Run tokens
+
+Execution asks Identity for a token valid for one Run of one Agent, and the Agent Gateway accepts only such tokens (ADR 0025). Until the services that start Runs exist, diagnostic endpoints show it, on each service's own address from the dashboard:
+
+```sh
+curl -X POST $FLOW/diagnostics/agents -H 'content-type: application/json' \
+  -d '{"workspaceId":"…","name":"Builder","owner":{"kind":"User","id":"…"}}'      # registers an Agent with Identity
+curl -X POST $EXECUTION/diagnostics/run-tokens -H 'content-type: application/json' \
+  -d '{"agentId":"…"}'                                                              # a Run token for a made-up Run
+curl $AGENT_GATEWAY/diagnostics/run -H "Authorization: Bearer $TOKEN"              # 200 with the Run, 401 for any other token
+```
+
+The Workspace's and User's ids are in `/api/me` of the App Gateway, once signed in.
+
+### Trying the GitHub App
 
 Sofa creates its own GitHub App through GitHub's manifest flow, and GitHub must reach Sofa twice: in the browser, back to `/github-app/created` and `/github-app/installed`, and for webhooks at `/webhooks/github`. Both go to the App Gateway, so put it behind a public address with a tunnel and tell Sofa that address before creating the App:
 
@@ -37,7 +55,19 @@ Port 5176 is the App Gateway's. Without a public address Sofa uses the App Gatew
 
 Connections seals the App's private key, webhook secret and client secret with envelope encryption under a key encryption key from configuration (`Credentials:KeyEncryptionKey`). Locally Aspire generates it once and keeps it in the app host's user secrets as `Parameters:connections-key-encryption-key`; lose it and the App's credentials can't be opened, so the App must be created again. To rotate it, set a new key and list the old one under `Credentials:RetiredKeyEncryptionKeys`.
 
-The pages for the GitHub App and Connections are for a Workspace's Admins. Until sign-in lands, everyone is the Admin of one Workspace: the App Gateway's `AdminsOnly` group and `IFindSignedInAdmin` are where the check goes, and the web client's admin views live in `web/src/admin`.
+The pages for the GitHub App and Connections are for a Workspace's Admins. They show once signed in, but the App Gateway doesn't yet check that the User is an Admin: everyone is the Admin of one placeholder Workspace. The App Gateway's `AdminsOnly` group and `IFindSignedInAdmin` are where that check goes, and the web client's admin views live in `web/src/admin`.
+
+### Databases
+
+Identity and Connections keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
+
+```sh
+dotnet tool restore
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Identity --output-dir Data/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Connections --output-dir Persistence/Migrations
+```
+
+`SofaGeneratingMigrations` brings in EF's design package only for this, as its version of Roslyn clashes with Wolverine's runtime compilation.
 
 ## Tests
 
@@ -47,16 +77,6 @@ cd web && npm test                  # the web client's tests
 ```
 
 The integration tests start their own copy of Sofa, so they run fine beside a running app host, with a fake GitHub of their own in place of GitHub's API. They hide the resources' own output (Postgres, npm, Vite and the services); set `SOFA_TEST_RESOURCE_LOGS=1` to see it, as CI does.
-
-## Database migrations
-
-Services keep their data with EF Core in a schema of their own (ADR 0014) and apply their migrations when they start. EF Core's design package needs a newer Roslyn than Wolverine's runtime compilation, so it is only referenced while generating a migration:
-
-```sh
-dotnet tool restore
-dotnet build src/Sofa.Connections -p:GeneratingMigrations=true
-dotnet ef migrations add <Name> --project src/Sofa.Connections --no-build --output-dir Persistence/Migrations
-```
 
 ## The API client
 

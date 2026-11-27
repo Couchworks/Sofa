@@ -55,10 +55,18 @@ public sealed class SofaApp : IAsyncLifetime
 
     public HttpClient CreateHttpClient(string service) => App.CreateHttpClient(service, "http");
 
-    public HttpClient CreateHttpClientThatStaysOnRedirects(string service)
+    public HttpClient CreateHttpClientThatStaysOnRedirects(string service) =>
+        new(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = AddressOf(service) };
+
+    public Uri AddressOf(string service) => App.GetEndpoint(service, "http");
+
+    public Task<FreshInstallation> SetUp => _setUp.Value;
+
+    private readonly Lazy<Task<FreshInstallation>> _setUp;
+
+    public SofaApp()
     {
-        var address = App.GetEndpoint(service, "http");
-        return new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = address };
+        _setUp = new(() => FreshInstallation.SetUpAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public async ValueTask DisposeAsync()

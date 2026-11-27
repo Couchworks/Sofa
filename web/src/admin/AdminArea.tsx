@@ -4,7 +4,7 @@ import { ReturnFromGitHub } from './ReturnFromGitHub'
 
 export function AdminArea() {
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex w-full max-w-sm flex-col gap-4">
       <ReturnFromGitHub />
       <GitHubAppCard />
       <ConnectionsCard />
