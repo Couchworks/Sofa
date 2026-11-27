@@ -41,7 +41,7 @@ One stage of a Flow: a Pattern, the Agents cast in it, its Gate and its Sandbox.
 _Avoid_: Step, stage, column
 
 **Pattern**:
-The shape in which Agents work together inside a Phase, chosen from a fixed set: Solo, Panel, Synthesis, Discussion, Split, and Review-and-triage.
+The shape in which Agents work together inside a Phase, chosen from a fixed set: Solo, Panel, Synthesis, Discussion, Split, and Review-and-triage. A Pattern goes on only once every Run it asks for has made its Contribution: Runs waiting for a Runner run later, one after another if need be, and a failed Run is retried up to its retry limit, after which the Work Item waits for a User.
 _Avoid_: Strategy, template, mode
 
 **Gate**:
