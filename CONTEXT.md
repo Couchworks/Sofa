@@ -110,6 +110,10 @@ _Avoid_: Assignment, dispatch, hand-off
 A set of credentials Sofa may start Runs with, for one vendor: an API key, or a subscription signed in on a Worker. A **personal** Runner spends one User's credentials and runs only the Runs of Requests that User delegated; a **team** Runner spends a Team's API key, for anyone in the Team. Each has its own limit on Runs at once; Runs beyond it wait, highest Priority first.
 _Avoid_: Provider, backend, engine
 
+**Local-only**:
+A mark on a Request whose work needs the Workspace's own machines or network, and so never runs where those can't be reached: on Claude Code on the web, on Managed Agents, or on Workers of a Sofa the Workspace doesn't run itself. Its Work Items inherit it, and a Run that would start there anyway is refused, saying why.
+_Avoid_: On-premises, private, offline
+
 **Worker**:
 A place that executes Runs and claims them from Sofa: a container or pod that Sofa hosts, or later a User's own machine. A Worker holding a subscription's sign-in serves only that subscription's User.
 _Avoid_: Executor, host, node, agent (for the machine)
