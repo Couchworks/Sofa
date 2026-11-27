@@ -17,7 +17,7 @@ partial class FlowDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127185844_KeepProjectsTheirFlowsAndAgents";
+    public override string LastMigrationId => "20261127202050_KeepWorkItems";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -142,6 +142,10 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid")
                     .HasColumnName("id");
 
+                b.Property<long>("BindingVersion")
+                    .HasColumnType("bigint")
+                    .HasColumnName("binding_version");
+
                 b.Property<Guid>("CodeConnectionId")
                     .HasColumnType("uuid")
                     .HasColumnName("code_connection_id");
@@ -155,11 +159,19 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_at");
 
+                b.Property<bool>("KeepsIssueState")
+                    .HasColumnType("boolean")
+                    .HasColumnName("keeps_issue_state");
+
                 b.Property<string>("Key")
                     .IsRequired()
                     .HasMaxLength(10)
                     .HasColumnType("character varying(10)")
                     .HasColumnName("key");
+
+                b.Property<int>("LastWorkItemNumber")
+                    .HasColumnType("integer")
+                    .HasColumnName("last_work_item_number");
 
                 b.Property<string>("Name")
                     .IsRequired()
@@ -197,6 +209,78 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                 b.ToTable("projects", "flow");
             });
 
+        modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Guid?>("DelegatingUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("delegating_user_id");
+
+                b.Property<string>("Key")
+                    .IsRequired()
+                    .HasMaxLength(21)
+                    .HasColumnType("character varying(21)")
+                    .HasColumnName("key");
+
+                b.Property<int>("Number")
+                    .HasColumnType("integer")
+                    .HasColumnName("number");
+
+                b.Property<DateTimeOffset>("OpenedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("opened_at");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("project_id");
+
+                b.Property<Guid>("RequestId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("request_id");
+
+                b.Property<long>("RequestNumber")
+                    .HasColumnType("bigint")
+                    .HasColumnName("request_number");
+
+                b.Property<string>("RequestRepository")
+                    .IsRequired()
+                    .HasMaxLength(140)
+                    .HasColumnType("character varying(140)")
+                    .HasColumnName("request_repository");
+
+                b.Property<string>("RequestUrl")
+                    .IsRequired()
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)")
+                    .HasColumnName("request_url");
+
+                b.Property<string>("Title")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("title");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_work_items");
+
+                b.HasIndex("RequestId")
+                    .IsUnique()
+                    .HasDatabaseName("ix_work_items_request_id");
+
+                b.HasIndex("ProjectId", "Number")
+                    .IsUnique()
+                    .HasDatabaseName("ix_work_items_project_id_number");
+
+                b.ToTable("work_items", "flow");
+            });
+
         modelBuilder.Entity("Sofa.Flow.Projects.Agent", b =>
             {
                 b.HasOne("Sofa.Flow.Projects.Project", null)
@@ -223,6 +307,16 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired()
                     .HasConstraintName("fk_phases_agents_project_id_cast_agent_id");
+            });
+
+        modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
+            {
+                b.HasOne("Sofa.Flow.Projects.Project", null)
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_work_items_projects_project_id");
             });
 #pragma warning restore 612, 618
     }
