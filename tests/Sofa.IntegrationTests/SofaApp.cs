@@ -18,6 +18,7 @@ public sealed class SofaApp : IAsyncLifetime
     private const string ResourceOutputWithStderrAsErrors = "Sofa.AppHost.Resources";
 
     private static readonly TimeSpan QuickDeliverySweeps = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan QuickQueueLooks = TimeSpan.FromSeconds(1);
     private const string EachTestRunStartsFresh = "--Sofa:FreshDatabaseEachStart=true";
 
     public DistributedApplication App { get; private set; } = null!;
@@ -28,6 +29,7 @@ public sealed class SofaApp : IAsyncLifetime
     {
         using var cancellation = new CancellationTokenSource(StartTimeout);
         GitHub = await FakeGitHub.Start(cancellation.Token);
+        await StubWorker.BuildAsync(cancellation.Token);
         var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Sofa_AppHost>(
             [EachTestRunStartsFresh], cancellation.Token);
 
@@ -48,6 +50,10 @@ public sealed class SofaApp : IAsyncLifetime
             .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString())
             .WithEnvironment("GitHub__WebAddress", GitHub.WebAddress)
             .WithEnvironment("GitHub__DeliverySweepInterval", QuickDeliverySweeps.ToString());
+
+        builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Execution)
+            .WithEnvironment("Workers__Image", StubWorker.Image)
+            .WithEnvironment("Workers__QueueLooksAgainEvery", QuickQueueLooks.ToString());
 
         App = await builder.BuildAsync(cancellation.Token);
         await App.StartAsync(cancellation.Token);
@@ -71,10 +77,13 @@ public sealed class SofaApp : IAsyncLifetime
 
     public Task<InstalledConnection> TheConnection => _connection.Value;
 
+    public Task<ProjectForRuns> TheProjectForRuns => _projectForRuns.Value;
+
     private readonly Lazy<Task<FreshInstallation>> _setUp;
     private readonly Lazy<Task<CreatedGitHubApp>> _gitHubApp;
     private readonly Lazy<Task<Guid>> _beaAdded;
     private readonly Lazy<Task<InstalledConnection>> _connection;
+    private readonly Lazy<Task<ProjectForRuns>> _projectForRuns;
 
     public SofaApp()
     {
@@ -82,6 +91,7 @@ public sealed class SofaApp : IAsyncLifetime
         _gitHubApp = new(() => CreatedGitHubApp.CreateAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
         _beaAdded = new(AddBeaAsync, LazyThreadSafetyMode.ExecutionAndPublication);
         _connection = new(() => InstalledConnection.InstallAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
+        _projectForRuns = new(() => ProjectForRuns.CreateAsync(this, "RUNS", CancellationToken.None), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public async Task<WebClientSignIn> AdaSignedInAsync(CancellationToken cancellation)
@@ -111,6 +121,11 @@ public sealed class SofaApp : IAsyncLifetime
         added.EnsureSuccessStatusCode();
         return (await added.Content.ReadFromJsonAsync<AddedUser>())!.UserId;
     }
+
+    public Task<Guid> UserOnceAsync(GitHubAccountOnFake account) =>
+        _usersAdded.GetOrAdd(account.Id, _ => new Lazy<Task<Guid>>(() => AddedByGitHubLoginAsync(account))).Value;
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long, Lazy<Task<Guid>>> _usersAdded = new();
 
     public async Task<WebClientSignIn> SignedInWithGitHubAsync(GitHubAccountOnFake account, CancellationToken cancellation)
     {
@@ -145,5 +160,7 @@ public sealed class SofaApp : IAsyncLifetime
         {
             await GitHub.DisposeAsync();
         }
+
+        await StubWorker.RemoveTheVolumesMadeAsync();
     }
 }
