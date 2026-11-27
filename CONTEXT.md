@@ -49,8 +49,20 @@ What a Phase does when it ends: **Auto** (go straight on), **Approve** (wait for
 _Avoid_: Checkpoint, approval step, blocker
 
 **Validation**:
-A User's judgement on finished work in its Preview, with the code that made it: **Accepted**, or not, in which case they file a new Request saying what to change. Validation never re-runs finished work.
+A User's judgement on finished work in its Preview, with the code that made it: **Accepted**, or not, in which case they file a Correction. Accepting a Request accepts every Request of its Stack not yet accepted, which then reach the main branch in order; accepting one lower in a Stack leaves those above it waiting. Validation never re-runs finished work.
 _Avoid_: Approval, sign-off, QA, verification
+
+**Blocks**:
+How one Request relates to another whose work needs its own: the blocked Request's Integration branch starts from those of every Request blocking it, and its work never reaches the main branch before theirs. A User sets it by hand, or an Agent adds it, such as from a Spec or Plan Phase; only a User removes one.
+_Avoid_: Depends on, dependency, prerequisite
+
+**Stack**:
+A Request together with every Request that blocks it, directly or through others.
+_Avoid_: Chain, train, batch
+
+**Correction**:
+A Request a User files after not accepting work, saying what to change. It is blocked by the Request it corrects, so it builds on that work rather than redoing it.
+_Avoid_: Fix, rework, reopen
 
 **Validation mode**:
 How a Project's finished work reaches its main branch: **Autonomous** (it merges when its Flow ends, and waits Unverified for Validation afterwards) or **Gated** (it waits on its Integration branch until a User Accepts it). A Request may override its Project's mode.
