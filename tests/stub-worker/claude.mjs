@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { deflateSync } from "node:zlib";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const args = process.argv.slice(2);
@@ -85,16 +86,78 @@ const call = async (method, params) => {
   return json.error ? { error: JSON.stringify(json.error) } : { result: json.result };
 };
 
+const toolUse = (name, input) => print({ type: "assistant", message: { content: [{ type: "tool_use", name: `mcp__sofa__${name}`, input }] } });
+const toolResult = (answer) =>
+  print({ type: "user", message: { content: [{ type: "tool_result", content: answer.error ?? answer.result?.content?.[0]?.text, is_error: Boolean(answer.error || answer.result?.isError) }] } });
+const callTool = async (name, input) => {
+  toolUse(name, input);
+  const answer = await call("tools/call", { name, arguments: input });
+  toolResult(answer);
+  return answer;
+};
+
+const crc32 = (bytes) => {
+  let crc = ~0;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return ~crc >>> 0;
+};
+const chunk = (type, data) => {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const typed = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(typed));
+  return Buffer.concat([length, typed, crc]);
+};
+const onePixelPng = () => {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(1, 0);
+  header.writeUInt32BE(1, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(Buffer.from([0, 0x2b, 0x2b, 0x2b]))),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+};
+
 const initialized = await call("initialize", {
   protocolVersion: "2025-06-18",
   capabilities: {},
   clientInfo: { name: "claude-code-stub", version: "0.0.0" },
 });
-const ended = initialized.error
-  ? initialized
-  : await call("tools/call", { name: "end_test_run", arguments: { summary: "The stub played back a recorded Run." } });
+let ended = initialized;
+if (!initialized.error) {
+  const listed = await call("tools/list", {});
+  print({ type: "system", subtype: "stub_tools_offered", tools: listed.result?.tools?.map((tool) => tool.name) ?? [], error: listed.error });
+  await callTool("read_work_item", {});
 
-print({ type: "assistant", message: { content: [{ type: "tool_use", name: "mcp__sofa__end_test_run", input: {} }] } });
-print({ type: "user", message: { content: [{ type: "tool_result", content: ended.error ?? ended.result?.content?.[0]?.text }] } });
-print({ type: "result", subtype: ended.error ? "error_during_execution" : "success", is_error: Boolean(ended.error), num_turns: 2 });
-process.exit(ended.error ? 1 : 0);
+  const asking = /STUB: ask (.+)/.exec(brief);
+  const outcome = /STUB: outcome (\S+)/.exec(brief)?.[1] ?? /^- `([^`]+)`:/m.exec(brief)?.[1];
+  const attachments = [];
+  if (brief.includes("STUB: attach a screenshot")) {
+    writeFileSync("/work/screenshot.png", onePixelPng());
+    attachments.push("screenshot.png");
+  }
+
+  ended = asking
+    ? await callTool("ask", { question: asking[1].trim() })
+    : await callTool("finish", {
+        outcome,
+        contribution: "## What the stub did\n\nIt played back a recorded Run.",
+        attachments,
+      });
+
+  if (!ended.error && !ended.result?.isError) {
+    const afterTheEnd = await call("tools/call", { name: "read_work_item", arguments: {} });
+    print({ type: "system", subtype: "stub_called_after_the_end", answer: afterTheEnd.error ?? afterTheEnd.result?.content?.[0]?.text });
+  }
+}
+
+const failed = Boolean(ended.error || ended.result?.isError);
+print({ type: "result", subtype: failed ? "error_during_execution" : "success", is_error: failed, num_turns: 3 });
+process.exit(failed ? 1 : 0);
