@@ -16,7 +16,7 @@ partial class RecordsDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127202329_KeepTranscripts";
+    public override string LastMigrationId => "20261127220842_Contributions";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -27,6 +27,106 @@ partial class RecordsDbModelSnapshot : ModelSnapshot
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("Sofa.Records.Contributions.StoredAttachment", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<string>("ContentType")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("content_type");
+
+                b.Property<string>("FileKey")
+                    .IsRequired()
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)")
+                    .HasColumnName("file_key");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("name");
+
+                b.Property<int>("Position")
+                    .HasColumnType("integer")
+                    .HasColumnName("position");
+
+                b.Property<Guid>("RunId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("run_id");
+
+                b.Property<long>("Size")
+                    .HasColumnType("bigint")
+                    .HasColumnName("size");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_contribution_attachments");
+
+                b.HasIndex("RunId", "Position")
+                    .IsUnique()
+                    .HasDatabaseName("ix_contribution_attachments_run_id_position");
+
+                b.ToTable("contribution_attachments", "records");
+            });
+
+        modelBuilder.Entity("Sofa.Records.Contributions.StoredContribution", b =>
+            {
+                b.Property<Guid>("RunId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("run_id");
+
+                b.Property<Guid>("AgentId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("agent_id");
+
+                b.Property<DateTimeOffset>("MadeAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("made_at");
+
+                b.Property<string>("Markdown")
+                    .IsRequired()
+                    .HasMaxLength(200000)
+                    .HasColumnType("character varying(200000)")
+                    .HasColumnName("markdown");
+
+                b.Property<string>("Outcome")
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("outcome");
+
+                b.Property<string>("Phase")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
+                b.Property<Guid>("WorkItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("work_item_id");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("RunId")
+                    .HasName("pk_contributions");
+
+                b.HasIndex("WorkspaceId", "WorkItemId", "MadeAt")
+                    .HasDatabaseName("ix_contributions_workspace_id_work_item_id_made_at");
+
+                b.ToTable("contributions", "records");
+            });
 
         modelBuilder.Entity("Sofa.Records.Transcripts.StoredTranscriptLine", b =>
             {
@@ -58,6 +158,21 @@ partial class RecordsDbModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_transcript_lines_workspace_id_run_id");
 
                 b.ToTable("transcript_lines", "records");
+            });
+
+        modelBuilder.Entity("Sofa.Records.Contributions.StoredAttachment", b =>
+            {
+                b.HasOne("Sofa.Records.Contributions.StoredContribution", null)
+                    .WithMany("Attachments")
+                    .HasForeignKey("RunId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_contribution_attachments_contributions_run_id");
+            });
+
+        modelBuilder.Entity("Sofa.Records.Contributions.StoredContribution", b =>
+            {
+                b.Navigation("Attachments");
             });
 #pragma warning restore 612, 618
     }
