@@ -115,7 +115,8 @@ public class IntakeTests(SofaApp sofa)
 
         var beasReply = sofa.GitHub.NextCommentId();
         var flowHearsTheAnswer = LogsAsync(SofaServices.Flow, $"Flow received the answer to Question {questionId}");
-        await GitHubWebhooks.CommentedAsync(sofa, Demo, 40, beasReply, "Yes, follow the system setting.", FakeGitHub.Bea);
+        await GitHubWebhooks.CommentedAsync(sofa, Demo, 40, beasReply,
+            "> Should the toggle follow the system setting by default?\n\n@sofa-acme[bot] Yes, follow the system setting.", FakeGitHub.Bea);
 
         Assert.True(await flowHearsTheAnswer, "Flow never received the answer event.");
         var answered = await AnswerOfAsync(questionId);
