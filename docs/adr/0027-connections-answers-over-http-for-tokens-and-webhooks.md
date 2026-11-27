@@ -1,6 +1,6 @@
 # Connections hands out tokens and takes GitHub's webhooks over HTTP, not through the broker
 
-Two things pass between Connections and other services over HTTP, although ADR 0012 sends changes through the broker. Installation tokens are handed to Intake and Code in the answer to an HTTP request, so a token never rests in an outbox or inbox table, where it would sit unencrypted until the table is cleaned. GitHub's webhooks are passed on by the App Gateway's reverse proxy to Connections, which checks each against the App's webhook secret before answering, so GitHub sees a refused delivery refused at once, and the secret never leaves Connections. Commands that change what Connections keeps, such as creating the App or adding a Connection, still go through the broker.
+Two things pass between Connections and other services over HTTP, although ADR 0012 sends changes through the broker. Installation tokens are handed to Intake and Code in the answer to an HTTP request, so a token never rests in an outbox or inbox table, where it would sit unencrypted until the table is cleaned, as with Run tokens (ADR 0025). GitHub's webhooks are passed on by the App Gateway's reverse proxy to Connections, which checks each against the App's webhook secret before answering, so GitHub sees a refused delivery refused at once, and the secret never leaves Connections. Commands that change what Connections keeps, such as creating the App or adding a Connection, still go through the broker.
 
 ## Considered Options
 
