@@ -4,4 +4,5 @@ The backend is a set of C# services, designed by SOLID principles, that runs on 
 
 ## Consequences
 
-- Running locally needs the services, a database and a message broker started together; which broker and which orchestration tooling are decided separately.
+- Running locally needs the services, a database and a message broker started together (ADRs 0013, 0014, 0016).
+- Sofa targets .NET 11, which is supported as long as .NET 10 (until 14 November 2028), and moves to .NET 12 LTS once it ships.
