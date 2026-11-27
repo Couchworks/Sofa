@@ -64,6 +64,17 @@ public sealed class GitHubApi(HttpClient http)
         return emails.FirstOrDefault(email => email.Primary && email.Verified)?.Email;
     }
 
+    public async Task<GitHubAccountLookup?> AccountOfLogin(string login, CancellationToken cancellation)
+    {
+        using var response = await http.GetAsync($"users/{Uri.EscapeDataString(login)}", cancellation);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        return await Read<GitHubAccountLookup>(response, cancellation);
+    }
+
     public async Task<GitHubInstallation> Installation(string appJwt, long installationId, CancellationToken cancellation)
     {
         using var request = AsApp(HttpMethod.Get, $"app/installations/{installationId}", appJwt);
@@ -170,6 +181,13 @@ public sealed record GitHubInstallation(long Id, GitHubAccount Account, DateTime
 public sealed record UserAccessTokenAnswer(string? AccessToken, string? Error);
 
 public sealed record GitHubUser(long Id, string Login, string? Name);
+
+public sealed record GitHubAccountLookup(long Id, string Login, string Type)
+{
+    public const string PersonalAccount = "User";
+
+    public bool IsPersonal => Type == PersonalAccount;
+}
 
 public sealed record GitHubEmail(string Email, bool Primary, bool Verified);
 

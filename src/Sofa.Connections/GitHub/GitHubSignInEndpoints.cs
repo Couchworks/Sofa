@@ -9,6 +9,7 @@ public static class GitHubSignInEndpoints
     {
         endpoints.MapGet("/github-app/sign-in", SignInApp);
         endpoints.MapPost("/github-app/sign-in/accounts", AccountOfCode);
+        endpoints.MapGet("/github-accounts/{login}", AccountOfLogin);
         return endpoints;
     }
 
@@ -18,6 +19,23 @@ public static class GitHubSignInEndpoints
             ? Results.Ok(new GitHubSignInApp(
                 app.ClientId, manifests.AuthorizeAddress.ToString(), manifests.SignInCallback.ToString()))
             : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Sofa's GitHub App hasn't been created yet.");
+
+    private static async Task<IResult> AccountOfLogin(
+        string login, GitHubApi gitHub, ILogger<GitHubAccountOfLogin> logger, CancellationToken cancellation)
+    {
+        try
+        {
+            return await gitHub.AccountOfLogin(login, cancellation) is { IsPersonal: true } account
+                ? Results.Ok(new GitHubAccountOfLogin(account.Id, account.Login))
+                : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"GitHub has no person with the login {login}.");
+        }
+        catch (GitHubRefused refused)
+        {
+            logger.LogWarning(refused, "GitHub didn't say whose login {Login} is", login);
+            return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "GitHub didn't say whose that login is. Try again in a while.");
+        }
+    }
 
     private static async Task<IResult> AccountOfCode(
         GitHubUserCode userCode,

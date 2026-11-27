@@ -43,7 +43,7 @@ public static class AccountEndpoints
         });
 
         account.MapPost("/sign-in", async (
-            SignInRequest request, IdentityDb db, Passwords passwords, HttpContext http, CancellationToken cancellation) =>
+            SignInRequest request, IdentityDb db, Passwords passwords, TimeProvider time, HttpContext http, CancellationToken cancellation) =>
         {
             var normalizedEmail = User.Normalize(request.Email ?? "");
             var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail, cancellation);
@@ -54,8 +54,9 @@ public static class AccountEndpoints
                     title: "That email and password don't match a User.");
             }
 
+            user!.SignedIn(time.GetUtcNow());
             await db.SaveChangesAsync(cancellation);
-            await http.SignInAsync(SignInCookie.Scheme, SignInCookie.For(user!));
+            await http.SignInAsync(SignInCookie.Scheme, SignInCookie.For(user));
             return Results.NoContent();
         });
 

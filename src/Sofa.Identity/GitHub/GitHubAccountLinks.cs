@@ -11,10 +11,12 @@ public enum AddByLoginRefusal
 {
     NotAGitHubLogin,
     NoSuchWorkspace,
+    NoSuchPersonOnGitHub,
+    GitHubDidNotAnswer,
     AlreadyInTheWorkspace,
 }
 
-public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
+public sealed class GitHubAccountLinks(IdentityDb db, ConnectionsGitHub connections, TimeProvider time)
 {
     public async Task<User?> SignInAsAsync(GitHubUserAccount account, CancellationToken cancellation)
     {
@@ -25,12 +27,13 @@ public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
             return null;
         }
 
-        if (match.AddedByLoginToMergeIn is { } addedByLogin)
+        if (match.AddedAndNeverSignedInToMergeIn is { } added)
         {
-            await MergeAsync(addedByLogin, match.User, cancellation);
+            await MergeAsync(added, match.User, cancellation);
         }
 
-        await LinkAsync(match.User, account, cancellation);
+        LinkAndRefresh(match.User, account, await EmailIsFreeAsync(account, cancellation));
+        match.User.SignedIn(time.GetUtcNow());
         await db.SaveChangesAsync(cancellation);
         await transaction.CommitAsync(cancellation);
         return match.User;
@@ -46,12 +49,12 @@ public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
             return refusal;
         }
 
-        if (match.AddedByLoginToMergeIn is { } addedByLogin)
+        if (match.AddedAndNeverSignedInToMergeIn is { } added)
         {
-            await MergeAsync(addedByLogin, linking, cancellation);
+            await MergeAsync(added, linking, cancellation);
         }
 
-        await LinkAsync(linking, account, cancellation);
+        LinkAndRefresh(linking, account, await EmailIsFreeAsync(account, cancellation));
         await db.SaveChangesAsync(cancellation);
         await transaction.CommitAsync(cancellation);
         return null;
@@ -71,16 +74,17 @@ public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
             return (null, AddByLoginRefusal.NoSuchWorkspace);
         }
 
-        var normalized = User.NormalizeGitHubLogin(login);
-        var user = await db.Users
-            .Where(u => u.NormalizedGitHubLogin == normalized)
-            .OrderByDescending(u => u.GitHubAccountId != null)
-            .ThenBy(u => u.CreatedAt)
-            .FirstOrDefaultAsync(cancellation);
+        var (account, gitHubAnswered) = await connections.AccountOfLoginAsync(login, cancellation);
+        if (account is null)
+        {
+            return (null, gitHubAnswered ? AddByLoginRefusal.NoSuchPersonOnGitHub : AddByLoginRefusal.GitHubDidNotAnswer);
+        }
+
         var now = time.GetUtcNow();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.GitHubAccountId == account.Id, cancellation);
         if (user is null)
         {
-            user = new User { Name = login, GitHubLogin = login, NormalizedGitHubLogin = normalized, CreatedAt = now };
+            user = new User { Name = account.Login, GitHubAccountId = account.Id, GitHubLogin = account.Login, CreatedAt = now };
             db.Users.Add(user);
         }
         else if (await db.WorkspaceUsers.AnyAsync(w => w.WorkspaceId == workspaceId && w.UserId == user.Id, cancellation))
@@ -95,44 +99,47 @@ public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
 
     private async Task<List<User>> CandidatesForAsync(GitHubUserAccount account, CancellationToken cancellation)
     {
-        var login = User.NormalizeGitHubLogin(account.Login);
         var email = account.VerifiedPrimaryEmail is { } verified ? User.Normalize(verified) : null;
         return await db.Users
-            .Where(user => user.GitHubAccountId == account.Id
-                || user.NormalizedGitHubLogin == login
-                || (email != null && user.NormalizedEmail == email))
+            .Where(user => user.GitHubAccountId == account.Id || (email != null && user.NormalizedEmail == email))
             .ToListAsync(cancellation);
     }
 
-    private async Task LinkAsync(User user, GitHubUserAccount account, CancellationToken cancellation)
+    private async Task<bool> EmailIsFreeAsync(GitHubUserAccount account, CancellationToken cancellation)
     {
-        if (user.IsOnlyAddedByGitHubLogin && !string.IsNullOrWhiteSpace(account.Name))
+        if (account.VerifiedPrimaryEmail is not { } email)
+        {
+            return false;
+        }
+
+        var normalized = User.Normalize(email);
+        return !await db.Users.AnyAsync(other => other.NormalizedEmail == normalized, cancellation);
+    }
+
+    private static void LinkAndRefresh(User user, GitHubUserAccount account, bool emailIsFree)
+    {
+        if (user.IsAddedAndNeverSignedIn && !string.IsNullOrWhiteSpace(account.Name))
         {
             user.Name = account.Name.Trim();
         }
 
-        if (user.Email is null && account.VerifiedPrimaryEmail is { } email)
+        if (user.Email is null && emailIsFree)
         {
-            var normalized = User.Normalize(email);
-            if (!await db.Users.AnyAsync(other => other.NormalizedEmail == normalized, cancellation))
-            {
-                user.Email = email.Trim();
-                user.NormalizedEmail = normalized;
-            }
+            user.Email = account.VerifiedPrimaryEmail!.Trim();
+            user.NormalizedEmail = User.Normalize(user.Email);
         }
 
         user.GitHubAccountId = account.Id;
         user.GitHubLogin = account.Login;
-        user.NormalizedGitHubLogin = User.NormalizeGitHubLogin(account.Login);
     }
 
-    private async Task MergeAsync(User addedByLogin, User into, CancellationToken cancellation)
+    private async Task MergeAsync(User added, User into, CancellationToken cancellation)
     {
-        var addedTo = await db.WorkspaceUsers.Where(w => w.UserId == addedByLogin.Id).ToListAsync(cancellation);
+        var addedTo = await db.WorkspaceUsers.Where(w => w.UserId == added.Id).ToListAsync(cancellation);
         var alreadyIn = await db.WorkspaceUsers.Where(w => w.UserId == into.Id).Select(w => w.WorkspaceId).ToListAsync(cancellation);
         var now = time.GetUtcNow();
 
-        db.TeamUsers.RemoveRange(await db.TeamUsers.Where(t => t.UserId == addedByLogin.Id).ToListAsync(cancellation));
+        db.TeamUsers.RemoveRange(await db.TeamUsers.Where(t => t.UserId == added.Id).ToListAsync(cancellation));
         db.WorkspaceUsers.RemoveRange(addedTo);
         foreach (var membership in addedTo.Where(m => !alreadyIn.Contains(m.WorkspaceId)))
         {
@@ -142,7 +149,7 @@ public sealed class GitHubAccountLinks(IdentityDb db, TimeProvider time)
             });
         }
 
-        db.Users.Remove(addedByLogin);
+        db.Users.Remove(added);
         await db.SaveChangesAsync(cancellation);
     }
 }

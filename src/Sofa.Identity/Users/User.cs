@@ -16,15 +16,15 @@ public sealed class User
 
     public string? GitHubLogin { get; set; }
 
-    public string? NormalizedGitHubLogin { get; set; }
+    public DateTimeOffset? FirstSignedInAt { get; set; }
 
     public DateTimeOffset CreatedAt { get; init; }
 
     public bool HasPassword => PasswordHash.Length > 0;
 
-    public bool IsOnlyAddedByGitHubLogin => GitHubAccountId is null && Email is null && !HasPassword;
+    public bool IsAddedAndNeverSignedIn => FirstSignedInAt is null && Email is null && !HasPassword;
 
     public static string Normalize(string email) => email.Trim().ToUpperInvariant();
 
-    public static string NormalizeGitHubLogin(string login) => login.Trim().ToUpperInvariant();
+    public void SignedIn(DateTimeOffset now) => FirstSignedInAt ??= now;
 }

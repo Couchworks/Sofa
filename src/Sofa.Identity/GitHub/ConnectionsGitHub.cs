@@ -24,6 +24,26 @@ public sealed class ConnectionsGitHub(HttpClient connections, ILogger<Connection
         }
     }
 
+    public async Task<(GitHubAccountOfLogin? Account, bool GitHubAnswered)> AccountOfLoginAsync(
+        string login, CancellationToken cancellation)
+    {
+        try
+        {
+            using var response = await connections.GetAsync($"/github-accounts/{Uri.EscapeDataString(login)}", cancellation);
+            return response.StatusCode switch
+            {
+                System.Net.HttpStatusCode.OK => (await response.Content.ReadFromJsonAsync<GitHubAccountOfLogin>(cancellation), true),
+                System.Net.HttpStatusCode.NotFound => (null, true),
+                _ => (null, false),
+            };
+        }
+        catch (HttpRequestException unreachable)
+        {
+            logger.LogWarning(unreachable, "Couldn't ask Connections whose GitHub login {Login} is", login);
+            return (null, false);
+        }
+    }
+
     public async Task<GitHubUserAccount?> AccountOfAsync(string code, CancellationToken cancellation)
     {
         using var response = await connections.PostAsJsonAsync("/github-app/sign-in/accounts", new GitHubUserCode(code), cancellation);

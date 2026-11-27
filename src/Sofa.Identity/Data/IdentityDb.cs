@@ -77,11 +77,9 @@ public sealed class IdentityDb(DbContextOptions<IdentityDb> options) : DbContext
             user.HasIndex(u => u.NormalizedEmail).IsUnique();
             user.Property(u => u.GitHubAccountId).HasColumnName("github_account_id");
             user.Property(u => u.GitHubLogin).HasColumnName("github_login").HasMaxLength(GitHubLogins.Longest);
-            user.Property(u => u.NormalizedGitHubLogin).HasColumnName("normalized_github_login").HasMaxLength(GitHubLogins.Longest);
             user.HasIndex(u => u.GitHubAccountId).IsUnique();
-            user.HasIndex(u => u.NormalizedGitHubLogin);
             user.Ignore(u => u.HasPassword);
-            user.Ignore(u => u.IsOnlyAddedByGitHubLogin);
+            user.Ignore(u => u.IsAddedAndNeverSignedIn);
         });
 
         model.Entity<GitHubAuthorization>(authorization =>

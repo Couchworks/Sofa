@@ -16,7 +16,7 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127163726_LinkGitHubAccounts";
+    public override string LastMigrationId => "20261127181833_MatchAddedUsersByGitHubAccount";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -455,6 +455,10 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(320)")
                     .HasColumnName("email");
 
+                b.Property<DateTimeOffset?>("FirstSignedInAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("first_signed_in_at");
+
                 b.Property<long?>("GitHubAccountId")
                     .HasColumnType("bigint")
                     .HasColumnName("github_account_id");
@@ -475,11 +479,6 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(320)")
                     .HasColumnName("normalized_email");
 
-                b.Property<string>("NormalizedGitHubLogin")
-                    .HasMaxLength(39)
-                    .HasColumnType("character varying(39)")
-                    .HasColumnName("normalized_github_login");
-
                 b.Property<string>("PasswordHash")
                     .IsRequired()
                     .HasColumnType("text")
@@ -495,9 +494,6 @@ partial class IdentityDbModelSnapshot : ModelSnapshot
                 b.HasIndex("NormalizedEmail")
                     .IsUnique()
                     .HasDatabaseName("ix_users_normalized_email");
-
-                b.HasIndex("NormalizedGitHubLogin")
-                    .HasDatabaseName("ix_users_normalized_github_login");
 
                 b.ToTable("users", "identity");
             });

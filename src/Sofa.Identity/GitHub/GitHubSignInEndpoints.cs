@@ -130,6 +130,10 @@ public static class GitHubSignInEndpoints
                 title: $"'{added.GitHubLogin}' is not a GitHub login."),
             AddByLoginRefusal.NoSuchWorkspace => Results.Problem(statusCode: StatusCodes.Status404NotFound,
                 title: "No such Workspace."),
+            AddByLoginRefusal.NoSuchPersonOnGitHub => Results.Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: $"GitHub has no person with the login {added.GitHubLogin}."),
+            AddByLoginRefusal.GitHubDidNotAnswer => Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "GitHub didn't say whose that login is. Try again in a while."),
             _ => Results.Problem(statusCode: StatusCodes.Status409Conflict,
                 title: $"{added.GitHubLogin} already belongs to this Workspace."),
         };
