@@ -11,9 +11,10 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const triager = { id: 'a1', name: 'Triager', role: 'Triager', instructions: 'Triage it.', vendor: 'Anthropic', model: 'haiku' }
-const lead = { id: 'a2', name: 'Lead', role: 'Lead', instructions: 'Spec and plan it.', vendor: 'Anthropic', model: 'opus' }
-const builder = { id: 'a3', name: 'Builder', role: 'Builder', instructions: 'Build it.', vendor: 'Anthropic', model: 'opus' }
+const registered = { registration: 'Registered', registrationRefusedBecause: null }
+const triager = { id: 'a1', name: 'Triager', role: 'Triager', instructions: 'Triage it.', vendor: 'Anthropic', model: 'haiku', ...registered }
+const lead = { id: 'a2', name: 'Lead', role: 'Lead', instructions: 'Spec and plan it.', vendor: 'Anthropic', model: 'opus', ...registered }
+const builder = { id: 'a3', name: 'Builder', role: 'Builder', instructions: 'Build it.', vendor: 'Anthropic', model: 'opus', ...registered }
 const demo = {
   id: 'p1',
   key: 'DEMO',
@@ -112,6 +113,25 @@ test('an Admin changes the binding to more Repositories the Connection reaches',
   expect(await requests.find((request) => request.method === 'PUT')!.json()).toEqual({
     connectionId: 'c1', requestRepository: 'acme/demo', label: 'sofa', codeRepositories: ['acme/demo', 'acme/web'], keepsIssueState: false,
   })
+})
+
+test('an Agent Identity refused shows as not registered with the reason, and Retry asks Identity again', async () => {
+  const refusedLead = { ...lead, registration: 'Refused', registrationRefusedBecause: 'Another Agent already has that id.' }
+  const { requests } = fakeGateway({
+    'GET /api/me': { body: me(false) },
+    [`GET ${project}`]: { body: { ...demo, agents: [triager, refusedLead, builder] } },
+    [`POST ${project}/agents/a2/registration`]: { body: { ...demo, agents: [triager, { ...lead, registration: 'Pending' }, builder] } },
+  })
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+
+  const leadForm = await screen.findByRole('form', { name: 'Lead Agent' })
+  expect(within(leadForm).getByText('Not registered')).toBeDefined()
+  expect(within(leadForm).getByText('Another Agent already has that id.')).toBeDefined()
+  expect(within(screen.getByRole('form', { name: 'Builder Agent' })).queryByText('Not registered')).toBeNull()
+  fireEvent.click(within(leadForm).getByRole('button', { name: 'Retry' }))
+
+  await waitFor(() => expect(requests.some((request) => request.method === 'POST')).toBe(true))
+  expect(requests.find((request) => request.method === 'POST')!.url).toContain('/projects/DEMO/agents/a2/registration')
 })
 
 test('an Admin turns on keeping the issue’s state', async () => {

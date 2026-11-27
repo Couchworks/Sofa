@@ -1,7 +1,6 @@
 using System.Text.Json;
-using Sofa.Contracts.Execution;
 
-namespace Sofa.Cli;
+namespace Sofa.Contracts.Execution;
 
 public static class ClaudeAuthStatus
 {

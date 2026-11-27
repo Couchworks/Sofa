@@ -1,4 +1,5 @@
 using Sofa.Contracts.Flow;
+using Sofa.Contracts.Identity;
 
 namespace Sofa.Flow.Projects;
 
@@ -85,5 +86,21 @@ public sealed class Agent
 
     public required string Model { get; set; }
 
+    public AgentRegistrationState Registration { get; set; } = AgentRegistrationState.Pending;
+
+    public string? RegistrationRefusedBecause { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
+
+    public void HeardFromIdentity(AgentRegistration registration)
+    {
+        Registration = registration.Registered ? AgentRegistrationState.Registered : AgentRegistrationState.Refused;
+        RegistrationRefusedBecause = registration.RefusedBecause;
+    }
+
+    public void AskIdentityAgain()
+    {
+        Registration = AgentRegistrationState.Pending;
+        RegistrationRefusedBecause = null;
+    }
 }

@@ -20,6 +20,8 @@ public sealed record BindProject(Guid WorkspaceId, string Key, RequestProviderBi
 public sealed record ConfigureAgent(
     Guid WorkspaceId, string Key, Guid AgentId, AgentRole Role, string Instructions, Vendor Vendor, string Model);
 
+public sealed record RegisterAgentAgain(Guid WorkspaceId, string Key, Guid AgentId);
+
 public sealed record ConfigurePhase(
     Guid WorkspaceId, string Key, PhaseName Phase, Guid CastAgentId, Gate Gate, Sandbox Sandbox);
 
@@ -54,7 +56,23 @@ public sealed record ProjectDetails(
 
 public sealed record PhaseDetails(PhaseName Name, int Position, Pattern Pattern, Guid CastAgentId, Gate Gate, Sandbox Sandbox);
 
-public sealed record AgentDetails(Guid Id, string Name, AgentRole Role, string Instructions, Vendor Vendor, string Model);
+public sealed record AgentDetails(
+    Guid Id,
+    string Name,
+    AgentRole Role,
+    string Instructions,
+    Vendor Vendor,
+    string Model,
+    AgentRegistrationState Registration,
+    string? RegistrationRefusedBecause);
+
+[JsonConverter(typeof(JsonStringEnumConverter<AgentRegistrationState>))]
+public enum AgentRegistrationState
+{
+    Pending,
+    Registered,
+    Refused,
+}
 
 [JsonConverter(typeof(JsonStringEnumConverter<PhaseName>))]
 public enum PhaseName

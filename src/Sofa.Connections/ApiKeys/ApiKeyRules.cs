@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Sofa.Connections.Credentials;
 using Sofa.Contracts.Flow;
 
@@ -31,4 +33,9 @@ public static class ApiKeyRules
     }
 
     public static CredentialPurpose PurposeOf(Guid apiKeyId) => new($"api-key:{apiKeyId}");
+
+    public static bool IsExecution(string? secretSent, string? executionsSecret) =>
+        !string.IsNullOrEmpty(executionsSecret)
+        && secretSent is not null
+        && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(secretSent), Encoding.UTF8.GetBytes(executionsSecret));
 }

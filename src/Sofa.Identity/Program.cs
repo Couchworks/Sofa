@@ -14,13 +14,17 @@ using Sofa.Identity.SignIn;
 using Sofa.Identity.Tokens;
 using Sofa.Identity.Users;
 using Sofa.Identity.Workspaces;
+using Wolverine.RabbitMQ;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddSofaMessaging(SofaServices.Identity, messaging =>
-    messaging.CodeGeneration.AlwaysUseServiceLocationFor<IdentityDb>());
+{
+    messaging.PublishMessage<AgentRegistration>().ToRabbitQueue(SofaServices.Flow);
+    messaging.CodeGeneration.AlwaysUseServiceLocationFor<IdentityDb>();
+});
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);

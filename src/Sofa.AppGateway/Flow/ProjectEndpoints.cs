@@ -45,6 +45,11 @@ public static class ProjectEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        workspace.MapPost("/projects/{key}/agents/{agentId:guid}/registration", RegisterAgentAgain)
+            .WithName("RegisterAgentAgain")
+            .WithSummary("Asks Identity again to register an Agent it refused or hasn't answered for.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         workspace.MapPut("/projects/{key}/phases/{phase}", ConfigurePhase)
             .WithName("ConfigurePhase")
             .WithSummary("Changes a Phase's cast, Gate and Sandbox.")
@@ -102,6 +107,10 @@ public static class ProjectEndpoints
         await ChangeAsync(
             new ConfigureAgent(user.WorkspaceId, key, agentId, agent.Role, agent.Instructions ?? "", agent.Vendor, agent.Model ?? ""),
             user.WorkspaceId, key, flow, bus, cancellation);
+
+    private static async Task<Results<Ok<ProjectDetails>, ProblemHttpResult>> RegisterAgentAgain(
+        string key, Guid agentId, SignedInWorkspaceUser user, FlowClient flow, IMessageBus bus, CancellationToken cancellation) =>
+        await ChangeAsync(new RegisterAgentAgain(user.WorkspaceId, key, agentId), user.WorkspaceId, key, flow, bus, cancellation);
 
     private static async Task<Results<Ok<ProjectDetails>, ProblemHttpResult>> ConfigurePhase(
         string key,

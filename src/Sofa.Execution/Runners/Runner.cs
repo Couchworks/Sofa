@@ -33,6 +33,13 @@ public sealed class Runner
 
     public DateTimeOffset CreatedAt { get; init; }
 
+    public void Saw(SignInSeen seen, DateTimeOffset now)
+    {
+        SignedIn = seen.SignedIn;
+        SignInEndsAt = seen.SignedIn ? seen.EndsAt : null;
+        SignInCheckedAt = now;
+    }
+
     public RunnerOwner Owner => OwnerUserId is { } userId ? RunnerOwner.User(userId) : RunnerOwner.Team(OwnerTeamId!.Value);
 
     public RunnerDetails Details => new(

@@ -16,7 +16,7 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127185947_KeepRunners";
+    public override string LastMigrationId => "20261127203020_KeepRuns";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -112,6 +112,167 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_runners_subscriptions_are_personal", "kind <> 'Subscription' or (owner_user_id is not null and worker_volume is not null and api_key_id is null)");
                     });
+            });
+
+        modelBuilder.Entity("Sofa.Execution.Runs.Run", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Guid>("AgentId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("agent_id");
+
+                b.Property<int>("Attempt")
+                    .HasColumnType("integer")
+                    .HasColumnName("attempt");
+
+                b.Property<string>("Brief")
+                    .IsRequired()
+                    .HasMaxLength(100000)
+                    .HasColumnType("character varying(100000)")
+                    .HasColumnName("brief");
+
+                b.Property<Guid>("DelegatingUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("delegating_user_id");
+
+                b.Property<DateTimeOffset?>("EndedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("ended_at");
+
+                b.Property<string>("Model")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("model");
+
+                b.Property<string>("Phase")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
+                b.Property<string>("Priority")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("priority");
+
+                b.Property<Guid>("ProjectId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("project_id");
+
+                b.Property<DateTimeOffset>("QueuedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("queued_at");
+
+                b.Property<string>("RefusedAs")
+                    .HasMaxLength(30)
+                    .HasColumnType("character varying(30)")
+                    .HasColumnName("refused_as");
+
+                b.Property<Guid?>("RetriedBy")
+                    .HasColumnType("uuid")
+                    .HasColumnName("retried_by");
+
+                b.Property<int>("RetriesLeft")
+                    .HasColumnType("integer")
+                    .HasColumnName("retries_left");
+
+                b.Property<int>("RetryLimit")
+                    .HasColumnType("integer")
+                    .HasColumnName("retry_limit");
+
+                b.Property<Guid?>("RetryOf")
+                    .HasColumnType("uuid")
+                    .HasColumnName("retry_of");
+
+                b.Property<Guid?>("RunnerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("runner_id");
+
+                b.Property<string>("Sandbox")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("sandbox");
+
+                b.Property<DateTimeOffset?>("StartedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("started_at");
+
+                b.Property<string>("State")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("state");
+
+                b.Property<string>("Summary")
+                    .HasMaxLength(4000)
+                    .HasColumnType("character varying(4000)")
+                    .HasColumnName("summary");
+
+                b.Property<string>("Vendor")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("vendor");
+
+                b.Property<uint>("Version")
+                    .IsConcurrencyToken()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("xid")
+                    .HasColumnName("xmin");
+
+                b.Property<bool>("WaitsForRetry")
+                    .HasColumnType("boolean")
+                    .HasColumnName("waits_for_retry");
+
+                b.Property<string>("Why")
+                    .HasMaxLength(4000)
+                    .HasColumnType("character varying(4000)")
+                    .HasColumnName("why");
+
+                b.Property<Guid>("WorkItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("work_item_id");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_runs");
+
+                b.HasIndex("RunnerId")
+                    .HasDatabaseName("ix_runs_runner_id");
+
+                b.HasIndex("State")
+                    .HasDatabaseName("ix_runs_state");
+
+                b.HasIndex("WorkItemId")
+                    .HasDatabaseName("ix_runs_work_item_id");
+
+                b.HasIndex("WorkspaceId", "QueuedAt")
+                    .HasDatabaseName("ix_runs_workspace_id_queued_at");
+
+                b.ToTable("runs", "execution", t =>
+                    {
+                        t.HasCheckConstraint("ck_runs_retries_left_within_the_limit", "retries_left >= 0 and retries_left <= retry_limit");
+
+                        t.HasCheckConstraint("ck_runs_running_on_a_runner", "state <> 'Running' or runner_id is not null");
+                    });
+            });
+
+        modelBuilder.Entity("Sofa.Execution.Runs.Run", b =>
+            {
+                b.HasOne("Sofa.Execution.Runners.Runner", null)
+                    .WithMany()
+                    .HasForeignKey("RunnerId")
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_runs_runners_runner_id");
             });
 #pragma warning restore 612, 618
     }

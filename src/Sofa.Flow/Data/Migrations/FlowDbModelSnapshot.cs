@@ -17,7 +17,7 @@ partial class FlowDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127202050_KeepWorkItems";
+    public override string LastMigrationId => "20261127202423_HearAgentRegistrations";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -64,6 +64,17 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                 b.Property<Guid>("ProjectId")
                     .HasColumnType("uuid")
                     .HasColumnName("project_id");
+
+                b.Property<string>("Registration")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("registration");
+
+                b.Property<string>("RegistrationRefusedBecause")
+                    .HasMaxLength(1000)
+                    .HasColumnType("character varying(1000)")
+                    .HasColumnName("registration_refused_because");
 
                 b.Property<string>("Role")
                     .IsRequired()

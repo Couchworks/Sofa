@@ -278,6 +278,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/projects/{key}/agents/{agentId}/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Asks Identity again to register an Agent it refused or hasn't answered for. */
+        post: operations["RegisterAgentAgain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/projects/{key}/phases/{phase}": {
         parameters: {
             query?: never;
@@ -380,6 +397,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Workspace's latest Runs, newest first. */
+        get: operations["GetRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A Run: its state and why, its Runner, and the Runs it retries or is retried by. */
+        get: operations["GetRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/runs/{runId}/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Run's Transcript as it arrived, line by line; `after` skips the lines already read. */
+        get: operations["GetTranscript"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/runs/{runId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retries a Run that failed, was lost or was refused, as a new Run. */
+        post: operations["RetryRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/runs/{runId}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stops a Run that is waiting or running. */
+        post: operations["StopRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -401,7 +503,11 @@ export interface components {
             instructions: string;
             vendor: components["schemas"]["Vendor"];
             model: string;
+            registration: components["schemas"]["AgentRegistrationState"];
+            registrationRefusedBecause: null | string;
         };
+        /** @enum {unknown} */
+        AgentRegistrationState: "Pending" | "Registered" | "Refused";
         /** @enum {unknown} */
         AgentRole: "Triager" | "Lead" | "Builder";
         CodeProviderBinding: {
@@ -489,6 +595,8 @@ export interface components {
         };
         /** @enum {unknown} */
         PhaseName: "Triage" | "Spec" | "Plan" | "Implement";
+        /** @enum {unknown} */
+        Priority: "Urgent" | "High" | "Medium" | "Low" | "None";
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -523,6 +631,8 @@ export interface components {
             requestRepository: string;
             requestLabel: string;
         };
+        /** @enum {unknown} */
+        RefusedAs: "SignInAgain" | "AgentNotRegistered" | "ApiKeyUnavailable" | null;
         RequestProviderBinding: {
             /** Format: uuid */
             connectionId: string;
@@ -536,6 +646,45 @@ export interface components {
             /** Format: int64 */
             number: number | string;
             url: string;
+        };
+        RunDetails: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspaceId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            workItemId: string;
+            phase: components["schemas"]["PhaseName"];
+            /** Format: uuid */
+            agentId: string;
+            model: string;
+            sandbox: components["schemas"]["Sandbox"];
+            /** Format: uuid */
+            delegatingUserId: string;
+            priority: components["schemas"]["Priority"];
+            state: components["schemas"]["RunState"];
+            why: null | string;
+            refusedAs: null | components["schemas"]["RefusedAs"];
+            /** Format: uuid */
+            runnerId: null | string;
+            /** Format: int32 */
+            attempt: number | string;
+            /** Format: int32 */
+            retriesLeft: number | string;
+            /** Format: uuid */
+            retryOf: null | string;
+            /** Format: uuid */
+            retriedBy: null | string;
+            waitsForRetry: boolean;
+            summary: null | string;
+            /** Format: date-time */
+            queuedAt: string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            endedAt: null | string;
         };
         RunnerDetails: {
             /** Format: uuid */
@@ -564,6 +713,8 @@ export interface components {
             runsAtOnce: number | string;
         };
         /** @enum {unknown} */
+        RunState: "Waiting" | "Running" | "Finished" | "Failed" | "Lost" | "Stopped" | "Refused";
+        /** @enum {unknown} */
         Sandbox: "ReadOnly" | "OwnBranch" | "IntegrationBranch";
         Status: {
             name: string;
@@ -587,6 +738,16 @@ export interface components {
         TeamMemberToAdd: {
             /** Format: uuid */
             userId: string;
+        };
+        Transcript: {
+            /** Format: uuid */
+            runId: string;
+            lines: components["schemas"]["TranscriptLine"][];
+        };
+        TranscriptLine: {
+            /** Format: int32 */
+            number: number | string;
+            text: string;
         };
         UserAdded: {
             /** Format: uuid */
@@ -1541,6 +1702,58 @@ export interface operations {
             };
         };
     };
+    RegisterAgentAgain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ConfigurePhase: {
         parameters: {
             query?: never;
@@ -1861,6 +2074,271 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetails"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTranscript: {
+        parameters: {
+            query?: {
+                after?: number | string;
+            };
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetryRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    StopRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

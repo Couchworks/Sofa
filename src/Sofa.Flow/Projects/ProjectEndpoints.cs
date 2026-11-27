@@ -37,7 +37,7 @@ public static class ProjectEndpoints
             .ToListAsync(cancellation);
         var agents = (await db.Agents.AsNoTracking().Where(a => a.ProjectId == project.Id).ToListAsync(cancellation))
             .OrderBy(a => a.Role).ThenBy(a => a.Name)
-            .Select(a => new AgentDetails(a.Id, a.Name, a.Role, a.Instructions, a.Vendor, a.Model))
+            .Select(a => new AgentDetails(a.Id, a.Name, a.Role, a.Instructions, a.Vendor, a.Model, a.Registration, a.RegistrationRefusedBecause))
             .ToList();
 
         return new ProjectDetails(project.Id, project.Key, project.Name, project.Requests, project.Code, phases, agents);

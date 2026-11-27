@@ -31,6 +31,9 @@
     <PackageVersion Include="Npgsql" Version="11.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Agents">
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+  </ItemGroup>
   <ItemGroup Label="Identity">
     <PackageVersion Include="OpenIddict.AspNetCore" Version="7.9.0" />
     <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.9.0" />

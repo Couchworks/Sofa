@@ -5,7 +5,7 @@ import { NativeSelect } from '@/components/NativeSelect'
 import { Page } from '@/components/SignedIn'
 import { problemOf, useWorkspace } from '@/components/workspace'
 import { Textarea } from '@/components/Textarea'
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -337,10 +337,17 @@ function AgentCard({
         }}
       >
         <CardHeader>
-          <CardTitle>{agent.name}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            {agent.name}
+            {agent.registration === 'Pending' && <Badge variant="secondary">Registering…</Badge>}
+            {agent.registration === 'Refused' && <Badge variant="destructive">Not registered</Badge>}
+          </CardTitle>
           <CardDescription>Claude Code, from {agent.vendor}</CardDescription>
         </CardHeader>
         <CardContent className="mt-3 flex flex-col gap-3">
+          {agent.registration === 'Refused' && (
+            <RefusedRegistration workspaceId={workspaceId} projectKey={projectKey} agent={agent} onChanged={onChanged} />
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor={`${id}-role`}>Role</Label>
@@ -379,5 +386,41 @@ function AgentCard({
         </CardFooter>
       </form>
     </Card>
+  )
+}
+
+function RefusedRegistration({
+  workspaceId,
+  projectKey,
+  agent,
+  onChanged,
+}: {
+  workspaceId: string
+  projectKey: string
+  agent: Agent
+  onChanged: () => void
+}) {
+  const retrying = api.useMutation('post', '/api/workspaces/{workspaceId}/projects/{key}/agents/{agentId}/registration', {
+    onSuccess: onChanged,
+  })
+
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Identity refused to register {agent.name}, so its Runs are refused</AlertTitle>
+      <AlertDescription>
+        {agent.registrationRefusedBecause}
+        {retrying.isError && <p role="alert">{problemOf(retrying.error, 'Sofa couldn’t ask Identity again.')}</p>}
+      </AlertDescription>
+      <AlertAction>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={retrying.isPending}
+          onClick={() => retrying.mutate({ params: { path: { workspaceId, key: projectKey, agentId: agent.id } } })}
+        >
+          Retry
+        </Button>
+      </AlertAction>
+    </Alert>
   )
 }
