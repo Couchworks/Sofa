@@ -6,7 +6,7 @@ A software factory where AI agents take a Request through a Flow of Phases. The 
 
 - `src/` the services of ADR 0012, `Sofa.Contracts`, `Sofa.ServiceDefaults`, the Aspire app host `Sofa.AppHost`, and `Sofa.Cli`, the `sofa` command run on the box
 - `worker/` the Worker image: the unmodified Claude Code, nothing of Sofa's
-- `tests/` unit tests and integration tests through Aspire's test host
+- `tests/` unit tests and integration tests through Aspire's test host, and `tests/stub-worker/`, a Worker image whose `claude` plays back a recorded Run
 - `web/` the web client (Vite, React, TypeScript, Tailwind, shadcn/ui)
 
 ## Running it
@@ -38,7 +38,7 @@ The next start logs a new setup code. A GitHub App created before stays on GitHu
 
 ### Run tokens
 
-Execution asks Identity for a token valid for one Run of one Agent, and the Agent Gateway accepts only such tokens (ADR 0025). Until the services that start Runs exist, diagnostic endpoints show it, on each service's own address from the dashboard:
+Execution asks Identity for a token valid for one Run of one Agent, and the Agent Gateway accepts only such tokens (ADR 0025), and only while Execution says the Run is running (ADR 0036). Diagnostic endpoints show it, on each service's own address from the dashboard:
 
 ```sh
 curl -X POST $FLOW/diagnostics/agents -H 'content-type: application/json' \
@@ -95,6 +95,8 @@ The pages for the GitHub App, Connections and adding Users are for a Workspace's
 
 Every new Project starts with milestone 1's Flow, Triage → Spec → Plan → Implement, every Phase Solo, with the Gates and Sandboxes of `docs/default-flow.md`, and its own Triager (Haiku), Lead (Opus) and Builder (Opus), registered with Identity as actors owned by the Workspace's Team. A Project's page shows them; every User of the Workspace has Write in its Projects (ADR 0031), so they change an Agent's role, instructions and model (`opus`, `sonnet`, `haiku` or a full model name, passed to Claude Code's `--model`) and a Phase's cast, Gate and Sandbox. Nothing runs the Flow yet.
 
+Flow hears Identity's answer to each Agent's registration. An Agent Identity refused shows on the Project's page as *Not registered*, with Identity's reason and **Retry**, which asks Identity again; its Runs are refused until it is registered. Agents Identity hasn't answered for are asked again whenever Flow starts.
+
 ### Runners
 
 **Runners** lists the signed-in User's personal Runners and their Team's Runners; an Admin sees every team Runner. Each runs at most its limit of Runs at once (2 unless changed).
@@ -113,13 +115,34 @@ dotnet run --project src/Sofa.Cli -- runner login <runner id>       # the Runner
 
 It starts a throwaway Worker container on the Runner's volume running `claude auth login --claudeai` in your terminal: open the link it shows, sign in with your Claude subscription, and paste the code back. A fresh container then reads `claude auth status`, and Execution records only whether the volume is signed in to a subscription and when that ends, which the Runners page shows. `runner status <runner id>` checks again without signing in. The command finds Execution at `http://localhost:5005`, where the app host serves it; set `SOFA_EXECUTION` for another address, and `SOFA_WORKER_IMAGE` for another image.
 
+### Runs
+
+Execution keeps the Runs and their queue. A Run waits for a Runner, highest Priority first, then oldest first: it spends its delegating User's personal Runner for its vendor (a subscription before an API key), else a Runner of their Team (ADR 0009), and never more Runs on a Runner than its limit. While it waits it says why, such as that every Runner it may spend is at its limit, or that its User has no Runner and no Team of theirs has one.
+
+Each Run gets a fresh Worker container (ADR 0017), started by Execution through Docker on the box and watched by it (ADR 0034), holding its Run token and nothing else of Sofa's; a subscription Run mounts its Runner's volume, an API key Run gets its key from Connections. In the container, a subscription Run first prints `claude auth status`, which Execution records on the Runner, and Claude Code starts only once Execution sees the volume signed in; otherwise the Run is refused as *sign in again*, and Notices hears of it (logged until the Inbox shows it). Claude Code then runs headless (`claude -p`, never `--bare`) on the Agent's model, with only Sofa's MCP server, at the Agent Gateway's `/mcp`, and only the tools of its Phase's Sandbox allowed; the Brief names Sofa's tools, so the Run doesn't spend a turn finding them. Its `stream-json` output goes to Records line by line as it comes: the Run's Transcript.
+
+A Run is *waiting*, *running*, then *finished* (ended by its Agent through Sofa's tool, for now the test tool `end_test_run`), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, or its volume isn't signed in), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0035), until its retry limit; then it waits for a User's **Retry**, as a refused Run does.
+
+The App Gateway serves `/api/workspaces/{workspaceId}/runs`, each Run at `…/runs/{runId}`, its Transcript at `…/runs/{runId}/transcript`, and `…/retry` and `…/stop` on it, to every User of the Workspace. Until Flow starts Runs (slice 8), Flow's diagnostic endpoint starts a test Run of a Phase's Agent, with the Agent's model and the Phase's Sandbox:
+
+```sh
+docker build -t sofa-worker worker                                  # the Worker image, once
+curl -X POST $FLOW/diagnostics/test-runs -H 'content-type: application/json' \
+  -d '{"workspaceId":"…","projectKey":"DEMO","phase":"Triage","delegatingUserId":"…","task":"Write a haiku about sofas."}'
+curl $APP_GATEWAY/api/workspaces/…/runs/<runId> -H "Authorization: Bearer $TOKEN"              # its state, Runner and why
+curl $APP_GATEWAY/api/workspaces/…/runs/<runId>/transcript -H "Authorization: Bearer $TOKEN"   # its Transcript
+docker kill sofa-run-<runId>                                        # a killed container: failed, then retried
+```
+
+`priority` (Urgent, High, Medium, Low, None) and `retryLimit` (default 2) are optional. The containers reach the Agent Gateway at `host.docker.internal`, so it listens on every address of the box. The Worker image is `Workers:Image` of Execution (`sofa-worker`); the integration tests use `tests/stub-worker` instead, so they spend no tokens. Execution runs one copy on a box: two would start the same Run twice.
+
 ### The Team
 
 **Team**, for Admins, shows who is in the Workspace's Team, adds any User of the Workspace and removes members. Users added by GitHub login join the Workspace's Team, so they can spend its team Runners; those added before this were put in it when Identity next started.
 
 ### Databases
 
-Identity, Connections, Flow and Execution keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
+Identity, Connections, Flow, Execution and Records keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
 
 ```sh
 dotnet tool restore
@@ -127,6 +150,7 @@ SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Connections --output-dir Persistence/Migrations
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Flow --output-dir Data/Migrations
 SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Execution --output-dir Data/Migrations
+SofaGeneratingMigrations=true dotnet ef migrations add <Name> --project src/Sofa.Records --output-dir Data/Migrations
 ```
 
 `SofaGeneratingMigrations` brings in EF's design package only for this, as its version of Roslyn clashes with Wolverine's runtime compilation.
@@ -138,7 +162,7 @@ dotnet test --solution Sofa.slnx   # unit and integration tests; the integration
 cd web && npm test                  # the web client's tests
 ```
 
-The integration tests start their own copy of Sofa, so they run fine beside a running app host, with a fake GitHub of their own in place of GitHub's API. They hide the resources' own output (Postgres, npm, Vite and the services); set `SOFA_TEST_RESOURCE_LOGS=1` to see it, as CI does.
+The integration tests start their own copy of Sofa, so they run fine beside a running app host, with a fake GitHub of their own in place of GitHub's API, and build and run the stub Worker image (`tests/stub-worker`) in place of Claude Code. They hide the resources' own output (Postgres, npm, Vite and the services); set `SOFA_TEST_RESOURCE_LOGS=1` to see it, as CI does.
 
 ## The API client
 
