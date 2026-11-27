@@ -159,6 +159,27 @@ public static class ProjectHandler
         return FlowAnswer.Done;
     }
 
+    public static async Task<(FlowAnswer, OutgoingMessages)> Handle(
+        RegisterAgentAgain command, FlowDb db, CancellationToken cancellation)
+    {
+        var registration = new OutgoingMessages();
+        if (await FindAsync(db, command.WorkspaceId, command.Key, cancellation) is not { } project)
+        {
+            return (NoSuchProject, registration);
+        }
+
+        var agent = await db.Agents.SingleOrDefaultAsync(a => a.ProjectId == project.Id && a.Id == command.AgentId, cancellation);
+        if (agent is null)
+        {
+            return (FlowAnswer.Refused(FlowRefusal.NotFound, $"Project {project.Key} has no such Agent."), registration);
+        }
+
+        agent.AskIdentityAgain();
+        await db.SaveChangesAsync(cancellation);
+        registration.AddRange(RegistrationsOf([agent]));
+        return (FlowAnswer.Done, registration);
+    }
+
     public static IEnumerable<RegisterAgent> RegistrationsOf(IEnumerable<Agent> agents) =>
         agents.Select(agent => new RegisterAgent(agent.Id, agent.WorkspaceId, agent.Name, AgentOwner.Team(agent.OwnerTeamId)));
 

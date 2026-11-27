@@ -46,6 +46,8 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
             agent.Property(a => a.Vendor).HasConversion<string>().HasMaxLength(20);
             agent.Property(a => a.Model).HasMaxLength(100);
             agent.Property(a => a.Instructions).HasMaxLength(ProjectRules.LongestInstructions);
+            agent.Property(a => a.Registration).HasConversion<string>().HasMaxLength(20);
+            agent.Property(a => a.RegistrationRefusedBecause).HasMaxLength(1000);
             agent.HasOne<Project>().WithMany().HasForeignKey(a => a.ProjectId);
             agent.HasAlternateKey(a => new { a.ProjectId, a.Id });
         });
