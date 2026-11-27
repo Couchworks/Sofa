@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.AppGateway.GitHubReturns;
 
 namespace Sofa.UnitTests.AppGateway;

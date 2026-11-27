@@ -91,6 +91,22 @@ public sealed class GitHubApi(HttpClient http)
         return await Read<CreatedInstallationToken>(response, cancellation);
     }
 
+    public async Task<IReadOnlyList<InstallationRepository>> InstallationRepositories(
+        string installationToken, CancellationToken cancellation)
+    {
+        var repositories = new List<InstallationRepository>();
+        string? page = $"installation/repositories?per_page={LargestPage}";
+        while (page is not null)
+        {
+            using var request = AsInstallation(HttpMethod.Get, page, installationToken);
+            using var response = await http.SendAsync(request, cancellation);
+            repositories.AddRange((await Read<InstallationRepositories>(response, cancellation)).Repositories);
+            page = NextPage(response);
+        }
+
+        return repositories;
+    }
+
     public async Task<IReadOnlyList<HookDelivery>> DeliveriesSince(string appJwt, DateTimeOffset since, CancellationToken cancellation)
     {
         var deliveries = new List<HookDelivery>();
@@ -117,6 +133,9 @@ public sealed class GitHubApi(HttpClient http)
 
     private static HttpRequestMessage AsApp(HttpMethod method, string path, string appJwt) =>
         new(method, path) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", appJwt) } };
+
+    private static HttpRequestMessage AsInstallation(HttpMethod method, string path, string installationToken) =>
+        new(method, path) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", installationToken) } };
 
     private static HttpRequestMessage AsUser(HttpMethod method, string path, string userAccessToken) =>
         new(method, path) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", userAccessToken) } };
@@ -190,6 +209,10 @@ public sealed record GitHubAccountLookup(long Id, string Login, string Type)
 }
 
 public sealed record GitHubEmail(string Email, bool Primary, bool Verified);
+
+public sealed record InstallationRepositories(IReadOnlyList<InstallationRepository> Repositories);
+
+public sealed record InstallationRepository(string FullName, bool Private);
 
 public sealed record CreatedInstallationToken(string Token, DateTimeOffset ExpiresAt);
 

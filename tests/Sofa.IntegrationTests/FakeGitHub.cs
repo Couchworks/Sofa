@@ -27,9 +27,17 @@ public sealed class FakeGitHub : IAsyncDisposable
     public static readonly GitHubAccountOnFake Mallory = new(5003, "mallory", "Mallory", "mallory@example.com");
     public static readonly GitHubAccountOnFake Carol = new(5004, "carol-gh", "Carol Shaw", "carol@example.com");
     public static readonly GitHubAccountOnFake Dave = new(5005, "dave-gh", "Dave", "dave@example.com");
+    public static readonly GitHubAccountOnFake Erin = new(5006, "erin-gh", "Erin Catto", "erin@example.com");
+
+    public static readonly RepositoryOnFake[] Repositories =
+    [
+        new("acme/demo", Private: false),
+        new("acme/web", Private: true),
+        new("acme/api", Private: true),
+    ];
 
     private readonly ConcurrentDictionary<long, GitHubAccountOnFake> _accounts =
-        new(new[] { Ada, Bea, Mallory, Carol, Dave }.Select(account => KeyValuePair.Create(account.Id, account)));
+        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin }.Select(account => KeyValuePair.Create(account.Id, account)));
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
@@ -127,6 +135,15 @@ public sealed class FakeGitHub : IAsyncDisposable
             return Results.Json(new { token = $"ghs_fake_{id}", expires_at = DateTimeOffset.UtcNow.AddHours(1) },
                 statusCode: StatusCodes.Status201Created);
         });
+
+        _server.MapGet("/installation/repositories", (HttpRequest request) =>
+            request.Headers.Authorization.ToString() == $"Bearer ghs_fake_{InstallationId}"
+                ? Results.Json(new
+                {
+                    total_count = Repositories.Length,
+                    repositories = Repositories.Select(repository => new { full_name = repository.FullName, @private = repository.Private }),
+                })
+                : Results.Unauthorized());
 
         _server.MapGet("/app/hook/deliveries", (HttpRequest request) =>
         {
@@ -228,3 +245,5 @@ public sealed class FakeGitHub : IAsyncDisposable
 }
 
 public sealed record GitHubAccountOnFake(long Id, string Login, string Name, string VerifiedEmail);
+
+public sealed record RepositoryOnFake(string FullName, bool Private);

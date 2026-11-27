@@ -13,8 +13,6 @@ public class GitHubAppTests(SofaApp sofa)
 {
     private const string ReturnCookie = "sofa_github_return";
     private static readonly TimeSpan EventTimeout = TimeSpan.FromSeconds(30);
-    private static readonly SemaphoreSlim OneAtATime = new(1, 1);
-    private static string? _installed;
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -254,27 +252,7 @@ public class GitHubAppTests(SofaApp sofa)
         return false;
     }
 
-    private async Task<string> TheAppInstalledOnce()
-    {
-        await sofa.TheGitHubApp;
-        await OneAtATime.WaitAsync(Cancellation);
-        try
-        {
-            if (_installed is null)
-            {
-                using var ada = await sofa.AdaSignedInAsync(Cancellation);
-                var state = await StartInstallingAsync(ada);
-                using var returned = await ada.GetAsync(InstalledReturn(state), Cancellation);
-                _installed = returned.Headers.Location!.OriginalString;
-            }
-
-            return _installed;
-        }
-        finally
-        {
-            OneAtATime.Release();
-        }
-    }
+    private async Task<string> TheAppInstalledOnce() => (await sofa.TheConnection).BackInTheWebClient;
 
     private async Task<string> StartInstallingAsync(WebClientSignIn admin)
     {

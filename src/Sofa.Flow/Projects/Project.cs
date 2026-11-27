@@ -1,0 +1,79 @@
+using Sofa.Contracts.Flow;
+
+namespace Sofa.Flow.Projects;
+
+public sealed class Project
+{
+    public required Guid Id { get; init; }
+
+    public required Guid WorkspaceId { get; init; }
+
+    public required string Key { get; init; }
+
+    public required string Name { get; set; }
+
+    public required Guid RequestConnectionId { get; set; }
+
+    public required string RequestRepository { get; set; }
+
+    public required string RequestLabel { get; set; }
+
+    public required Guid CodeConnectionId { get; set; }
+
+    public required List<string> CodeRepositories { get; set; }
+
+    public DateTimeOffset CreatedAt { get; init; }
+
+    public RequestProviderBinding Requests => new(RequestConnectionId, RequestRepository, RequestLabel);
+
+    public CodeProviderBinding Code => new(CodeConnectionId, CodeRepositories);
+
+    public void BindTo(RequestProviderBinding requests, CodeProviderBinding code)
+    {
+        RequestConnectionId = requests.ConnectionId;
+        RequestRepository = requests.Repository;
+        RequestLabel = requests.Label;
+        CodeConnectionId = code.ConnectionId;
+        CodeRepositories = [.. code.Repositories];
+    }
+}
+
+public sealed class Phase
+{
+    public required Guid ProjectId { get; init; }
+
+    public required PhaseName Name { get; init; }
+
+    public required int Position { get; init; }
+
+    public Pattern Pattern { get; init; } = Pattern.Solo;
+
+    public required Guid CastAgentId { get; set; }
+
+    public required Gate Gate { get; set; }
+
+    public required Sandbox Sandbox { get; set; }
+}
+
+public sealed class Agent
+{
+    public required Guid Id { get; init; }
+
+    public required Guid WorkspaceId { get; init; }
+
+    public required Guid ProjectId { get; init; }
+
+    public required string Name { get; init; }
+
+    public required Guid OwnerTeamId { get; init; }
+
+    public required AgentRole Role { get; set; }
+
+    public required string Instructions { get; set; }
+
+    public required Vendor Vendor { get; set; }
+
+    public required string Model { get; set; }
+
+    public DateTimeOffset CreatedAt { get; init; }
+}

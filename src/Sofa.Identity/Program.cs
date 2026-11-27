@@ -13,6 +13,7 @@ using Sofa.Identity.Setup;
 using Sofa.Identity.SignIn;
 using Sofa.Identity.Tokens;
 using Sofa.Identity.Users;
+using Sofa.Identity.Workspaces;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,5 +96,6 @@ app.MapAccount();
 app.MapConnect();
 app.MapUsers();
 app.MapGitHubSignIn();
+app.MapTeams();
 
 app.Run();

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.Contracts.Identity;
 
 namespace Sofa.AppGateway.Identity;

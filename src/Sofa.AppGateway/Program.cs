@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Sofa.AppGateway;
-using Sofa.AppGateway.Admins;
+using Sofa.AppGateway.Access;
 using Sofa.AppGateway.Connections;
+using Sofa.AppGateway.Execution;
+using Sofa.AppGateway.Flow;
 using Sofa.AppGateway.GitHubReturns;
 using Sofa.AppGateway.Identity;
 using Sofa.Contracts;
 using Sofa.Contracts.Connections;
+using Sofa.Contracts.Execution;
+using Sofa.Contracts.Flow;
 using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +20,12 @@ builder.AddSofaMessaging(SofaServices.AppGateway, options =>
     options.PublishMessage<StartGitHubAppCreation>().ToRabbitQueue(SofaServices.Connections);
     options.PublishMessage<FinishGitHubAppCreation>().ToRabbitQueue(SofaServices.Connections);
     options.PublishMessage<AddGitHubInstallation>().ToRabbitQueue(SofaServices.Connections);
+    options.PublishMessage<CreateProject>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<BindProject>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<ConfigureAgent>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<ConfigurePhase>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<CreateRunner>().ToRabbitQueue(SofaServices.Execution);
+    options.PublishMessage<LimitRunsAtOnce>().ToRabbitQueue(SofaServices.Execution);
 });
 builder.AcceptTokensFor(SofaServices.AppGateway);
 
@@ -30,8 +40,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IdentityUsers>(identity => identity.BaseAddress = IdentityUsers.Address);
 builder.Services.AddScoped<WorkspaceAdmins>();
-builder.Services.AddScoped<IFindSignedInAdmin, AdminOfTheWorkspaceInTheRoute>();
+builder.Services.AddScoped<IFindSignedInWorkspaceUser, WorkspaceUserInTheRoute>();
 builder.Services.AddHttpClient<ConnectionsClient>(http => http.BaseAddress = ConnectionsClient.Address);
+builder.Services.AddHttpClient<FlowClient>(http => http.BaseAddress = FlowClient.Address);
+builder.Services.AddHttpClient<ExecutionClient>(http => http.BaseAddress = ExecutionClient.Address);
 builder.Services.AddOptions<GitHubReturnOptions>().BindConfiguration(GitHubReturnOptions.Section);
 builder.Services.AddSingleton<GitHubReturnStates>();
 
@@ -48,7 +60,7 @@ app.UseExceptionHandler();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAdminsOnly();
+app.UseWorkspaceAccess();
 
 app.MapOpenApi();
 app.MapDefaultEndpoints();
@@ -58,7 +70,12 @@ api.MapSignedInUser();
 
 app.MapAdminsOnly()
     .MapGitHubAppApi()
-    .MapWorkspaceUsers();
+    .MapWorkspaceUsers()
+    .MapTeams()
+    .MapProjectsForAdmins();
+app.MapUsersOfTheWorkspaceOnly()
+    .MapProjects()
+    .MapRunners();
 app.MapGitHubAppReturns();
 
 app.MapReverseProxy();

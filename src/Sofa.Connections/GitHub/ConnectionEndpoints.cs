@@ -10,8 +10,37 @@ public static class ConnectionEndpoints
     {
         endpoints.MapGet("/github-app", GitHubAppStatus);
         endpoints.MapGet("/workspaces/{workspaceId:guid}/connections", ConnectionsOf);
+        endpoints.MapGet("/workspaces/{workspaceId:guid}/connections/{connectionId:guid}/repositories", RepositoriesOf);
         endpoints.MapPost("/connections/{connectionId:guid}/installation-tokens", IssueInstallationToken);
         return endpoints;
+    }
+
+    private static async Task<IResult> RepositoriesOf(
+        Guid workspaceId,
+        Guid connectionId,
+        ConnectionsDb db,
+        GitHubAppAccess access,
+        GitHubApi gitHub,
+        CancellationToken cancellation)
+    {
+        var connection = await db.Connections.SingleOrDefaultAsync(
+            c => c.Id == connectionId && c.WorkspaceId == workspaceId, cancellation);
+        if (connection is null)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "The Workspace has no such Connection.");
+        }
+
+        var (token, problem) = await InstallationTokenFor(connection, new InstallationTokenRequest(), access, gitHub, cancellation);
+        if (token is null)
+        {
+            return problem!;
+        }
+
+        var repositories = await gitHub.InstallationRepositories(token.Token, cancellation);
+        return Results.Ok(repositories
+            .OrderBy(repository => repository.FullName, StringComparer.OrdinalIgnoreCase)
+            .Select(repository => new ConnectionRepository(repository.FullName, repository.Private))
+            .ToList());
     }
 
     private static async Task<GitHubAppStatus> GitHubAppStatus(
@@ -52,21 +81,32 @@ public static class ConnectionEndpoints
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "No such Connection.");
         }
 
+        var (token, problem) = await InstallationTokenFor(connection, scope ?? new(), access, gitHub, cancellation);
+        return token is null ? problem! : Results.Ok(token);
+    }
+
+    private static async Task<(InstallationToken? Token, IResult? Problem)> InstallationTokenFor(
+        Connection connection,
+        InstallationTokenRequest scope,
+        GitHubAppAccess access,
+        GitHubApi gitHub,
+        CancellationToken cancellation)
+    {
         if (connection.SuspendedAt is not null)
         {
-            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
-                title: "The Connection's installation is suspended on GitHub.");
+            return (null, Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "The Connection's installation is suspended on GitHub."));
         }
 
         var app = await access.FindApp(cancellation);
         if (app is null)
         {
-            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
-                title: "Sofa's GitHub App hasn't been created yet.");
+            return (null, Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "Sofa's GitHub App hasn't been created yet."));
         }
 
         var created = await gitHub.CreateInstallationToken(
-            await access.AppJwt(app, cancellation), connection.GitHubInstallationId, scope ?? new(), cancellation);
-        return Results.Ok(new InstallationToken(created.Token, created.ExpiresAt));
+            await access.AppJwt(app, cancellation), connection.GitHubInstallationId, scope, cancellation);
+        return (new InstallationToken(created.Token, created.ExpiresAt), null);
     }
 }

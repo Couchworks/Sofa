@@ -18,6 +18,8 @@ public sealed partial class ConnectionsDb(DbContextOptions<ConnectionsDb> option
 
     public DbSet<ReceivedDelivery> ReceivedDeliveries => Set<ReceivedDelivery>();
 
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema(Schema);
@@ -45,6 +47,13 @@ public sealed partial class ConnectionsDb(DbContextOptions<ConnectionsDb> option
         {
             delivery.HasKey(d => d.DeliveryId);
             delivery.HasIndex(d => d.ReceivedAt);
+        });
+
+        model.Entity<ApiKey>(key =>
+        {
+            key.HasKey(k => k.Id);
+            key.HasIndex(k => k.WorkspaceId);
+            key.Property(k => k.Vendor).HasMaxLength(50);
         });
 
         NameEverythingInSnakeCase(model);

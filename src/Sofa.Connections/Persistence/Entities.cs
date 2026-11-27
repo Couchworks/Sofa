@@ -59,3 +59,16 @@ public sealed class ReceivedDelivery
 
     public required DateTimeOffset ReceivedAt { get; init; }
 }
+
+public sealed class ApiKey
+{
+    public required Guid Id { get; init; }
+
+    public required Guid WorkspaceId { get; init; }
+
+    public required string Vendor { get; init; }
+
+    public required string SealedKey { get; init; }
+
+    public required DateTimeOffset SavedAt { get; init; }
+}

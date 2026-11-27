@@ -55,8 +55,16 @@ var identity = AddService(SofaServices.Identity, "Sofa.Identity")
     .WithEnvironment(publicAddress.TellIssuer)
     .WithEnvironment("Identity__ExecutionClientSecret", executionClientSecret);
 
+var flow = AddService(SofaServices.Flow, "Sofa.Flow")
+    .WithReference(connections);
+var execution = AddService(SofaServices.Execution, "Sofa.Execution")
+    .WithReference(identity)
+    .WithEnvironment("Execution__ClientSecret", executionClientSecret);
+
 appGateway.WithReference(identity)
     .WithReference(connections)
+    .WithReference(flow)
+    .WithReference(execution)
     .WithEnvironment(publicAddress.TellIssuer);
 
 AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
@@ -65,10 +73,6 @@ AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
     .WithExternalHttpEndpoints();
 
 AddService(SofaServices.Intake, "Sofa.Intake");
-AddService(SofaServices.Flow, "Sofa.Flow");
-AddService(SofaServices.Execution, "Sofa.Execution")
-    .WithReference(identity)
-    .WithEnvironment("Execution__ClientSecret", executionClientSecret);
 AddService(SofaServices.Records, "Sofa.Records");
 AddService(SofaServices.Code, "Sofa.Code");
 AddService(SofaServices.Knowledge, "Sofa.Knowledge");
