@@ -19,23 +19,33 @@ public sealed class Project
 
     public required string RequestLabel { get; set; }
 
+    public bool KeepsIssueState { get; set; }
+
     public required Guid CodeConnectionId { get; set; }
 
     public required List<string> CodeRepositories { get; set; }
 
+    public long BindingVersion { get; set; } = 1;
+
+    public int LastWorkItemNumber { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 
-    public RequestProviderBinding Requests => new(RequestConnectionId, RequestRepository, RequestLabel);
+    public RequestProviderBinding Requests => new(RequestConnectionId, RequestRepository, RequestLabel, KeepsIssueState);
 
     public CodeProviderBinding Code => new(CodeConnectionId, CodeRepositories);
+
+    public ProjectBound Bound => new(Id, WorkspaceId, Key, Requests, Code, BindingVersion);
 
     public void BindTo(RequestProviderBinding requests, CodeProviderBinding code)
     {
         RequestConnectionId = requests.ConnectionId;
         RequestRepository = requests.Repository;
         RequestLabel = requests.Label;
+        KeepsIssueState = requests.KeepsIssueState;
         CodeConnectionId = code.ConnectionId;
         CodeRepositories = [.. code.Repositories];
+        BindingVersion++;
     }
 }
 

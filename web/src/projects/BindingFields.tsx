@@ -97,6 +97,20 @@ export function BindingFields({
               </label>
             ))}
           </fieldset>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={binding.keepsIssueState}
+              onChange={(event) => onChange({ ...binding, keepsIssueState: event.target.checked })}
+            />
+            <span>
+              Keep the issue&apos;s state
+              <span className="text-muted-foreground block text-xs">
+                Label it with its Phase, such as <code>sofa: spec</code>, and close it once its work reaches the main branch.
+              </span>
+            </span>
+          </label>
         </>
       )}
     </div>

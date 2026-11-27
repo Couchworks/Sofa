@@ -80,6 +80,7 @@ app.MapAdminsOnly()
     .MapProjectsForAdmins();
 app.MapUsersOfTheWorkspaceOnly()
     .MapProjects()
+    .MapWorkItems()
     .MapRunners()
     .MapRuns();
 app.MapGitHubAppReturns();

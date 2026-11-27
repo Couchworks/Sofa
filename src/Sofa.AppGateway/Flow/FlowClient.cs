@@ -22,4 +22,16 @@ public sealed class FlowClient(HttpClient flow)
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<ProjectDetails>(cancellation);
     }
+
+    public async Task<List<WorkItemSummary>?> WorkItemsOfAsync(Guid workspaceId, string key, CancellationToken cancellation)
+    {
+        using var response = await flow.GetAsync($"/workspaces/{workspaceId}/projects/{Uri.EscapeDataString(key)}/work-items", cancellation);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<WorkItemSummary>>(cancellation);
+    }
 }

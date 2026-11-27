@@ -51,6 +51,9 @@ public sealed class SofaApp : IAsyncLifetime
             .WithEnvironment("GitHub__WebAddress", GitHub.WebAddress)
             .WithEnvironment("GitHub__DeliverySweepInterval", QuickDeliverySweeps.ToString());
 
+        builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Intake)
+            .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString());
+
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Execution)
             .WithEnvironment("Workers__Image", StubWorker.Image)
             .WithEnvironment("Workers__QueueLooksAgainEvery", QuickQueueLooks.ToString());
@@ -78,12 +81,14 @@ public sealed class SofaApp : IAsyncLifetime
     public Task<InstalledConnection> TheConnection => _connection.Value;
 
     public Task<ProjectForRuns> TheProjectForRuns => _projectForRuns.Value;
+    public Task<System.Text.Json.JsonElement> TheDemoProject => _demo.Value;
 
     private readonly Lazy<Task<FreshInstallation>> _setUp;
     private readonly Lazy<Task<CreatedGitHubApp>> _gitHubApp;
     private readonly Lazy<Task<Guid>> _beaAdded;
     private readonly Lazy<Task<InstalledConnection>> _connection;
     private readonly Lazy<Task<ProjectForRuns>> _projectForRuns;
+    private readonly Lazy<Task<System.Text.Json.JsonElement>> _demo;
 
     public SofaApp()
     {
@@ -92,6 +97,7 @@ public sealed class SofaApp : IAsyncLifetime
         _beaAdded = new(AddBeaAsync, LazyThreadSafetyMode.ExecutionAndPublication);
         _connection = new(() => InstalledConnection.InstallAsync(this), LazyThreadSafetyMode.ExecutionAndPublication);
         _projectForRuns = new(() => ProjectForRuns.CreateAsync(this, "RUNS", CancellationToken.None), LazyThreadSafetyMode.ExecutionAndPublication);
+        _demo = new(() => TestProjects.CreateAsync(this, "DEMO"), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public async Task<WebClientSignIn> AdaSignedInAsync(CancellationToken cancellation)

@@ -1360,6 +1360,80 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items": {
+      "get": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "The Project's Work Items, newest first, each with its Request and its delegating User.",
+        "operationId": "GetWorkItems",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkItemOfProject"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/runners": {
       "get": {
         "tags": [
@@ -2197,6 +2271,22 @@
           }
         }
       },
+      "DelegatingUser": {
+        "required": [
+          "userId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "Gate": {
         "enum": [
           "Auto",
@@ -2543,6 +2633,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "keepsIssueState": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -2640,6 +2736,34 @@
             "type": "string"
           },
           "label": {
+            "type": "string"
+          },
+          "keepsIssueState": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "RequestRef": {
+        "required": [
+          "repository",
+          "number",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "url": {
             "type": "string"
           }
         }
@@ -3136,6 +3260,46 @@
           "Anthropic"
         ]
       },
+      "WorkItemOfProject": {
+        "required": [
+          "key",
+          "title",
+          "requestId",
+          "request",
+          "delegatedBy",
+          "openedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestRef"
+          },
+          "delegatedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DelegatingUser"
+              }
+            ]
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "WorkspaceMember": {
         "required": [
           "userId",
@@ -3216,6 +3380,9 @@
     },
     {
       "name": "TeamEndpoints"
+    },
+    {
+      "name": "WorkItemEndpoints"
     },
     {
       "name": "WorkspaceUserEndpoints"

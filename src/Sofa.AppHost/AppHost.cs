@@ -53,7 +53,7 @@ var publicAddress = new PublicAddress(configuredPublicAddress, appGateway);
 var connections = AddService(SofaServices.Connections, "Sofa.Connections")
     .WithEnvironment("Credentials__KeyEncryptionKey", keyEncryptionKey)
     .WithEnvironment("ApiKeys__ExecutionSecret", executionsSecretForConnections)
-    .WithEnvironment(publicAddress.TellConnections);
+    .WithEnvironment(publicAddress.TellPublicAddress);
 
 var identity = AddService(SofaServices.Identity, "Sofa.Identity")
     .WithReference(connections)
@@ -87,7 +87,10 @@ appGateway.WithReference(identity)
     .WithReference(records)
     .WithEnvironment(publicAddress.TellIssuer);
 
-AddService(SofaServices.Intake, "Sofa.Intake");
+AddService(SofaServices.Intake, "Sofa.Intake")
+    .WithReference(connections)
+    .WithReference(identity)
+    .WithEnvironment(publicAddress.TellPublicAddress);
 AddService(SofaServices.Code, "Sofa.Code");
 AddService(SofaServices.Knowledge, "Sofa.Knowledge");
 AddService(SofaServices.Notices, "Sofa.Notices");
@@ -109,7 +112,7 @@ sealed class PublicAddress(string? configured, IResourceBuilder<DotnetProjectRes
 {
     private bool IsConfigured => !string.IsNullOrWhiteSpace(configured);
 
-    public void TellConnections(EnvironmentCallbackContext context) =>
+    public void TellPublicAddress(EnvironmentCallbackContext context) =>
         context.EnvironmentVariables["Sofa__PublicAddress"] = IsConfigured ? configured! : appGateway.GetEndpoint("http");
 
     public void TellIssuer(EnvironmentCallbackContext context) =>

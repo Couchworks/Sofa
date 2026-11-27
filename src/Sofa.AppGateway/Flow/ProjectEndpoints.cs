@@ -150,10 +150,11 @@ public static class ProjectEndpoints
 
 public sealed record NewProject(string? Key, string? Name, ProjectBinding? Binding);
 
-public sealed record ProjectBinding(Guid ConnectionId, string? RequestRepository, string? Label, IReadOnlyList<string>? CodeRepositories)
+public sealed record ProjectBinding(
+    Guid ConnectionId, string? RequestRepository, string? Label, IReadOnlyList<string>? CodeRepositories, bool? KeepsIssueState = null)
 {
     public static RequestProviderBinding RequestsOf(ProjectBinding? binding) =>
-        new(binding?.ConnectionId ?? Guid.Empty, binding?.RequestRepository ?? "", binding?.Label ?? "");
+        new(binding?.ConnectionId ?? Guid.Empty, binding?.RequestRepository ?? "", binding?.Label ?? "", binding?.KeepsIssueState ?? false);
 
     public static CodeProviderBinding CodeOf(ProjectBinding? binding) =>
         new(binding?.ConnectionId ?? Guid.Empty, binding?.CodeRepositories ?? []);

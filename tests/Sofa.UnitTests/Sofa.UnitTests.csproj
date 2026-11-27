@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/Sofa.Execution/Sofa.Execution.csproj" />
     <ProjectReference Include="../../src/Sofa.Flow/Sofa.Flow.csproj" />
     <ProjectReference Include="../../src/Sofa.Identity/Sofa.Identity.csproj" />
+    <ProjectReference Include="../../src/Sofa.Intake/Sofa.Intake.csproj" />
     <ProjectReference Include="../../src/Sofa.Records/Sofa.Records.csproj" />
   </ItemGroup>
 

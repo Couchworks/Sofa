@@ -9,6 +9,7 @@ public static class TeamEndpoints
     public static IEndpointRouteBuilder MapTeams(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/workspaces/{workspaceId:guid}/users", UsersOf);
+        endpoints.MapGet("/workspaces/{workspaceId:guid}/users/by-github-account/{accountId:long}", HolderOfGitHubAccount);
         endpoints.MapGet("/workspaces/{workspaceId:guid}/teams", TeamsOf);
         endpoints.MapPost("/workspaces/{workspaceId:guid}/teams/{teamId:guid}/users", AddToTeam);
         endpoints.MapDelete("/workspaces/{workspaceId:guid}/teams/{teamId:guid}/users/{userId:guid}", RemoveFromTeam);
@@ -23,6 +24,20 @@ public static class TeamEndpoints
             orderby user.Name
             select new WorkspaceMember(user.Id, user.Name, user.Email, user.GitHubLogin, workspaceUser.IsAdmin))
             .ToListAsync(cancellation);
+
+    private static async Task<IResult> HolderOfGitHubAccount(
+        Guid workspaceId, long accountId, IdentityDb db, CancellationToken cancellation)
+    {
+        var holder = await (
+            from workspaceUser in db.WorkspaceUsers
+            join user in db.Users on workspaceUser.UserId equals user.Id
+            where workspaceUser.WorkspaceId == workspaceId && user.GitHubAccountId == accountId
+            select new GitHubAccountHolder(user.Id, user.Name))
+            .SingleOrDefaultAsync(cancellation);
+        return holder is null
+            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "No User of the Workspace holds that GitHub account.")
+            : Results.Ok(holder);
+    }
 
     private static async Task<List<WorkspaceTeam>> TeamsOf(Guid workspaceId, IdentityDb db, CancellationToken cancellation)
     {

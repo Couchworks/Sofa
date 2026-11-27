@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Sofa.Contracts.Flow;
 
-public sealed record RequestProviderBinding(Guid ConnectionId, string Repository, string Label);
+public sealed record RequestProviderBinding(Guid ConnectionId, string Repository, string Label, bool KeepsIssueState = false);
 
 public sealed record CodeProviderBinding(Guid ConnectionId, IReadOnlyList<string> Repositories);
 
@@ -24,6 +24,9 @@ public sealed record RegisterAgentAgain(Guid WorkspaceId, string Key, Guid Agent
 
 public sealed record ConfigurePhase(
     Guid WorkspaceId, string Key, PhaseName Phase, Guid CastAgentId, Gate Gate, Sandbox Sandbox);
+
+public sealed record ProjectBound(
+    Guid ProjectId, Guid WorkspaceId, string Key, RequestProviderBinding? Requests, CodeProviderBinding? Code, long Version);
 
 public sealed record FlowAnswer(FlowRefusal? Refusal, string? Problem)
 {

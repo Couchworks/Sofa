@@ -26,6 +26,7 @@ public static class ProjectHandler
             }
 
             registrations.AddRange(RegistrationsOf(await db.Agents.Where(a => a.ProjectId == existing.Id).ToListAsync(cancellation)));
+            registrations.Add(existing.Bound);
             return (FlowAnswer.Done, registrations);
         }
 
@@ -59,6 +60,7 @@ public static class ProjectHandler
             RequestConnectionId = requests!.ConnectionId,
             RequestRepository = requests.Repository,
             RequestLabel = requests.Label,
+            KeepsIssueState = requests.KeepsIssueState,
             CodeConnectionId = code!.ConnectionId,
             CodeRepositories = [.. code.Repositories],
             CreatedAt = now,
@@ -80,32 +82,34 @@ public static class ProjectHandler
         logger.LogInformation("Created Project {Key} ({ProjectId}) in Workspace {WorkspaceId} with milestone 1's Flow",
             key, project.Id, project.WorkspaceId);
         registrations.AddRange(RegistrationsOf(agents));
+        registrations.Add(project.Bound);
         return (FlowAnswer.Done, registrations);
     }
 
-    public static async Task<FlowAnswer> Handle(
+    public static async Task<(FlowAnswer, OutgoingMessages)> Handle(
         BindProject command, FlowDb db, ConnectionsRepositories connections, CancellationToken cancellation)
     {
+        var nothingToTell = new OutgoingMessages();
         if (await FindAsync(db, command.WorkspaceId, command.Key, cancellation) is not { } project)
         {
-            return NoSuchProject;
+            return (NoSuchProject, nothingToTell);
         }
 
         if (ProjectRules.BindingShapeProblem(command.Requests, command.Code) is { } problem)
         {
-            return FlowAnswer.Refused(FlowRefusal.Invalid, problem);
+            return (FlowAnswer.Refused(FlowRefusal.Invalid, problem), nothingToTell);
         }
 
         var (requests, code, refusal) = await AsTheConnectionsNameThemAsync(
             command.WorkspaceId, command.Requests, command.Code, connections, cancellation);
         if (refusal is not null)
         {
-            return refusal;
+            return (refusal, nothingToTell);
         }
 
         project.BindTo(requests!, code!);
         await db.SaveChangesAsync(cancellation);
-        return FlowAnswer.Done;
+        return (FlowAnswer.Done, [project.Bound]);
     }
 
     public static async Task<FlowAnswer> Handle(ConfigureAgent command, FlowDb db, CancellationToken cancellation)
