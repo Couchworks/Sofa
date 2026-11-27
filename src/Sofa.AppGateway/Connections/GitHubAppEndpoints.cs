@@ -14,6 +14,8 @@ public static class GitHubAppEndpoints
     public const string GitHubAppQuery = "github-app";
     public const string ConnectionQuery = "connection";
     public const string ProblemQuery = "problem";
+    public const string UpdatedOnGitHub = "updated";
+    public const string GitHubChangedAnInstallationOnItsOwn = "update";
 
     public const string ReturnSofaDidNotStart =
         "GitHub came back to Sofa with a return Sofa didn't start in this browser, one already used, or one that has expired. " +
@@ -118,6 +120,7 @@ public static class GitHubAppEndpoints
 
     private static async Task<IResult> AddInstallation(
         [FromQuery(Name = "installation_id")] long? installationId,
+        [FromQuery(Name = "setup_action")] string? setupAction,
         string? state,
         HttpContext http,
         GitHubReturnStates states,
@@ -125,6 +128,11 @@ public static class GitHubAppEndpoints
         IMessageBus bus,
         CancellationToken cancellation)
     {
+        if (state is null && setupAction == GitHubChangedAnInstallationOnItsOwn)
+        {
+            return Results.Redirect($"/?{ConnectionQuery}={UpdatedOnGitHub}");
+        }
+
         var checkedReturn = await RefuseUnlessStartedHere(http, states, admins, state, GitHubReturnTo.Installed, cancellation);
         if (checkedReturn.Problem is { } problem)
         {

@@ -6,6 +6,8 @@ const successes: Record<string, string> = {
   'github-link': 'Your GitHub account is linked. You can sign in with GitHub from now on.',
 }
 
+const updatedOnGitHub = 'The installation was changed on GitHub. Sofa follows it through GitHub’s events.'
+
 const failures: Record<string, string> = {
   'github-app': 'The GitHub App wasn’t created',
   connection: 'The installation didn’t become a Connection',
@@ -17,6 +19,7 @@ export function readReturnFromGitHub(search: string): Return | null {
   for (const what of Object.keys(successes)) {
     const outcome = query.get(what)
     if (outcome === 'done') return { title: successes[what], problem: null }
+    if (what === 'connection' && outcome === 'updated') return { title: updatedOnGitHub, problem: null }
     if (outcome === 'failed') return { title: failures[what], problem: query.get('problem') }
   }
   return null
