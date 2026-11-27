@@ -20,7 +20,20 @@ This starts every service, Postgres, RabbitMQ and the web client, and prints the
 
 ### Setting Sofa up and signing in
 
-A fresh installation has no Users. While nobody has set it up, each start of Identity logs a new setup code: in the dashboard, open `identity`'s console logs and find `Sofa is not set up yet. Open it and enter this setup code: sofa_setup_…`. Open the web client, which shows the setup page, and enter the code with the first User's name, email and password and the names of their Workspace and Team. The code works once; the first User is then signed in, and signs in again later with their email and password. Postgres keeps no volume yet, so every start of the app host is a fresh installation.
+A fresh installation has no Users. While nobody has set it up, each start of Identity logs a new setup code: in the dashboard, open `identity`'s console logs and find `Sofa is not set up yet. Open it and enter this setup code: sofa_setup_…`. Open the web client, which shows the setup page, and enter the code with the first User's name, email and password and the names of their Workspace and Team. The code works once; the first User is then signed in, and signs in again later with their email and password, or with GitHub once their account is linked (see below).
+
+Postgres keeps its data in a Docker volume, so Users, Workspaces, the GitHub App's sealed credentials and Connections survive restarts, and a setup code appears only on a fresh installation. Aspire keeps the passwords and keys it generates (Postgres's password, the key encryption key and the others) in `~/.aspire/secrets/<the app host's UserSecretsId>/`; keep them with the volume.
+
+### Starting over
+
+To go back to a fresh installation, stop the app host and remove the volume:
+
+```sh
+docker volume ls --filter name=postgres-data       # one per checkout, such as sofa.apphost-b0c5b6a1a1-postgres-data
+docker volume rm <that volume>
+```
+
+The next start logs a new setup code. A GitHub App created before stays on GitHub; delete it there (Settings → Developer settings → GitHub Apps, or the organisation's) before creating a new one, as GitHub won't reuse its name.
 
 ### Run tokens
 
@@ -38,7 +51,7 @@ The Workspace's and User's ids are in `/api/me` of the App Gateway, once signed 
 
 ### Trying the GitHub App
 
-Sofa creates its own GitHub App through GitHub's manifest flow, and GitHub must reach Sofa twice: in the browser, back to `/github-app/created` and `/github-app/installed`, and for webhooks at `/webhooks/github`. Both go to the App Gateway, so put it behind a public address with a tunnel and tell Sofa that address before creating the App:
+Sofa creates its own GitHub App through GitHub's manifest flow, and GitHub must reach Sofa in two ways: in the browser, back to `/github-app/created`, `/github-app/installed` and, for signing in with GitHub, `/account/github/callback`; and for webhooks at `/webhooks/github`. All go to the App Gateway, so put it behind a public address with a tunnel and tell Sofa that address before creating the App:
 
 ```sh
 cloudflared tunnel --url http://localhost:5176           # or: ngrok http 5176
@@ -46,16 +59,32 @@ dotnet user-secrets --project src/Sofa.AppHost set Sofa:PublicAddress https://<y
 dotnet run --project src/Sofa.AppHost
 ```
 
-Port 5176 is the App Gateway's. Without a public address Sofa uses the App Gateway's local one, and the App is created with its webhooks off. A quick tunnel's address changes every run, while the App keeps the addresses it was created with; use a named tunnel or a fixed ngrok domain, or change the App's webhook URL on GitHub when the address changes.
+Port 5176 is the App Gateway's. The public address becomes Sofa's issuer and one of the web client's origins, and the App's addresses are made from it, so open the web client through it. Without a public address Sofa uses the App Gateway's local one, and the App is created with its webhooks off. A quick tunnel's address changes every run, while the App keeps the addresses it was created with; use a named tunnel or a fixed ngrok domain, or change the App's addresses on GitHub when it changes. After changing the public address, sign out and in again, as tokens name the issuer they came from.
 
-1. Open the web client through the public address and choose **Create on GitHub**, naming the organisation to own the App, or none for your own account. The App is private, so it can only be installed on its owner.
+1. Sign in as an Admin of your Workspace and choose **Create on GitHub**, naming the organisation to own the App, or none for your own account. The App is private, so it can only be installed on its owner.
 2. GitHub shows the App to create; create it, and GitHub sends you back with the App made.
-3. Choose **Install on GitHub** and pick the account. Back in Sofa, the installation shows as a Connection.
-4. Label an issue in one of its Repositories. In Aspire's dashboard, Intake's structured logs show the `issues.labeled` event, with its trace through the App Gateway and Connections.
+3. Choose **Install on GitHub** and pick the account. Back in Sofa, the installation shows as a Connection of your Workspace.
+4. Choose **Link your GitHub account**, and authorize the App on GitHub. Sofa shows the GitHub login you sign in with; sign out, and **Sign in with GitHub** signs you in as yourself.
+5. Label an issue in one of its Repositories. In Aspire's dashboard, Intake's structured logs show the `issues.labeled` event, with its trace through the App Gateway and Connections.
+
+GitHub's returns from creating and installing the App carry a signed `state` that Sofa made when you pressed the button, naming you and your Workspace; it works once, for 30 minutes, in the browser that started it (ADR 0028). A return without one, such as GitHub's own after changing an installation's repositories, is refused: start again from Sofa.
+
+#### Signing in with GitHub
+
+Through the App's own sign-in (ADR 0029): a GitHub account signs in as the User it is linked to. At its first sign-in it is linked to the User an Admin added by that GitHub login (**Add a User** on the home page), or else to the User whose email is the account's verified primary email. A GitHub account no User has is refused. A signed-in User links their account with **Link your GitHub account**.
+
+#### An App created before signing in with GitHub
+
+A new manifest can't change an App that exists, so an App created before this needs two changes by hand on GitHub, in the App's settings (your account's or the organisation's Settings → Developer settings → GitHub Apps → the App):
+
+1. **General → Identifying and authorizing users → Callback URL**: add `https://<your-public-address>/account/github/callback`. Leave *Request user authorization (OAuth) during installation* off.
+2. **Permissions & events → Account permissions → Email addresses**: *Read-only*. Save, then accept the new permission on each installation (GitHub asks on the installation's page).
+
+Without the email permission, GitHub accounts still sign in when linked or added by login, but none is matched by email.
 
 Connections seals the App's private key, webhook secret and client secret with envelope encryption under a key encryption key from configuration (`Credentials:KeyEncryptionKey`). Locally Aspire generates it once and keeps it in the app host's user secrets as `Parameters:connections-key-encryption-key`; lose it and the App's credentials can't be opened, so the App must be created again. To rotate it, set a new key and list the old one under `Credentials:RetiredKeyEncryptionKeys`.
 
-The pages for the GitHub App and Connections are for a Workspace's Admins. They show once signed in, but the App Gateway doesn't yet check that the User is an Admin: everyone is the Admin of one placeholder Workspace. The App Gateway's `AdminsOnly` group and `IFindSignedInAdmin` are where that check goes, and the web client's admin views live in `web/src/admin`.
+The pages for the GitHub App, Connections and adding Users are for a Workspace's Admins. Their API lives under `/api/workspaces/{workspaceId}/…`, and the App Gateway asks Identity whether the signed-in User is an Admin of that Workspace: 401 without a token, 403 for anyone else. The web client shows them for the Workspace the User administers; they live in `web/src/admin`.
 
 ### Databases
 
