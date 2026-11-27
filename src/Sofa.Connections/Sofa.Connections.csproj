@@ -1,6 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(GeneratingMigrations)' == 'true'">
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(GeneratingMigrations)' == 'true'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Microsoft.CodeAnalysis" VersionOverride="5.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Sofa.ServiceDefaults/Sofa.ServiceDefaults.csproj" />
   </ItemGroup>
 
