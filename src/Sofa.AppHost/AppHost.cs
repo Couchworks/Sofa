@@ -4,6 +4,11 @@ using Sofa.Contracts;
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres");
+if (!bool.TryParse(builder.Configuration["Sofa:FreshDatabaseEachStart"], out var freshDatabase) || !freshDatabase)
+{
+    postgres.WithDataVolume();
+}
+
 var database = postgres.AddDatabase("sofa");
 var rabbitmq = builder.AddRabbitMQ("rabbitmq").WithManagementPlugin();
 var executionClientSecret = builder.AddParameter(
