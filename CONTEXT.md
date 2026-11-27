@@ -79,12 +79,20 @@ _Avoid_: Update, sync, comment (for the whole thing)
 ### Agents and Runs
 
 **Agent**:
-A configured AI participant: a role and its instructions, a model, and the Runner it runs through. It belongs to a User or a Team, and acts for them.
-_Avoid_: Bot, worker, persona, agent profile
+A configured AI participant: a role and its instructions, and the vendor's agent and model it runs on, such as Claude Code on Opus. It belongs to a User or a Team. Which Runner a Run of it spends is chosen when the Run starts.
+_Avoid_: Bot, persona, agent profile
+
+**Delegation**:
+A User's handing of a Request to the agents, after which its Flow runs without them. The delegating User is the one whose personal Runners its Runs spend.
+_Avoid_: Assignment, dispatch, hand-off
 
 **Runner**:
-A way for Sofa to start Runs with someone's credentials: a Claude subscription, the Claude API, a local machine, or later other providers. A **personal** Runner spends one User's credentials; a **team** Runner spends a Team's.
-_Avoid_: Executor, backend, engine
+A set of credentials Sofa may start Runs with, for one vendor: an API key, or a subscription signed in on a Worker. A **personal** Runner spends one User's credentials and runs only the Runs of Requests that User delegated; a **team** Runner spends a Team's API key, for anyone in the Team.
+_Avoid_: Provider, backend, engine
+
+**Worker**:
+A place that executes Runs and claims them from Sofa: a container or pod that Sofa hosts, or later a User's own machine. A Worker holding a subscription's sign-in serves only that subscription's User.
+_Avoid_: Executor, host, node, agent (for the machine)
 
 **Run**:
 One execution of one Agent on one Work Item within one Phase.
