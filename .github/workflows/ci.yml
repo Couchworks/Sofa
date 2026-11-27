@@ -31,7 +31,7 @@ jobs:
 
       - name: Trust the development certificate
         run: |
-          dotnet dev-certs https --trust
+          dotnet dev-certs https --trust || [ $? -eq 4 ]
           echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" >> "$GITHUB_ENV"
 
       - name: Build
