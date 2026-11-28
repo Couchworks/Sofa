@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Aspire.Hosting.Dotnet;
 using Sofa.Contracts;
 
@@ -6,7 +7,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var postgres = builder.AddPostgres("postgres");
 if (!bool.TryParse(builder.Configuration[SofaAppHostSettings.FreshDatabaseEachStart], out var freshDatabase) || !freshDatabase)
 {
-    postgres.WithDataVolume();
+    var volume = builder.Configuration[SofaAppHostSettings.PostgresVolume] is { Length: > 0 } configuredVolume
+        ? configuredVolume
+        : PostgresVolume.SharedByEveryCheckout;
+    PostgresVolume.RefuseWhileAnotherContainerUses(volume);
+    postgres.WithDataVolume(volume);
 }
 
 var database = postgres.AddDatabase("sofa");
@@ -120,6 +125,41 @@ static class SofaAppHostSettings
 {
     public const string PublicAddress = "Sofa:PublicAddress";
     public const string FreshDatabaseEachStart = "Sofa:FreshDatabaseEachStart";
+    public const string PostgresVolume = "Sofa:PostgresVolume";
+}
+
+static class PostgresVolume
+{
+    public const string SharedByEveryCheckout = "sofa-postgres-data";
+
+    public static void RefuseWhileAnotherContainerUses(string volume)
+    {
+        var containersUsingIt = RunningContainersMounting(volume);
+        if (containersUsingIt.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Postgres's volume {volume} is in use by the container {string.Join(", ", containersUsingIt)}, most likely another Sofa app host's Postgres. " +
+                $"Two Postgres servers on one volume would corrupt it: stop the other app host first, " +
+                $"or start this one on a volume of its own with --{SofaAppHostSettings.PostgresVolume}=<name>.");
+        }
+    }
+
+    private static List<string> RunningContainersMounting(string volume)
+    {
+        var start = new ProcessStartInfo("docker") { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var argument in new[] { "ps", "--filter", $"volume={volume}", "--format", "{{.Names}}" })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        using var docker = Process.Start(start)!;
+        var names = docker.StandardOutput.ReadToEnd();
+        docker.StandardError.ReadToEnd();
+        docker.WaitForExit();
+        return docker.ExitCode == 0
+            ? [.. names.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]
+            : [];
+    }
 }
 
 sealed class PublicAddress(string? configured, IResourceBuilder<DotnetProjectResource> appGateway)
