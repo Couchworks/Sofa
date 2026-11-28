@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { isAboutWorkItems } from '@/live/liveConnection'
+import { Markdown } from './Markdown'
 import { RunCard } from './RunCard'
 import { WaitActions } from './WaitActions'
 import { gates, isWaitingOnAUser, momentOf, standings, workItemStates } from './words'
@@ -262,15 +263,15 @@ function QuestionsCard({ workItem, nameOf }: { workItem: WorkItem; nameOf: (user
               <span className="text-muted-foreground text-xs">
                 {question.phase} asked on {momentOf(question.askedAt)}
               </span>
-              <p className="whitespace-pre-wrap">{question.text}</p>
+              <Markdown>{question.text}</Markdown>
               {question.answer ? (
-                <p className="border-l-2 pl-3 whitespace-pre-wrap">
-                  {question.answer}
+                <div className="border-l-2 pl-3">
+                  <Markdown>{question.answer}</Markdown>
                   <span className="text-muted-foreground block text-xs">
                     answered by {nameOf(question.answeredByUserId)}
                     {question.answeredAt && ` on ${momentOf(question.answeredAt)}`}
                   </span>
-                </p>
+                </div>
               ) : (
                 <Badge variant="destructive">Not answered yet</Badge>
               )}

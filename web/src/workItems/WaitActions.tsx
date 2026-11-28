@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { isAboutTheInbox, isAboutWorkItems } from '@/live/liveConnection'
 import { Contribution } from './Contribution'
+import { Markdown } from './Markdown'
 
 type WorkItem = components['schemas']['WorkItemDetails']
 type Wait = components['schemas']['WaitDetails']
@@ -66,7 +67,7 @@ function AnswerTheQuestion({ workspaceId, projectKey, workItem, wait }: Props) {
         })
       }}
     >
-      <p className="text-sm font-medium whitespace-pre-wrap">{question?.text ?? wait.why}</p>
+      <Markdown>{question?.text ?? wait.why}</Markdown>
       <Label htmlFor={id}>Your answer</Label>
       <Textarea id={id} value={answer} onChange={(event) => setAnswer(event.target.value)} />
       <p className="text-muted-foreground text-xs">A new {question?.phase ?? ''} Run reads it. Answering here also settles the Question on the issue.</p>

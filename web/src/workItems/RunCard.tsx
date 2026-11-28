@@ -49,10 +49,10 @@ function RunDetailsView({ workspaceId, runId }: { workspaceId: string; runId: st
       </details>
       {run.data.state === 'Finished' && run.data.outcome && <Contribution workspaceId={workspaceId} runId={runId} />}
       {run.data.question && (
-        <p className="text-sm">
-          <span className="text-muted-foreground">Asked: </span>
-          {run.data.question.text}
-        </p>
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground text-sm">Asked:</span>
+          <Markdown>{run.data.question.text}</Markdown>
+        </div>
       )}
       <details open={running}>
         <summary className="cursor-pointer text-sm font-medium">Transcript</summary>
