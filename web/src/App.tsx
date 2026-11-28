@@ -1,3 +1,4 @@
+import { InboxPage } from '@/inbox/InboxPage'
 import { HomePage } from '@/pages/HomePage'
 import { SetupPage } from '@/pages/SetupPage'
 import { SignedInPage } from '@/pages/SignedInPage'
@@ -6,6 +7,7 @@ import { ProjectPage } from '@/projects/ProjectPage'
 import { ProjectsPage } from '@/projects/ProjectsPage'
 import { RunnersPage } from '@/runners/RunnersPage'
 import { TeamPage } from '@/team/TeamPage'
+import { WorkItemPage } from '@/workItems/WorkItemPage'
 import { setupPath, signedInPath } from '@/auth/session'
 
 export const signInPath = '/sign-in'
@@ -25,6 +27,8 @@ export default function App({ location = window.location }: { location?: Pick<Lo
       )
     case signedInPath:
       return <SignedInPage />
+    case '/inbox':
+      return <InboxPage />
     case '/projects':
       return <ProjectsPage />
     case '/runners':
@@ -38,10 +42,9 @@ export default function App({ location = window.location }: { location?: Pick<Lo
 
 function ProjectRoute({ path }: { path: string }) {
   const [projectKey, workItemKey] = path.slice(projectPathPrefix.length).split(workItemsSegment)
-  return (
-    <ProjectPage
-      projectKey={decodeURIComponent(projectKey)}
-      workItemKey={workItemKey ? decodeURIComponent(workItemKey) : undefined}
-    />
+  return workItemKey ? (
+    <WorkItemPage projectKey={decodeURIComponent(projectKey)} workItemKey={decodeURIComponent(workItemKey)} />
+  ) : (
+    <ProjectPage projectKey={decodeURIComponent(projectKey)} />
   )
 }

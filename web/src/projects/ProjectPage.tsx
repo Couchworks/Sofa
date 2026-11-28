@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { isWaitingOnAUser, workItemPath, workItemStates } from '@/workItems/words'
 import type { Binding } from './binding'
 import { BindingFields } from './BindingFields'
 
@@ -36,28 +37,16 @@ const sandboxes: Record<Sandbox, string> = {
 const roles: AgentRole[] = ['Triager', 'Lead', 'Builder']
 const models = ['opus', 'sonnet', 'haiku']
 
-export function ProjectPage({ projectKey, workItemKey }: { projectKey: string; workItemKey?: string }) {
+export function ProjectPage({ projectKey }: { projectKey: string }) {
   const { workspace } = useWorkspace()
   return (
     <Page title={`Project ${projectKey}`}>
-      {workspace && (
-        <ProjectSettings workspaceId={workspace.id} isAdmin={workspace.isAdmin} projectKey={projectKey} workItemKey={workItemKey} />
-      )}
+      {workspace && <ProjectSettings workspaceId={workspace.id} isAdmin={workspace.isAdmin} projectKey={projectKey} />}
     </Page>
   )
 }
 
-function ProjectSettings({
-  workspaceId,
-  isAdmin,
-  projectKey,
-  workItemKey,
-}: {
-  workspaceId: string
-  isAdmin: boolean
-  projectKey: string
-  workItemKey?: string
-}) {
+function ProjectSettings({ workspaceId, isAdmin, projectKey }: { workspaceId: string; isAdmin: boolean; projectKey: string }) {
   const project = api.useQuery('get', '/api/workspaces/{workspaceId}/projects/{key}', {
     params: { path: { workspaceId, key: projectKey } },
   })
@@ -68,7 +57,7 @@ function ProjectSettings({
   return (
     <>
       <p className="text-lg">{project.data.name}</p>
-      <WorkItemsCard workspaceId={workspaceId} projectKey={project.data.key} highlighted={workItemKey} />
+      <WorkItemsCard workspaceId={workspaceId} projectKey={project.data.key} />
       <BindingCard workspaceId={workspaceId} project={project.data} isAdmin={isAdmin} onChanged={() => void project.refetch()} />
       <FlowCard workspaceId={workspaceId} project={project.data} onChanged={() => void project.refetch()} />
       <section className="flex flex-col gap-4">
@@ -163,7 +152,7 @@ function BindingCard({
   )
 }
 
-function WorkItemsCard({ workspaceId, projectKey, highlighted }: { workspaceId: string; projectKey: string; highlighted?: string }) {
+function WorkItemsCard({ workspaceId, projectKey }: { workspaceId: string; projectKey: string }) {
   const workItems = api.useQuery('get', '/api/workspaces/{workspaceId}/projects/{key}/work-items', {
     params: { path: { workspaceId, key: projectKey } },
   })
@@ -187,23 +176,27 @@ function WorkItemsCard({ workspaceId, projectKey, highlighted }: { workspaceId: 
         {workItems.data && workItems.data.length > 0 && (
           <ul aria-label="Work Items" className="flex flex-col divide-y">
             {workItems.data.map((workItem) => (
-              <li
-                key={workItem.key}
-                id={workItem.key}
-                aria-current={workItem.key === highlighted ? 'true' : undefined}
-                className="grid gap-1 py-2 text-sm aria-[current=true]:font-medium sm:grid-cols-[6rem_1fr_auto] sm:gap-4"
-              >
-                <span className="font-mono">{workItem.key}</span>
-                <span>{workItem.title}</span>
+              <li key={workItem.key} className="grid gap-1 py-2 text-sm sm:grid-cols-[6rem_1fr_auto] sm:gap-4">
+                <a className="font-mono underline-offset-4 hover:underline" href={workItemPath(projectKey, workItem.key)}>
+                  {workItem.key}
+                </a>
+                <span className="flex flex-col gap-1">
+                  <a className="underline-offset-4 hover:underline" href={workItemPath(projectKey, workItem.key)}>
+                    {workItem.title}
+                  </a>
+                  <span className="flex flex-wrap items-center gap-1">
+                    <Badge variant={isWaitingOnAUser(workItem.state) ? 'destructive' : workItem.state === 'Done' ? 'secondary' : 'outline'}>
+                      {workItemStates[workItem.state]}
+                    </Badge>
+                    {workItem.phase && workItem.state !== 'Done' && <Badge variant="outline">{workItem.phase}</Badge>}
+                    {workItem.track && <Badge variant="outline">{workItem.track} Track</Badge>}
+                  </span>
+                </span>
                 <span className="text-muted-foreground flex flex-col sm:items-end">
                   <a className="underline-offset-4 hover:underline" href={workItem.request.url}>
                     {workItem.request.repository}#{String(workItem.request.number)}
                   </a>
-                  {workItem.delegatedBy ? (
-                    <span>delegated by {workItem.delegatedBy.name}</span>
-                  ) : (
-                    <Badge variant="outline">Waiting for a delegating User</Badge>
-                  )}
+                  {workItem.delegatedBy ? <span>delegated by {workItem.delegatedBy.name}</span> : <span>no delegating User yet</span>}
                 </span>
               </li>
             ))}
