@@ -97,13 +97,15 @@ test('a User with Write changes the Track from the page', async () => {
   expect(await requests.find((request) => request.method === 'PUT')!.json()).toEqual({ track: 'Small' })
 })
 
-test('a done Work Item’s Track can’t be changed', async () => {
+test('a done Work Item’s Track can’t be changed, and the page says why', async () => {
   gateway({ ...asking, state: 'Done', waiting: null, doneAt: '2026-11-28T10:00:00Z' })
   renderWithQueries(<WorkItemPage projectKey="DEMO" workItemKey="DEMO-1" />)
 
   const track = await screen.findByRole('form', { name: 'Track' })
 
   expect((within(track).getByLabelText('Track') as HTMLSelectElement).disabled).toBe(true)
+  expect(within(track).getByText(/It is done, so its Track no longer changes anything\./)).toBeDefined()
+  expect(within(track).queryByText(/Phases still ahead/)).toBeNull()
 })
 
 test('its Question is answered from the page, and its answers say who gave them', async () => {
