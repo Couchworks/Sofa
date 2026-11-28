@@ -64,3 +64,4 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **A Transcript read again, not pushed.** The web client reads a running Run's Transcript again every three seconds rather than hearing each line (ADR 0053, from slice 10).
 - **A sign-in warning without a push.** A sign-in entering its last three days appears in the Inbox on the next read of it, not live, as nothing happens at that moment (from slice 10).
 - **A Track changed to Full goes on.** Changing a Work Item to the Full Track after Spec was skipped doesn't send it back to Spec (from slice 10).
+- **A pull request that can't merge.** When another merge leaves a Work Item's pull request conflicting, Sofa doesn't notice: the Work Item waits for it with nothing in the Inbox, and no Run resolves the conflict (from slice 10).
