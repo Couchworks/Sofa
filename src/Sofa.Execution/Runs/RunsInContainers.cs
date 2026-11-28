@@ -108,7 +108,17 @@ public sealed class RunsInContainers(
                 await container.StopAsync(cancellation);
             }
 
-            await WatchAsync(run, runner, container, cancellation);
+            using var tokenKeptFresh = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+            var refreshing = KeepTheRepositoryTokenFreshAsync(run, secrets.Repositories.ExpiresAt, container, tokenKeptFresh.Token);
+            try
+            {
+                await WatchAsync(run, runner, container, cancellation);
+            }
+            finally
+            {
+                await tokenKeptFresh.CancelAsync();
+                await refreshing;
+            }
         }
         catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
         {
@@ -206,6 +216,54 @@ public sealed class RunsInContainers(
         }
 
         await changes.ChangeAsync(run.Id, (r, now) => r.Fail(WhyItFailed(exit), now), cancellation);
+    }
+
+    private async Task KeepTheRepositoryTokenFreshAsync(
+        Run run, DateTimeOffset expiresAt, IWorkerContainer container, CancellationToken cancellation)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(RepositoryTokenRefresh.DueIn(expiresAt, time.GetUtcNow(), options.Value.RefreshRepositoryTokenBefore),
+                    time, cancellation);
+                expiresAt = await RefreshTheRepositoryTokenAsync(run, container, cancellation)
+                    ?? RepositoryTokenRefresh.TryAgainAt(time.GetUtcNow(), options.Value.RefreshRepositoryTokenBefore);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task<DateTimeOffset?> RefreshTheRepositoryTokenAsync(Run run, IWorkerContainer container, CancellationToken cancellation)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var fresh = await scope.ServiceProvider.GetRequiredService<CodeRepositoryTokens>().ForAsync(run, cancellation);
+            if (fresh.Token is not { } token)
+            {
+                logger.LogWarning("Code gave no fresh Repository token for Run {RunId}: {Problem}", run.Id, fresh.Problem);
+                return null;
+            }
+
+            var replaced = await container.RunInsideAsync(WorkerCommand.ReplacingTheRepositoryToken(), RepositoryTokenRefresh.MostOutputRead,
+                cancellation, new Dictionary<string, string> { [WorkerCommand.FreshRepositoryToken] = token.Token });
+            if (replaced.ExitCode != 0)
+            {
+                logger.LogWarning("Run {RunId}'s container didn't take its fresh Repository token: exit code {ExitCode}", run.Id, replaced.ExitCode);
+                return null;
+            }
+
+            logger.LogInformation("Refreshed Run {RunId}'s Repository token, until {ExpiresAt}", run.Id, token.ExpiresAt);
+            return token.ExpiresAt;
+        }
+        catch (Exception failed) when (failed is not OperationCanceledException)
+        {
+            logger.LogWarning(failed, "Couldn't refresh Run {RunId}'s Repository token", run.Id);
+            return null;
+        }
     }
 
     public static string WhyItFailed(WorkerExit exit) =>

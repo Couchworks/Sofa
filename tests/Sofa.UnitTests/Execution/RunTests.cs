@@ -139,7 +139,7 @@ public class RunTests
         failed.Fail("killed", Now);
         var retry = failed.RetryOnItsOwn(Guid.NewGuid(), Now)!;
 
-        Assert.Equal(new RunEnded(failed.Id, failed.WorkspaceId, failed.WorkItemId, PhaseName.Triage, RunState.Failed, "killed", null, retry.Id, null, null), failed.Ended);
+        Assert.Equal(new RunEnded(failed.Id, failed.WorkspaceId, failed.WorkItemId, PhaseName.Triage, RunState.Failed, "killed", null, retry.Id, null, null, null), failed.Ended);
     }
 
     [Theory]

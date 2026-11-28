@@ -33,6 +33,18 @@ public sealed class DockerWorkerContainers : IWorkerContainers
         return arguments;
     }
 
+    public static IReadOnlyList<string> ExecArguments(
+        string container, IReadOnlyList<string> command, IReadOnlyDictionary<string, string>? environment)
+    {
+        List<string> arguments = ["exec"];
+        foreach (var name in environment?.Keys ?? [])
+        {
+            arguments.AddRange(["--env", name]);
+        }
+
+        return [.. arguments, container, .. command];
+    }
+
     public Task<IWorkerContainer> StartAsync(WorkerContainerSpec spec, CancellationToken cancellation)
     {
         var start = Docker(RunArguments(spec));
@@ -113,9 +125,19 @@ public sealed class DockerWorkerContainers : IWorkerContainers
 
         public Task StopAsync(CancellationToken cancellation) => _containers.RemoveAsync(_name, cancellation);
 
-        public async Task<OutputInside> RunInsideAsync(IReadOnlyList<string> command, long mostBytesRead, CancellationToken cancellation)
+        public async Task<OutputInside> RunInsideAsync(
+            IReadOnlyList<string> command,
+            long mostBytesRead,
+            CancellationToken cancellation,
+            IReadOnlyDictionary<string, string>? environment = null)
         {
-            using var docker = Process.Start(Docker(["exec", _name, .. command])) ?? throw new InvalidOperationException("Docker didn't start.");
+            var exec = Docker(ExecArguments(_name, command, environment));
+            foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+            {
+                exec.Environment[name] = value;
+            }
+
+            using var docker = Process.Start(exec) ?? throw new InvalidOperationException("Docker didn't start.");
             var errors = docker.StandardError.ReadToEndAsync(cancellation);
             using var output = new MemoryStream();
             var buffer = new byte[81920];

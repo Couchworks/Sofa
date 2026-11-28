@@ -23,7 +23,7 @@ public sealed record ConfigureAgent(
 public sealed record RegisterAgentAgain(Guid WorkspaceId, string Key, Guid AgentId);
 
 public sealed record ConfigurePhase(
-    Guid WorkspaceId, string Key, PhaseName Phase, Guid CastAgentId, Gate Gate, Sandbox Sandbox);
+    Guid WorkspaceId, string Key, PhaseName Phase, Guid CastAgentId, Gate Gate, Sandbox Sandbox, string? Instructions = null);
 
 public sealed record ProjectBound(
     Guid ProjectId, Guid WorkspaceId, string Key, RequestProviderBinding? Requests, CodeProviderBinding? Code, long Version);
@@ -54,7 +54,8 @@ public sealed record ProjectDetails(
     IReadOnlyList<PhaseDetails> Phases,
     IReadOnlyList<AgentDetails> Agents);
 
-public sealed record PhaseDetails(PhaseName Name, int Position, Pattern Pattern, Guid CastAgentId, Gate Gate, Sandbox Sandbox);
+public sealed record PhaseDetails(
+    PhaseName Name, int Position, Pattern Pattern, Guid CastAgentId, Gate Gate, Sandbox Sandbox, string Instructions);
 
 public sealed record AgentDetails(
     Guid Id,

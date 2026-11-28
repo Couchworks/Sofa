@@ -22,10 +22,10 @@ const demo = {
   requests: { connectionId: 'c1', repository: 'acme/demo', label: 'sofa', keepsIssueState: false },
   code: { connectionId: 'c1', repositories: ['acme/demo'] },
   phases: [
-    { name: 'Triage', position: 0, pattern: 'Solo', castAgentId: 'a1', gate: 'Auto', sandbox: 'ReadOnly' },
-    { name: 'Spec', position: 1, pattern: 'Solo', castAgentId: 'a2', gate: 'Approve', sandbox: 'ReadOnly' },
-    { name: 'Plan', position: 2, pattern: 'Solo', castAgentId: 'a2', gate: 'Approve', sandbox: 'ReadOnly' },
-    { name: 'Implement', position: 3, pattern: 'Solo', castAgentId: 'a3', gate: 'Auto', sandbox: 'OwnBranch' },
+    { name: 'Triage', instructions: 'Pick its Track.', position: 0, pattern: 'Solo', castAgentId: 'a1', gate: 'Auto', sandbox: 'ReadOnly' },
+    { name: 'Spec', instructions: 'Write the spec.', position: 1, pattern: 'Solo', castAgentId: 'a2', gate: 'Approve', sandbox: 'ReadOnly' },
+    { name: 'Plan', instructions: 'Write the plan.', position: 2, pattern: 'Solo', castAgentId: 'a2', gate: 'Approve', sandbox: 'ReadOnly' },
+    { name: 'Implement', instructions: 'Build it.', position: 3, pattern: 'Solo', castAgentId: 'a3', gate: 'Auto', sandbox: 'OwnBranch' },
   ],
   agents: [triager, lead, builder],
 }
@@ -78,7 +78,26 @@ test('a User with Write recasts a Phase and changes its Gate', async () => {
 
   await waitFor(() => expect(requests.some((request) => request.method === 'PUT')).toBe(true))
   expect(await requests.find((request) => request.method === 'PUT')!.json()).toEqual({
-    castAgentId: 'a3', gate: 'ReviewAfterwards', sandbox: 'ReadOnly',
+    castAgentId: 'a3', gate: 'ReviewAfterwards', sandbox: 'ReadOnly', instructions: 'Write the plan.',
+  })
+})
+
+test('a User with Write changes what a Phase tells its Agent to do', async () => {
+  const { requests } = fakeGateway({
+    'GET /api/me': { body: me(false) },
+    [`GET ${project}`]: { body: demo },
+    [`PUT ${project}/phases/Spec`]: { body: demo },
+  })
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+
+  const spec = await screen.findByRole('form', { name: 'Spec Phase' })
+  expect((within(spec).getByLabelText('Instructions') as HTMLTextAreaElement).value).toBe('Write the spec.')
+  fireEvent.change(within(spec).getByLabelText('Instructions'), { target: { value: 'Write the spec, with a mock-up.' } })
+  fireEvent.click(within(spec).getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(requests.some((request) => request.method === 'PUT')).toBe(true))
+  expect(await requests.find((request) => request.method === 'PUT')!.json()).toEqual({
+    castAgentId: 'a2', gate: 'Approve', sandbox: 'ReadOnly', instructions: 'Write the spec, with a mock-up.',
   })
 })
 

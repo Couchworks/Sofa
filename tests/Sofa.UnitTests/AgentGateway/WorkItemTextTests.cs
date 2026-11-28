@@ -17,7 +17,8 @@ public class WorkItemTextTests
         Priority.None, RunState.Running, null, null, Guid.NewGuid(), 1, 2, null, null, false, null, null, Asked, Asked, null);
 
     private static WorkItemDetails WorkItem(params QuestionDetails[] questions) => new(
-        Guid.NewGuid(), "DEMO-1", "Add a dark mode toggle", Guid.NewGuid(), Guid.NewGuid(), Issue, Guid.NewGuid(), Asked, questions);
+        Guid.NewGuid(), "DEMO-1", "Add a dark mode toggle", Guid.NewGuid(), Guid.NewGuid(), Issue, Guid.NewGuid(), Asked, questions,
+        WorkItemState.Running, PhaseName.Spec, Track: null, Waiting: null, Runs: [], PhaseEnds: [], PullRequest: null, DoneAt: null);
 
     private static RequestRead.Now IssueNow(string title, string body) =>
         new(new RequestNow(Guid.NewGuid(), Issue.Repository, Issue.Number, Issue.Url, title, body, "open"));
@@ -73,5 +74,18 @@ public class WorkItemTextTests
     public void A_test_Run_on_no_Work_Item_is_told_so()
     {
         Assert.Contains("test Run of the Triage Phase", WorkItemText.NoWorkItem(RunIn(PhaseName.Triage)));
+    }
+
+    [Fact]
+    public void It_shows_the_Track_and_what_a_User_said_sending_a_Phase_back()
+    {
+        var sentBack = new PhaseEndDetails(Guid.NewGuid(), PhaseName.Spec, "specified", Gate.Approve, PhaseEndStanding.SentBack, Asked,
+            Guid.NewGuid(), "Say what the toggle remembers.", Asked.AddMinutes(5));
+        var workItem = WorkItem() with { Track = Track.Full, PhaseEnds = [sentBack] };
+
+        var text = WorkItemText.Of(new WorkItemRead(RunIn(PhaseName.Spec), workItem, IssueNow("Add a dark mode toggle", ""), []));
+
+        Assert.Contains("The Work Item is on the Full Track.", text);
+        Assert.Contains("## What Users decided at the Gates\n\n### Spec sent back, 2026-11-27 14:10 UTC\n\n> Say what the toggle remembers.", text);
     }
 }

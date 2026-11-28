@@ -17,7 +17,7 @@ partial class FlowDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127220937_Questions";
+    public override string LastMigrationId => "20261128103741_MoveWorkItemsThroughTheFlow";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -121,6 +121,12 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasMaxLength(20)
                     .HasColumnType("character varying(20)")
                     .HasColumnName("gate");
+
+                b.Property<string>("Instructions")
+                    .IsRequired()
+                    .HasMaxLength(20000)
+                    .HasColumnType("character varying(20000)")
+                    .HasColumnName("instructions");
 
                 b.Property<string>("Pattern")
                     .IsRequired()
@@ -276,15 +282,83 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                 b.ToTable("questions", "flow");
             });
 
+        modelBuilder.Entity("Sofa.Flow.WorkItems.PhaseEnd", b =>
+            {
+                b.Property<Guid>("RunId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("run_id");
+
+                b.Property<string>("Comment")
+                    .HasMaxLength(20000)
+                    .HasColumnType("character varying(20000)")
+                    .HasColumnName("comment");
+
+                b.Property<DateTimeOffset?>("DecidedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("decided_at");
+
+                b.Property<Guid?>("DecidedByUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("decided_by_user_id");
+
+                b.Property<DateTimeOffset>("EndedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("ended_at");
+
+                b.Property<string>("Gate")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("gate");
+
+                b.Property<string>("Outcome")
+                    .IsRequired()
+                    .HasMaxLength(40)
+                    .HasColumnType("character varying(40)")
+                    .HasColumnName("outcome");
+
+                b.Property<string>("Phase")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
+                b.Property<string>("Standing")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("standing");
+
+                b.Property<Guid>("WorkItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("work_item_id");
+
+                b.HasKey("RunId")
+                    .HasName("pk_phase_ends");
+
+                b.HasIndex("WorkItemId", "EndedAt")
+                    .HasDatabaseName("ix_phase_ends_work_item_id_ended_at");
+
+                b.ToTable("phase_ends", "flow");
+            });
+
         modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
             {
                 b.Property<Guid>("Id")
                     .HasColumnType("uuid")
                     .HasColumnName("id");
 
+                b.Property<Guid?>("CurrentRunId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("current_run_id");
+
                 b.Property<Guid?>("DelegatingUserId")
                     .HasColumnType("uuid")
                     .HasColumnName("delegating_user_id");
+
+                b.Property<DateTimeOffset?>("DoneAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("done_at");
 
                 b.Property<string>("Key")
                     .IsRequired()
@@ -300,9 +374,33 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasColumnType("timestamp with time zone")
                     .HasColumnName("opened_at");
 
+                b.Property<string>("Phase")
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
                 b.Property<Guid>("ProjectId")
                     .HasColumnType("uuid")
                     .HasColumnName("project_id");
+
+                b.Property<long?>("PullRequestNumber")
+                    .HasColumnType("bigint")
+                    .HasColumnName("pull_request_number");
+
+                b.Property<string>("PullRequestRepository")
+                    .HasMaxLength(140)
+                    .HasColumnType("character varying(140)")
+                    .HasColumnName("pull_request_repository");
+
+                b.Property<string>("PullRequestState")
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("pull_request_state");
+
+                b.Property<string>("PullRequestUrl")
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)")
+                    .HasColumnName("pull_request_url");
 
                 b.Property<Guid>("RequestId")
                     .HasColumnType("uuid")
@@ -324,11 +422,46 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(500)")
                     .HasColumnName("request_url");
 
+                b.Property<string>("State")
+                    .IsRequired()
+                    .HasMaxLength(30)
+                    .HasColumnType("character varying(30)")
+                    .HasColumnName("state");
+
                 b.Property<string>("Title")
                     .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("title");
+
+                b.Property<string>("Track")
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("track");
+
+                b.Property<uint>("Version")
+                    .IsConcurrencyToken()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("xid")
+                    .HasColumnName("xmin");
+
+                b.Property<Guid?>("WaitId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("wait_id");
+
+                b.Property<string>("WaitingBecause")
+                    .HasMaxLength(2000)
+                    .HasColumnType("character varying(2000)")
+                    .HasColumnName("waiting_because");
+
+                b.Property<string>("WaitingFor")
+                    .HasMaxLength(40)
+                    .HasColumnType("character varying(40)")
+                    .HasColumnName("waiting_for");
+
+                b.Property<DateTimeOffset?>("WaitingSince")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("waiting_since");
 
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")
@@ -346,6 +479,48 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_work_items_project_id_number");
 
                 b.ToTable("work_items", "flow");
+            });
+
+        modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItemRun", b =>
+            {
+                b.Property<Guid>("RunId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("run_id");
+
+                b.Property<string>("EndedAs")
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("ended_as");
+
+                b.Property<DateTimeOffset?>("EndedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("ended_at");
+
+                b.Property<string>("Phase")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
+                b.Property<Guid?>("RetryOf")
+                    .HasColumnType("uuid")
+                    .HasColumnName("retry_of");
+
+                b.Property<DateTimeOffset>("StartedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("started_at");
+
+                b.Property<Guid>("WorkItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("work_item_id");
+
+                b.HasKey("RunId")
+                    .HasName("pk_work_item_runs");
+
+                b.HasIndex("WorkItemId", "StartedAt")
+                    .HasDatabaseName("ix_work_item_runs_work_item_id_started_at");
+
+                b.ToTable("work_item_runs", "flow");
             });
 
         modelBuilder.Entity("Sofa.Flow.Projects.Agent", b =>
@@ -386,6 +561,16 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasConstraintName("fk_questions_work_items_work_item_id");
             });
 
+        modelBuilder.Entity("Sofa.Flow.WorkItems.PhaseEnd", b =>
+            {
+                b.HasOne("Sofa.Flow.WorkItems.WorkItem", null)
+                    .WithMany("PhaseEnds")
+                    .HasForeignKey("WorkItemId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_phase_ends_work_items_work_item_id");
+            });
+
         modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
             {
                 b.HasOne("Sofa.Flow.Projects.Project", null)
@@ -394,6 +579,23 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired()
                     .HasConstraintName("fk_work_items_projects_project_id");
+            });
+
+        modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItemRun", b =>
+            {
+                b.HasOne("Sofa.Flow.WorkItems.WorkItem", null)
+                    .WithMany("Runs")
+                    .HasForeignKey("WorkItemId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_work_item_runs_work_items_work_item_id");
+            });
+
+        modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
+            {
+                b.Navigation("PhaseEnds");
+
+                b.Navigation("Runs");
             });
 #pragma warning restore 612, 618
     }

@@ -16,7 +16,7 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127202450_KeepTheInbox";
+    public override string LastMigrationId => "20261128103837_InboxItemsForAUser";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -86,6 +86,10 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(500)")
                     .HasColumnName("url");
 
+                b.Property<Guid?>("UserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
+
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")
                     .HasColumnName("workspace_id");
@@ -99,6 +103,9 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
 
                 b.HasIndex("WorkspaceId", "For")
                     .HasDatabaseName("ix_inbox_items_workspace_id_for");
+
+                b.HasIndex("WorkspaceId", "UserId")
+                    .HasDatabaseName("ix_inbox_items_workspace_id_user_id");
 
                 b.ToTable("inbox_items", "notices");
             });

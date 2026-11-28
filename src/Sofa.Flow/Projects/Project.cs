@@ -64,6 +64,8 @@ public sealed class Phase
     public required Gate Gate { get; set; }
 
     public required Sandbox Sandbox { get; set; }
+
+    public required string Instructions { get; set; }
 }
 
 public sealed class Agent

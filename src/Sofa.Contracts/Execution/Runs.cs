@@ -90,7 +90,8 @@ public sealed record RunDetails(
     AskedQuestion? Question,
     DateTimeOffset QueuedAt,
     DateTimeOffset? StartedAt,
-    DateTimeOffset? EndedAt);
+    DateTimeOffset? EndedAt,
+    string? Brief = null);
 
 public sealed record RunEnded(
     Guid RunId,
@@ -102,7 +103,8 @@ public sealed record RunEnded(
     RefusedAs? RefusedAs,
     Guid? RetriedBy,
     string? Outcome,
-    AskedQuestion? Question);
+    AskedQuestion? Question,
+    Guid? RetryOf = null);
 
 public sealed record SubscriptionSignedOut(Guid WorkspaceId, Guid UserId, Guid RunnerId, string RunnerName, Guid RunId);
 

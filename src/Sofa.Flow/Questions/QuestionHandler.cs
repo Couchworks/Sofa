@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
-using Sofa.Contracts.Execution;
+using Sofa.Contracts.Flow;
 using Sofa.Contracts.Intake;
 using Sofa.Flow.Data;
+using Sofa.Flow.WorkItems;
 using Wolverine;
 
 namespace Sofa.Flow.Questions;
@@ -10,55 +10,7 @@ namespace Sofa.Flow.Questions;
 public static class QuestionHandler
 {
     public static async Task<OutgoingMessages> Handle(
-        RunEnded ended, FlowDb db, TimeProvider time, ILogger<RunEnded> logger, CancellationToken cancellation)
-    {
-        var toIntake = new OutgoingMessages();
-        if (ended.Question is not { } asked)
-        {
-            return toIntake;
-        }
-
-        var workItem = await db.WorkItems.AsNoTracking()
-            .SingleOrDefaultAsync(w => w.Id == ended.WorkItemId && w.WorkspaceId == ended.WorkspaceId, cancellation);
-        if (workItem is null)
-        {
-            logger.LogInformation("Run {RunId} asked Question {QuestionId} of no Work Item Flow has, so nobody is asked it",
-                ended.RunId, asked.QuestionId);
-            return toIntake;
-        }
-
-        if (await db.Questions.AnyAsync(q => q.Id == asked.QuestionId, cancellation))
-        {
-            return toIntake;
-        }
-
-        db.Questions.Add(new Question
-        {
-            Id = asked.QuestionId,
-            WorkspaceId = workItem.WorkspaceId,
-            WorkItemId = workItem.Id,
-            RunId = ended.RunId,
-            Phase = ended.Phase,
-            Text = asked.Text,
-            AskedAt = time.GetUtcNow(),
-        });
-        try
-        {
-            await db.SaveChangesAsync(cancellation);
-        }
-        catch (DbUpdateException taken) when (taken.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            return toIntake;
-        }
-
-        logger.LogInformation("Run {RunId} asked Question {QuestionId} of {Key} in its {Phase} Phase",
-            ended.RunId, asked.QuestionId, workItem.Key, ended.Phase);
-        toIntake.Add(new AskOnRequest(asked.QuestionId, workItem.RequestId, workItem.Key, ended.Phase, asked.Text));
-        return toIntake;
-    }
-
-    public static async Task Handle(
-        QuestionAnsweredOnRequest answered, FlowDb db, ILogger<QuestionAnsweredOnRequest> logger, CancellationToken cancellation)
+        QuestionAnsweredOnRequest answered, FlowDb db, WorkItemMoves moves, ILogger<QuestionAnsweredOnRequest> logger, CancellationToken cancellation)
     {
         logger.LogInformation(
             "Flow received the answer to Question {QuestionId} on Request {RequestId} from User {UserId}",
@@ -68,12 +20,47 @@ public static class QuestionHandler
         if (question is null)
         {
             logger.LogInformation("Flow asked no Question {QuestionId}, so its answer is kept nowhere", answered.QuestionId);
-            return;
+            return [];
         }
 
-        if (question.AnswerWith(answered.Answer, answered.AnsweredByUserId, answered.AnsweredAt))
+        var (_, outgoing) = await AnswerAsync(question, answered.Answer, answered.AnsweredByUserId, answered.AnsweredAt, db, moves, cancellation);
+        return outgoing;
+    }
+
+    public static async Task<(FlowAnswer, OutgoingMessages)> Handle(
+        AnswerQuestion command, FlowDb db, WorkItemMoves moves, CancellationToken cancellation)
+    {
+        if (await moves.FindAsync(command.WorkspaceId, command.ProjectKey, command.WorkItemKey, cancellation) is not { } workItem)
         {
-            await db.SaveChangesAsync(cancellation);
+            return (FlowAnswer.Refused(FlowRefusal.NotFound, "The Workspace has no such Work Item."), []);
         }
+
+        var question = await db.Questions.SingleOrDefaultAsync(q => q.Id == command.QuestionId && q.WorkItemId == workItem.Id, cancellation);
+        if (question is null)
+        {
+            return (FlowAnswer.Refused(FlowRefusal.NotFound, $"{workItem.Key} has no such Question."), []);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Answer) || command.Answer.Length > QuestionRules.LongestAnswer)
+        {
+            return (FlowAnswer.Refused(FlowRefusal.Invalid, $"An answer has 1 to {QuestionRules.LongestAnswer} characters."), []);
+        }
+
+        return await AnswerAsync(question, command.Answer, command.ByUserId, moves.Now, db, moves, cancellation);
+    }
+
+    private static async Task<(FlowAnswer, OutgoingMessages)> AnswerAsync(
+        Question question, string answer, Guid byUserId, DateTimeOffset at, FlowDb db, WorkItemMoves moves, CancellationToken cancellation)
+    {
+        if (!question.AnswerWith(answer, byUserId, at))
+        {
+            return (FlowAnswer.Refused(FlowRefusal.Invalid, "The Question is already answered."), []);
+        }
+
+        var workItem = (await moves.FindAsync(question.WorkspaceId, question.WorkItemId, cancellation))!;
+        var steps = workItem.HearQuestionAnswered(question.Id, moves.Now);
+        var outgoing = await moves.MessagesForAsync(workItem, steps, cancellation);
+        await db.SaveChangesAsync(cancellation);
+        return (FlowAnswer.Done, outgoing);
     }
 }

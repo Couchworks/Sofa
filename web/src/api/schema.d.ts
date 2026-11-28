@@ -303,7 +303,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Changes a Phase's cast, Gate and Sandbox. */
+        /** Changes a Phase's cast, Gate and Sandbox, and its instructions when given. */
         put: operations["ConfigurePhase"];
         post?: never;
         delete?: never;
@@ -323,6 +323,74 @@ export interface paths {
         get: operations["GetWorkItems"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A Work Item: where it is in the Flow and what it waits for, its Track, Runs, Phase ends, Questions and pull request. */
+        get: operations["GetWorkItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/phases/{phase}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approves the Phase waiting at its Approve Gate, so the Work Item goes on, or marks a Phase left Unverified as looked at. */
+        post: operations["ApprovePhase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/phases/{phase}/sending-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the Phase waiting at its Approve Gate back with a comment: a new Run of it reads the comment. */
+        post: operations["SendPhaseBack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/questions/{questionId}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answers a Question a Run asked; a new Run of its Phase reads the answer. */
+        post: operations["AnswerQuestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -533,6 +601,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in User's Inbox: what waits for them, such as Questions and Approve Gates, and for an Admin what waits for the Workspace's Admins, newest first. */
+        get: operations["GetInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -561,6 +646,9 @@ export interface components {
         AgentRegistrationState: "Pending" | "Registered" | "Refused";
         /** @enum {unknown} */
         AgentRole: "Triager" | "Lead" | "Builder";
+        AnswerToQuestion: {
+            answer: null | string;
+        };
         AskedQuestion: {
             /** Format: uuid */
             questionId: string;
@@ -632,6 +720,20 @@ export interface components {
         GitHubLink: {
             authorizeUrl: string;
         };
+        InboxItem: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            for: string;
+            /** Format: uuid */
+            subjectId: string;
+            projectKey: string;
+            title: string;
+            detail: string;
+            url: string;
+            /** Format: date-time */
+            raisedAt: string;
+        };
         JsonElement: unknown;
         NewApiKeyRunner: {
             name: null | string;
@@ -661,6 +763,7 @@ export interface components {
             castAgentId: string;
             gate: components["schemas"]["Gate"];
             sandbox: components["schemas"]["Sandbox"];
+            instructions?: null | string;
         };
         PhaseDetails: {
             name: components["schemas"]["PhaseName"];
@@ -671,7 +774,25 @@ export interface components {
             castAgentId: string;
             gate: components["schemas"]["Gate"];
             sandbox: components["schemas"]["Sandbox"];
+            instructions: string;
         };
+        PhaseEndDetails: {
+            /** Format: uuid */
+            runId: string;
+            phase: components["schemas"]["PhaseName"];
+            outcome: string;
+            gate: components["schemas"]["Gate"];
+            standing: components["schemas"]["PhaseEndStanding"];
+            /** Format: date-time */
+            endedAt: string;
+            /** Format: uuid */
+            decidedByUserId: null | string;
+            comment: null | string;
+            /** Format: date-time */
+            decidedAt: null | string;
+        };
+        /** @enum {unknown} */
+        PhaseEndStanding: "WentOn" | "AwaitsApproval" | "Approved" | "SentBack" | "Unverified" | "Verified";
         /** @enum {unknown} */
         PhaseName: "Triage" | "Spec" | "Plan" | "Implement";
         /** @enum {unknown} */
@@ -732,6 +853,21 @@ export interface components {
         };
         /** @enum {unknown} */
         PullRequestState: "Open" | "Merged" | "ClosedUnmerged";
+        QuestionDetails: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            runId: string;
+            phase: components["schemas"]["PhaseName"];
+            text: string;
+            /** Format: date-time */
+            askedAt: string;
+            answer: null | string;
+            /** Format: uuid */
+            answeredByUserId: null | string;
+            /** Format: date-time */
+            answeredAt: null | string;
+        };
         /** @enum {unknown} */
         RefusedAs: "SignInAgain" | "AgentNotRegistered" | "ApiKeyUnavailable" | "NoRepositoryToken" | "LeftItsSandbox" | null;
         RequestProviderBinding: {
@@ -787,6 +923,7 @@ export interface components {
             startedAt: null | string;
             /** Format: date-time */
             endedAt: null | string;
+            brief?: null | string;
         };
         RunnerDetails: {
             /** Format: uuid */
@@ -818,6 +955,9 @@ export interface components {
         RunState: "Waiting" | "Running" | "Finished" | "Failed" | "Lost" | "Stopped" | "Refused";
         /** @enum {unknown} */
         Sandbox: "ReadOnly" | "OwnBranch" | "IntegrationBranch";
+        SendingBack: {
+            comment: null | string;
+        };
         Status: {
             name: string;
             environment: string;
@@ -841,6 +981,8 @@ export interface components {
             /** Format: uuid */
             userId: string;
         };
+        /** @enum {unknown} */
+        Track: "Small" | "Full" | null;
         Transcript: {
             /** Format: uuid */
             runId: string;
@@ -909,6 +1051,41 @@ export interface components {
         };
         /** @enum {unknown} */
         Vendor: "Anthropic";
+        WaitDetails: {
+            /** Format: uuid */
+            waitId: string;
+            kind: components["schemas"]["WaitKind"];
+            why: string;
+            /** Format: date-time */
+            since: string;
+        };
+        /** @enum {unknown} */
+        WaitKind: "Question" | "Approval" | "RunGoneWrong" | "PullRequestClosedUnmerged";
+        WorkItemDetails: {
+            /** Format: uuid */
+            id: string;
+            key: string;
+            title: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            requestId: string;
+            request: components["schemas"]["RequestRef"];
+            /** Format: uuid */
+            delegatingUserId: null | string;
+            /** Format: date-time */
+            openedAt: string;
+            questions: components["schemas"]["QuestionDetails"][];
+            state: components["schemas"]["WorkItemState"];
+            phase: null | components["schemas"]["PhaseName"];
+            track: null | components["schemas"]["Track"];
+            waiting: null | components["schemas"]["WaitDetails"];
+            runs: components["schemas"]["WorkItemRunDetails"][];
+            phaseEnds: components["schemas"]["PhaseEndDetails"][];
+            pullRequest: null | components["schemas"]["WorkItemPullRequest"];
+            /** Format: date-time */
+            doneAt: null | string;
+        };
         WorkItemOfProject: {
             key: string;
             title: string;
@@ -918,7 +1095,31 @@ export interface components {
             delegatedBy: null | components["schemas"]["DelegatingUser"];
             /** Format: date-time */
             openedAt: string;
+            state: components["schemas"]["WorkItemState"];
+            phase: null | components["schemas"]["PhaseName"];
+            track: null | components["schemas"]["Track"];
         };
+        WorkItemPullRequest: {
+            repository: string;
+            /** Format: int64 */
+            number: number | string;
+            url: string;
+            state: components["schemas"]["PullRequestState"];
+        };
+        WorkItemRunDetails: {
+            /** Format: uuid */
+            runId: string;
+            phase: components["schemas"]["PhaseName"];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: uuid */
+            retryOf: null | string;
+            endedAs: null | string;
+            /** Format: date-time */
+            endedAt: null | string;
+        };
+        /** @enum {unknown} */
+        WorkItemState: "AwaitsDelegation" | "Running" | "AwaitsAnswer" | "AwaitsApproval" | "AwaitsPullRequest" | "AwaitsUser" | "Done";
         WorkspaceMember: {
             /** Format: uuid */
             userId: string;
@@ -2003,6 +2204,252 @@ export interface operations {
             };
         };
     };
+    GetWorkItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ApprovePhase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+                phase: components["schemas"]["PhaseName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetails"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SendPhaseBack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+                phase: components["schemas"]["PhaseName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendingBack"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetails"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AnswerQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerToQuestion"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetails"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetPullRequestsOfWorkItem: {
         parameters: {
             query?: never;
@@ -2625,6 +3072,47 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetInbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

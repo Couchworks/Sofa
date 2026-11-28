@@ -61,9 +61,10 @@ var identity = AddService(SofaServices.Identity, "Sofa.Identity")
     .WithEnvironment(publicAddress.TellIssuer)
     .WithEnvironment("Identity__ExecutionClientSecret", executionClientSecret);
 
-var flow = AddService(SofaServices.Flow, "Sofa.Flow")
-    .WithReference(connections);
 var records = AddService(SofaServices.Records, "Sofa.Records");
+var flow = AddService(SofaServices.Flow, "Sofa.Flow")
+    .WithReference(connections)
+    .WithReference(records);
 var code = AddService(SofaServices.Code, "Sofa.Code")
     .WithReference(connections)
     .WithReference(flow);
@@ -94,16 +95,18 @@ execution.WithEnvironment("Workers__AgentGatewayAddress", ReferenceExpression.Cr
 execution.WithEnvironment("Workers__Network", ReferenceExpression.Create(
     $"{WorkerContainers.NetworkPrefix}{agentGateway.GetEndpoint("http").Property(EndpointProperty.Port)}"));
 
+var notices = AddService(SofaServices.Notices, "Sofa.Notices");
+
 appGateway.WithReference(identity)
     .WithReference(connections)
     .WithReference(flow)
     .WithReference(execution)
     .WithReference(records)
     .WithReference(code)
+    .WithReference(notices)
     .WithEnvironment(publicAddress.TellIssuer);
 
 AddService(SofaServices.Knowledge, "Sofa.Knowledge");
-AddService(SofaServices.Notices, "Sofa.Notices");
 
 builder.Build().Run();
 

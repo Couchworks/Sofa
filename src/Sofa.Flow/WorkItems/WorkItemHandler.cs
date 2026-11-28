@@ -2,17 +2,18 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sofa.Contracts.Flow;
 using Sofa.Flow.Data;
+using Wolverine;
 
 namespace Sofa.Flow.WorkItems;
 
 public static class WorkItemHandler
 {
-    public static async Task Handle(
-        OpenWorkItem command, FlowDb db, TimeProvider time, ILogger<OpenWorkItem> logger, CancellationToken cancellation)
+    public static async Task<OutgoingMessages> Handle(
+        OpenWorkItem command, FlowDb db, WorkItemMoves moves, ILogger<OpenWorkItem> logger, CancellationToken cancellation)
     {
         if (await db.WorkItems.AnyAsync(w => w.RequestId == command.RequestId, cancellation))
         {
-            return;
+            return [];
         }
 
         var project = await db.Projects.AsNoTracking()
@@ -21,7 +22,7 @@ public static class WorkItemHandler
         {
             logger.LogWarning("Opened no Work Item for Request {RequestId}: Workspace {WorkspaceId} has no Project {ProjectId}",
                 command.RequestId, command.WorkspaceId, command.ProjectId);
-            return;
+            return [];
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellation);
@@ -39,8 +40,10 @@ public static class WorkItemHandler
             RequestNumber = command.Request.Number,
             RequestUrl = command.Request.Url,
             DelegatingUserId = command.DelegatingUserId,
-            OpenedAt = time.GetUtcNow(),
+            OpenedAt = moves.Now,
         };
+        var steps = workItem.Begin(await moves.FlowOfAsync(project.Id, cancellation), moves.Now);
+        var outgoing = await moves.MessagesForAsync(workItem, steps, cancellation);
         db.WorkItems.Add(workItem);
 
         try
@@ -50,11 +53,12 @@ public static class WorkItemHandler
         }
         catch (DbUpdateException opened) when (opened.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            return;
+            return [];
         }
 
         logger.LogInformation("Opened Work Item {Key} for Request {Repository}#{Number}, delegated by {DelegatingUserId}",
             workItem.Key, workItem.RequestRepository, workItem.RequestNumber, workItem.DelegatingUserId?.ToString() ?? "no one yet");
+        return outgoing;
     }
 
     private static async Task<int> NextNumberAsync(FlowDb db, Guid projectId, CancellationToken cancellation) =>

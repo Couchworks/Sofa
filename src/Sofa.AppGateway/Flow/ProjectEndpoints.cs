@@ -52,7 +52,7 @@ public static class ProjectEndpoints
 
         workspace.MapPut("/projects/{key}/phases/{phase}", ConfigurePhase)
             .WithName("ConfigurePhase")
-            .WithSummary("Changes a Phase's cast, Gate and Sandbox.")
+            .WithSummary("Changes a Phase's cast, Gate and Sandbox, and its instructions when given.")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -121,7 +121,8 @@ public static class ProjectEndpoints
         IMessageBus bus,
         CancellationToken cancellation) =>
         await ChangeAsync(
-            new ConfigurePhase(user.WorkspaceId, key, phase, configuration.CastAgentId, configuration.Gate, configuration.Sandbox),
+            new ConfigurePhase(user.WorkspaceId, key, phase, configuration.CastAgentId, configuration.Gate, configuration.Sandbox,
+                configuration.Instructions),
             user.WorkspaceId, key, flow, bus, cancellation);
 
     private static async Task<Results<Ok<ProjectDetails>, ProblemHttpResult>> ChangeAsync(
@@ -162,4 +163,4 @@ public sealed record ProjectBinding(
 
 public sealed record AgentConfiguration(AgentRole Role, string? Instructions, Vendor Vendor, string? Model);
 
-public sealed record PhaseConfiguration(Guid CastAgentId, Gate Gate, Sandbox Sandbox);
+public sealed record PhaseConfiguration(Guid CastAgentId, Gate Gate, Sandbox Sandbox, string? Instructions = null);

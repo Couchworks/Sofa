@@ -7,6 +7,7 @@ using Sofa.AppGateway.Execution;
 using Sofa.AppGateway.Flow;
 using Sofa.AppGateway.GitHubReturns;
 using Sofa.AppGateway.Identity;
+using Sofa.AppGateway.Notices;
 using Sofa.AppGateway.Records;
 using Sofa.Contracts;
 using Sofa.Contracts.Connections;
@@ -27,6 +28,9 @@ builder.AddSofaMessaging(SofaServices.AppGateway, options =>
     options.PublishMessage<ConfigureAgent>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<ConfigurePhase>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<RegisterAgentAgain>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<ApprovePhase>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<SendPhaseBack>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<AnswerQuestion>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<CreateRunner>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<LimitRunsAtOnce>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<StopRun>().ToRabbitQueue(SofaServices.Execution);
@@ -51,6 +55,7 @@ builder.Services.AddHttpClient<FlowClient>(http => http.BaseAddress = FlowClient
 builder.Services.AddHttpClient<ExecutionClient>(http => http.BaseAddress = ExecutionClient.Address);
 builder.Services.AddHttpClient<RecordsClient>(http => http.BaseAddress = RecordsClient.Address);
 builder.Services.AddHttpClient<CodeClient>(http => http.BaseAddress = CodeClient.Address);
+builder.Services.AddHttpClient<NoticesClient>(http => http.BaseAddress = NoticesClient.Address);
 builder.Services.AddOptions<GitHubReturnOptions>().BindConfiguration(GitHubReturnOptions.Section);
 builder.Services.AddSingleton<GitHubReturnStates>();
 
@@ -85,7 +90,8 @@ app.MapUsersOfTheWorkspaceOnly()
     .MapWorkItems()
     .MapPullRequests()
     .MapRunners()
-    .MapRuns();
+    .MapRuns()
+    .MapInbox();
 app.MapGitHubAppReturns();
 
 app.MapReverseProxy();

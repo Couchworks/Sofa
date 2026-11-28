@@ -17,6 +17,13 @@ public static class SandboxTools
         "Edit", "Write",
         "Bash(git add:*)", "Bash(git commit:*)", "Bash(git push:*)", "Bash(git restore:*)", "Bash(git rm:*)",
         "Bash(git mv:*)", "Bash(git stash:*)", "Bash(git merge:*)", "Bash(git rebase:*)", "Bash(git reset:*)",
+        "Bash(gh pr create:*)", "Bash(gh pr view:*)", "Bash(gh pr list:*)", "Bash(gh pr edit:*)",
+    ];
+
+    private static readonly string[] BuildingStartingAndScreenshotting =
+    [
+        "Bash(npm run:*)", "Bash(npm start:*)", "Bash(npm test:*)", "Bash(node:*)",
+        "Bash(playwright screenshot:*)",
     ];
 
     public static IReadOnlyList<string> AllowedIn(Sandbox sandbox) =>
@@ -26,7 +33,8 @@ public static class SandboxTools
         .. sandbox switch
         {
             Sandbox.ReadOnly => [],
-            Sandbox.OwnBranch or Sandbox.IntegrationBranch => ChangingItsOwnBranch,
+            Sandbox.OwnBranch => [.. ChangingItsOwnBranch, .. BuildingStartingAndScreenshotting],
+            Sandbox.IntegrationBranch => ChangingItsOwnBranch,
             _ => throw new ArgumentOutOfRangeException(nameof(sandbox), sandbox, "Sofa knows no such Sandbox."),
         },
     ];

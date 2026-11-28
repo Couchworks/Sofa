@@ -34,4 +34,17 @@ public sealed class FlowClient(HttpClient flow)
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<WorkItemSummary>>(cancellation);
     }
+
+    public async Task<WorkItemDetails?> WorkItemAsync(Guid workspaceId, string key, string workItemKey, CancellationToken cancellation)
+    {
+        using var response = await flow.GetAsync(
+            $"/workspaces/{workspaceId}/projects/{Uri.EscapeDataString(key)}/work-items/{Uri.EscapeDataString(workItemKey)}", cancellation);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<WorkItemDetails>(cancellation);
+    }
 }

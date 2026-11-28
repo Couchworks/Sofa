@@ -124,10 +124,11 @@ public class IntakeTests(SofaApp sofa)
     }
 
     [Fact]
-    public async Task With_the_issues_state_kept_its_label_follows_the_Phase_and_it_closes_once_the_work_reaches_main()
+    public async Task With_the_issues_state_kept_its_label_follows_the_Phase_from_Triage_on_and_it_closes_once_the_work_reaches_main()
     {
         await ProjectTakingRequestsAsync("STATE", "sofa-state", keepsIssueState: true);
         var workItem = await LabelledAsync("STATE", 50, "sofa-state");
+        await EventuallyAsync(() => Task.FromResult(sofa.GitHub.ChangesOf(Demo, 50).Contains("+sofa: triage") ? true : (bool?)null));
 
         await EnteredPhaseAsync(workItem, "Triage");
         await EnteredPhaseAsync(workItem, "Spec");
