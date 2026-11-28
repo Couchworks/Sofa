@@ -244,4 +244,22 @@ public class WorkerCommandTests
         Assert.DoesNotContain("Bash(gh:*)", implementing);
         Assert.DoesNotContain("Bash(playwright screenshot:*)", SandboxTools.AllowedIn(Sandbox.IntegrationBranch));
     }
+
+    [Fact]
+    public void Sofa_clones_the_Repositories_on_the_Runs_own_branch_and_starts_Claude_Code_in_the_clone_where_plain_git_commands_are_allowed()
+    {
+        var pushing = SpecOf(RunIn(Sandbox.OwnBranch), RunnerOf(RunnerKind.ApiKey), Secrets(ApiKey, PushingItsOwnBranch));
+        var reading = SpecOf(RunIn(Sandbox.ReadOnly), RunnerOf(RunnerKind.ApiKey), Secrets(ApiKey));
+
+        Assert.Equal(("acme/demo acme/api", "sofa/DEMO-1"), (pushing.Environment["SOFA_REPOSITORIES"], pushing.Environment["SOFA_OWN_BRANCH"]));
+        Assert.Equal("", reading.Environment["SOFA_OWN_BRANCH"]);
+        Assert.Contains("git clone --quiet \"https://github.com/$repository.git\" \"$clone\" >&2", WorkerCommand.Script);
+        Assert.Contains("checkout --quiet -B \"$SOFA_OWN_BRANCH\" \"origin/$SOFA_OWN_BRANCH\"", WorkerCommand.Script);
+        Assert.True(WorkerCommand.Script.IndexOf("[ -d \"$first/.git\" ] && cd \"$first\"", StringComparison.Ordinal)
+            < WorkerCommand.Script.IndexOf("exec claude", StringComparison.Ordinal));
+        Assert.Contains("--add-dir /work", WorkerCommand.Script);
+        Assert.Contains("The Run starts in /work/demo. Run git there as plain `git <command>`", pushing.Environment["SOFA_BRIEF"]);
+        Assert.Contains("with your own branch, sofa/DEMO-1, checked out", pushing.Environment["SOFA_BRIEF"]);
+        Assert.Contains("into /work/<its name>: /work/demo, on the main branch.", reading.Environment["SOFA_BRIEF"]);
+    }
 }
