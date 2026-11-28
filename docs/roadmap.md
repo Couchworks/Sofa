@@ -19,7 +19,7 @@ Choices that aren't ADRs but shouldn't be reopened without reason.
 
 Each is usable before the next starts.
 
-1. **One agent, one Request.** Spec: `docs/specs/milestone-1.md`. A GitHub label brings a Request in; Triage, Spec and Plan run Solo and Implement opens a pull request to the main branch. Runs use Claude Code in a fresh Worker container on either an API key or the delegating User's own subscription (ADR 0009). Reports go back to the issue; Contributions and transcripts are kept in Records; a minimal web Inbox answers Questions and Approve Gates. Aspire, Identity, Connections (the GitHub App) and both Gateways as far as this needs.
+1. **One agent, one Request.** *Built* (#1–#12): its demo ran end to end from the web client on real GitHub. Spec: `docs/specs/milestone-1.md`. A GitHub label brings a Request in; Triage, Spec and Plan run Solo and Implement opens a pull request to the main branch. Runs use Claude Code in a fresh Worker container on either an API key or the delegating User's own subscription (ADR 0009). Reports go back to the issue; Contributions and transcripts are kept in Records; a minimal web Inbox answers Questions and Approve Gates. Aspire, Identity, Connections (the GitHub App) and both Gateways as far as this needs.
 2. **Claude Code on the web.** A personal Runner firing a User's claude.ai routines, one per model (ADR 0021); Sofa reachable over public HTTPS with OAuth for MCP connectors; Local-only Requests kept off it.
 3. **Many agents.** Panel, Synthesis, Discussion and Review-and-triage; Split into child Work Items; Integration branches and the merge queue; Findings.
 4. **Validate.** Previews from Deployments, Showcase and the Validation guide, the Gated and Autonomous Validation modes, Stacks and accepting part of one, Corrections.
@@ -65,3 +65,5 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **A sign-in warning without a push.** A sign-in entering its last three days appears in the Inbox on the next read of it, not live, as nothing happens at that moment (from slice 10).
 - **A Track changed to Full goes on.** Changing a Work Item to the Full Track after Spec was skipped doesn't send it back to Spec (from slice 10).
 - **A pull request that can't merge.** When another merge leaves a Work Item's pull request conflicting, Sofa doesn't notice: the Work Item waits for it with nothing in the Inbox, and no Run resolves the conflict (from slice 10).
+- **Who stopped a Run.** A Run a User stopped now reads "Stopped by a User", no longer naming who, since the Inbox showed a raw User id (from #12).
+- **An intermittent integration test.** One run of the Run and Flow integration tests failed once and passed twice after; which test failed wasn't kept (from #12).
