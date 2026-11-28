@@ -9,6 +9,7 @@ import {
   awaitingTheSpec,
   demoProject,
   project,
+  question,
   runDetails,
   specRun,
   theSpec,
@@ -191,4 +192,19 @@ test('a Run a User stopped offers Retry, as one that failed does, and a finished
   await waitFor(() => expect(requests.some((request) => request.method === 'POST')).toBe(true))
   expect(requests.find((request) => request.method === 'POST')!.url).toContain('/runs/run-stopped/retry')
   expect(screen.getAllByRole('button')).toHaveLength(1)
+})
+
+test('a Question and its answer are shown as Markdown, as GitHub shows them', async () => {
+  const inMarkdown = { ...question, text: 'Should it **sync** across devices, or stay on the device? Reply `device` or `sync`.' }
+  gateway({ ...asking, questions: [inMarkdown] })
+  renderWithQueries(<WorkItemPage projectKey="DEMO" workItemKey="DEMO-1" />)
+
+  const form = await screen.findByRole('form', { name: "Answer DEMO-1's Question" })
+  const questions = screen.getByRole('list', { name: 'Questions' })
+
+  for (const shown of [form, questions]) {
+    expect(within(shown).getByText('sync', { selector: 'strong' })).toBeDefined()
+    expect(within(shown).getByText('device', { selector: 'code' })).toBeDefined()
+    expect(within(shown).queryByText(/\*\*sync\*\*/)).toBeNull()
+  }
 })
