@@ -120,6 +120,7 @@ public class RunTests(SofaApp sofa)
         Assert.Equal((3, retry), (third.Attempt, third.RetryOf));
         Assert.Equal(HttpStatusCode.OK, stopped.StatusCode);
         Assert.NotNull(thirdStopped.EndedAt);
+        Assert.Equal("Stopped by a User.", thirdStopped.Why);
         Assert.Equal(HttpStatusCode.Conflict, retryingTheStopped.StatusCode);
     }
 
