@@ -58,3 +58,5 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **The pull request's base.** A Work Item finishes when any pull request naming it is merged, whatever branch it merged into (from slice 8).
 - **An answer given in Sofa.** Answering a Question in Sofa leaves its comment open on the issue, so Intake still takes a later reply there as its answer, which Flow then ignores (from slice 8).
 - **The last Report is an edit.** The merge is reported by editing the Implement Report, which GitHub notifies nobody of (from slice 8).
+- **Triage can't look for duplicates.** A read-only Run's token can't read issues and its Sandbox allows no `gh issue`, so Triage can't search the Repository's issues as its instructions ask (from slice 8).
+- **Commands Claude Code asks about.** Shell loops, pipes into other commands, `VAR=… command` and `rm` ask for approval that no one gives, so a Run spends turns rephrasing them (from slice 8).
