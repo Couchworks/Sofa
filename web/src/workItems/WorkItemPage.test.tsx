@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterEach, expect, test, vi } from 'vitest'
 import { fakeGateway, renderWithQueries } from '@/test/fakeGateway'
 import { liveServer } from '@/test/liveServer'
-import { me } from '@/test/signedIn'
+import { me, workspaceId } from '@/test/signedIn'
 import {
   api,
   asking,
@@ -15,6 +15,8 @@ import {
   userNames,
   workItemApi,
 } from '@/test/workItems'
+import { RunActions } from './RunCard'
+import type { components } from '@/api/schema'
 import { WorkItemPage } from './WorkItemPage'
 
 vi.mock('@/auth/session', async () => (await import('@/test/signedIn')).signedInSession)
@@ -171,4 +173,22 @@ test('the page changes as its Work Item does, over the live connection', async (
 
   expect(await screen.findByText('Running')).toBeDefined()
   expect(screen.queryByRole('form', { name: "Answer DEMO-1's Question" })).toBeNull()
+})
+
+test('a Run a User stopped offers Retry, as one that failed does, and a finished one offers neither', async () => {
+  const { requests } = gateway(asking, {
+    [`POST ${api}/runs/run-stopped/retry`]: { body: runDetails('run-again', { state: 'Waiting', retryOf: 'run-stopped' }) },
+  })
+  renderWithQueries(
+    <>
+      <RunActions workspaceId={workspaceId} run={runDetails('run-stopped', { state: 'Stopped', why: 'Stopped by a User.' }) as components['schemas']['RunDetails']} />
+      <RunActions workspaceId={workspaceId} run={runDetails('run-finished') as components['schemas']['RunDetails']} />
+    </>,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+  await waitFor(() => expect(requests.some((request) => request.method === 'POST')).toBe(true))
+  expect(requests.find((request) => request.method === 'POST')!.url).toContain('/runs/run-stopped/retry')
+  expect(screen.getAllByRole('button')).toHaveLength(1)
 })
