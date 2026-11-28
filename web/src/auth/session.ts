@@ -37,11 +37,22 @@ export async function startSigningIn() {
     goTo(setupPath)
     return
   }
-  await userManager.signinRedirect()
+  await userManager.signinRedirect({ state: { returnTo: thePageBeingOpened() } })
 }
 
 export async function finishSigningIn() {
-  await userManager.signinRedirectCallback()
+  const user = await userManager.signinRedirectCallback()
+  return aPageOfThisSiteOrHome((user.state as { returnTo?: unknown } | undefined)?.returnTo)
+}
+
+function thePageBeingOpened() {
+  const { pathname, search, hash } = window.location
+  return pathname + search + hash
+}
+
+export function aPageOfThisSiteOrHome(returnTo: unknown) {
+  const isAPageOfThisSite = typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.startsWith('/\\')
+  return isAPageOfThisSite && !returnTo.startsWith(signedInPath) ? returnTo : '/'
 }
 
 export async function signOut() {
