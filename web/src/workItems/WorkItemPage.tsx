@@ -134,7 +134,7 @@ function TrackCard({ workspaceId, projectKey, workItem }: { workspaceId: string;
             {workItem.track
               ? `${workItem.track}, ${workItem.trackChosenByAUser ? 'chosen by a User' : 'picked by Triage'}.`
               : 'Triage picks it, unless you choose one first.'}{' '}
-            A change applies to the Phases still ahead.
+            {done ? 'It is done, so its Track no longer changes anything.' : 'A change applies to the Phases still ahead.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="mt-3 flex flex-wrap items-end gap-2">
