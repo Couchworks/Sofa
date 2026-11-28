@@ -89,7 +89,7 @@ function RunFacts({ workspaceId, run }: { workspaceId: string; run: Run }) {
 export function RunActions({ workspaceId, run }: { workspaceId: string; run: Run }) {
   const retrying = api.useMutation('post', '/api/workspaces/{workspaceId}/runs/{runId}/retry')
   const stopping = api.useMutation('post', '/api/workspaces/{workspaceId}/runs/{runId}/stop')
-  const mayBeRetried = (run.state === 'Failed' || run.state === 'Lost' || run.state === 'Refused') && !run.retriedBy
+  const mayBeRetried = (run.state === 'Failed' || run.state === 'Lost' || run.state === 'Refused' || run.state === 'Stopped') && !run.retriedBy
   const mayBeStopped = run.state === 'Waiting' || run.state === 'Running'
   const failure = retrying.error ?? stopping.error
 

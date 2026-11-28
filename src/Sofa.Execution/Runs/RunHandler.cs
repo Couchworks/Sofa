@@ -143,7 +143,7 @@ public static class RunHandler
         {
             return (RunAnswer.Refused(RunRefusal.NotNow, run.RetriedBy is { } retriedBy
                 ? $"The Run was already retried, as Run {retriedBy}."
-                : $"Only a Run that failed, was lost or was refused is retried; this one is {run.State}."), []);
+                : $"Only a Run that failed, was lost, was refused or was stopped is retried; this one is {run.State}."), []);
         }
 
         db.Runs.Add(retry);

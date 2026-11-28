@@ -72,7 +72,7 @@ public sealed class Run
 
     public bool IsRetriedOnItsOwn => State is (RunState.Failed or RunState.Lost) && RetriesLeft > 0;
 
-    public bool MayBeRetriedByAUser => State is (RunState.Failed or RunState.Lost or RunState.Refused) && RetriedBy is null;
+    public bool MayBeRetriedByAUser => State is (RunState.Failed or RunState.Lost or RunState.Refused or RunState.Stopped) && RetriedBy is null;
 
     public static Run From(StartRun start, DateTimeOffset now) => new()
     {
