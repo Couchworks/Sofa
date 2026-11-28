@@ -19,6 +19,7 @@ public sealed class SofaApp : IAsyncLifetime
 
     private static readonly TimeSpan QuickDeliverySweeps = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan QuickQueueLooks = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan RefreshedTwelveSecondsAfterTheFakesHourLongTokensAreIssued = TimeSpan.FromMinutes(60) - TimeSpan.FromSeconds(12);
     private const string EachTestRunStartsFresh = "--Sofa:FreshDatabaseEachStart=true";
 
     public DistributedApplication App { get; private set; } = null!;
@@ -64,7 +65,8 @@ public sealed class SofaApp : IAsyncLifetime
 
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Execution)
             .WithEnvironment("Workers__Image", StubWorker.Image)
-            .WithEnvironment("Workers__QueueLooksAgainEvery", QuickQueueLooks.ToString());
+            .WithEnvironment("Workers__QueueLooksAgainEvery", QuickQueueLooks.ToString())
+            .WithEnvironment("Workers__RefreshRepositoryTokenBefore", RefreshedTwelveSecondsAfterTheFakesHourLongTokensAreIssued.ToString());
 
         App = await builder.BuildAsync(cancellation.Token);
         await App.StartAsync(cancellation.Token);

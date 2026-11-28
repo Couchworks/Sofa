@@ -73,9 +73,14 @@ if (said) {
   print({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "toolu_say", content: said[1] }] } });
 }
 
+function repositoryToken() {
+  const file = "/tmp/sofa/github-token";
+  return existsSync(file) ? readFileSync(file, "utf8") : process.env.GH_TOKEN;
+}
+
 if (brief.includes("STUB: tell its secrets")) {
   print({ type: "assistant", message: { content: [{ type: "text",
-    text: `GH_TOKEN=${process.env.GH_TOKEN ?? "none"} ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ?? "none"}` }] } });
+    text: `GH_TOKEN=${repositoryToken() ?? "none"} ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ?? "none"}` }] } });
 }
 
 const reach = (host, port) => new Promise((resolve) => {
@@ -179,9 +184,13 @@ let ended = initialized;
 if (!initialized.error) {
   const listed = await call("tools/list", {});
   print({ type: "system", subtype: "stub_tools_offered", content: listed.error ?? (listed.result?.tools ?? []).map((tool) => tool.name).join(", ") });
-  await callTool("read_work_item", {});
+  const workItem = await callTool("read_work_item", {});
+  const workItemText = workItem.result?.content?.[0]?.text ?? "";
 
-  const asking = /STUB: ask (.+)/.exec(brief);
+  const askingOnce = /STUB: ask once (.+)/.exec(brief);
+  const asking = askingOnce
+    ? (workItemText.includes("**Answered") ? null : askingOnce)
+    : /STUB: ask (?!once )(.+)/.exec(brief);
   const outcome = /STUB: outcome (\S+)/.exec(brief)?.[1] ?? /^- `([^`]+)`:/m.exec(brief)?.[1];
   const attachments = [];
   if (brief.includes("STUB: attach a screenshot")) {

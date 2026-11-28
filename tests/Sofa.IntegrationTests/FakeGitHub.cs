@@ -43,6 +43,8 @@ public sealed class FakeGitHub : IAsyncDisposable
     public static readonly GitHubAccountOnFake Oz = new(5016, "oz-gh", "Oz", "oz@example.com");
     public static readonly GitHubAccountOnFake Pia = new(5017, "pia-gh", "Pia", "pia@example.com");
     public static readonly GitHubAccountOnFake Quinn = new(5018, "quinn-gh", "Quinn", "quinn@example.com");
+    public static readonly GitHubAccountOnFake Rae = new(5019, "rae-gh", "Rae", "rae@example.com");
+    public static readonly GitHubAccountOnFake Sam = new(5020, "sam-gh", "Sam", "sam@example.com");
 
     public static readonly RepositoryOnFake[] Repositories =
     [
@@ -52,7 +54,7 @@ public sealed class FakeGitHub : IAsyncDisposable
     ];
 
     private readonly ConcurrentDictionary<long, GitHubAccountOnFake> _accounts =
-        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max, Nia, Oz, Pia, Quinn }.Select(account => KeyValuePair.Create(account.Id, account)));
+        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max, Nia, Oz, Pia, Quinn, Rae, Sam }.Select(account => KeyValuePair.Create(account.Id, account)));
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
