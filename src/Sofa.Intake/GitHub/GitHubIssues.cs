@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Sofa.Intake.GitHub;
 
-public sealed class GitHubIssues(HttpClient gitHub, ConnectionsTokens tokens) : IRequestReporter, IRequestState
+public sealed class GitHubIssues(HttpClient gitHub, ConnectionsTokens tokens) : IRequestSource, IRequestReporter, IRequestState
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -17,6 +17,24 @@ public sealed class GitHubIssues(HttpClient gitHub, ConnectionsTokens tokens) : 
         http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         http.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
         http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Sofa", "1.0"));
+    }
+
+    public async Task<IssueNow?> ReadAsync(IssueRef issue, CancellationToken cancellation)
+    {
+        var token = await tokens.ToReadIssuesOfAsync(issue.ConnectionId, issue.Repository, cancellation);
+        using var request = new HttpRequestMessage(HttpMethod.Get, IssuePath(issue))
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+        };
+        using var response = await gitHub.SendAsync(request, cancellation);
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+        {
+            return null;
+        }
+
+        await EnsureSucceeded(response, cancellation);
+        var read = await response.Content.ReadFromJsonAsync<ReadIssue>(Json, cancellation);
+        return new IssueNow(read!.Title ?? "", read.Body ?? "", read.State ?? "open");
     }
 
     public async Task<CommentRef> PostAsync(IssueRef issue, string body, CancellationToken cancellation)
@@ -93,4 +111,6 @@ public sealed class GitHubIssues(HttpClient gitHub, ConnectionsTokens tokens) : 
     }
 
     private sealed record PostedComment(long Id);
+
+    private sealed record ReadIssue(string? Title, string? Body, string? State);
 }

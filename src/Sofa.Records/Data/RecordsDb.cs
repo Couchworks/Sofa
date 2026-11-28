@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sofa.Contracts;
+using Sofa.Records.Contributions;
 using Sofa.Records.Transcripts;
 
 namespace Sofa.Records.Data;
@@ -10,6 +11,10 @@ public sealed class RecordsDb(DbContextOptions<RecordsDb> options) : DbContext(o
     public static readonly string Schema = SofaServices.SchemaOf(SofaServices.Records);
 
     public DbSet<StoredTranscriptEntry> TranscriptEntries => Set<StoredTranscriptEntry>();
+
+    public DbSet<StoredContribution> Contributions => Set<StoredContribution>();
+
+    public DbSet<StoredAttachment> Attachments => Set<StoredAttachment>();
 
     public static void Configure(DbContextOptionsBuilder options, NpgsqlDataSource dataSource) =>
         options.UseNpgsql(dataSource, MigrationsInOwnSchema).UseSnakeCaseNamingConvention();
@@ -34,6 +39,29 @@ public sealed class RecordsDb(DbContextOptions<RecordsDb> options) : DbContext(o
             entry.Property(e => e.ToolInput).HasColumnType("jsonb");
             entry.HasIndex(e => new { e.WorkspaceId, e.RunId });
             entry.HasIndex(e => new { e.RunId, e.ToolUseId });
+        });
+
+        model.Entity<StoredContribution>(contribution =>
+        {
+            contribution.ToTable("contributions");
+            contribution.HasKey(c => c.RunId);
+            contribution.Property(c => c.Phase).HasConversion<string>().HasMaxLength(20);
+            contribution.Property(c => c.Outcome).HasMaxLength(ContributionRules.LongestOutcome);
+            contribution.Property(c => c.Markdown).HasMaxLength(Contracts.Execution.RunLimits.LongestContribution);
+            contribution.HasMany(c => c.Attachments).WithOne().HasForeignKey(a => a.RunId).OnDelete(DeleteBehavior.Cascade);
+            contribution.HasIndex(c => new { c.WorkspaceId, c.WorkItemId, c.MadeAt });
+            contribution.Ignore(c => c.Details);
+        });
+
+        model.Entity<StoredAttachment>(attachment =>
+        {
+            attachment.ToTable("contribution_attachments");
+            attachment.Property(a => a.Id).ValueGeneratedNever();
+            attachment.Property(a => a.Name).HasMaxLength(ContributionRules.LongestAttachmentName);
+            attachment.Property(a => a.ContentType).HasMaxLength(100);
+            attachment.Property(a => a.FileKey).HasMaxLength(500);
+            attachment.HasIndex(a => new { a.RunId, a.Position }).IsUnique();
+            attachment.Ignore(a => a.Details);
         });
     }
 }

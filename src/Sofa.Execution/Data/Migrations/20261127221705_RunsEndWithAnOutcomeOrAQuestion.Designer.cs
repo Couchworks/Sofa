@@ -12,8 +12,8 @@ using Sofa.Execution.Data;
 namespace Sofa.Execution.Data.Migrations;
 
 [DbContext(typeof(ExecutionDb))]
-[Migration("20261127221845_KeepTheWorkItemKeyOfARun")]
-partial class _20261127221845_KeepTheWorkItemKeyOfARun
+[Migration("20261127221705_RunsEndWithAnOutcomeOrAQuestion")]
+partial class _20261127221705_RunsEndWithAnOutcomeOrAQuestion
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -146,6 +146,11 @@ partial class _20261127221845_KeepTheWorkItemKeyOfARun
                     .HasColumnType("character varying(100)")
                     .HasColumnName("model");
 
+                b.Property<string>("Outcome")
+                    .HasMaxLength(50)
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("outcome");
+
                 b.Property<string>("Phase")
                     .IsRequired()
                     .HasMaxLength(20)
@@ -161,6 +166,15 @@ partial class _20261127221845_KeepTheWorkItemKeyOfARun
                 b.Property<Guid>("ProjectId")
                     .HasColumnType("uuid")
                     .HasColumnName("project_id");
+
+                b.Property<string>("Question")
+                    .HasMaxLength(4000)
+                    .HasColumnType("character varying(4000)")
+                    .HasColumnName("question");
+
+                b.Property<Guid?>("QuestionId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("question_id");
 
                 b.Property<DateTimeOffset>("QueuedAt")
                     .HasColumnType("timestamp with time zone")
@@ -207,11 +221,6 @@ partial class _20261127221845_KeepTheWorkItemKeyOfARun
                     .HasColumnType("character varying(20)")
                     .HasColumnName("state");
 
-                b.Property<string>("Summary")
-                    .HasMaxLength(4000)
-                    .HasColumnType("character varying(4000)")
-                    .HasColumnName("summary");
-
                 b.Property<string>("Vendor")
                     .IsRequired()
                     .HasMaxLength(20)
@@ -237,11 +246,6 @@ partial class _20261127221845_KeepTheWorkItemKeyOfARun
                     .HasColumnType("uuid")
                     .HasColumnName("work_item_id");
 
-                b.Property<string>("WorkItemKey")
-                    .HasMaxLength(21)
-                    .HasColumnType("character varying(21)")
-                    .HasColumnName("work_item_key");
-
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")
                     .HasColumnName("workspace_id");
@@ -263,6 +267,10 @@ partial class _20261127221845_KeepTheWorkItemKeyOfARun
 
                 b.ToTable("runs", "execution", t =>
                     {
+                        t.HasCheckConstraint("ck_runs_end_with_an_outcome_or_a_question", "outcome is null or question_id is null");
+
+                        t.HasCheckConstraint("ck_runs_questions_have_their_text", "(question_id is null) = (question is null)");
+
                         t.HasCheckConstraint("ck_runs_retries_left_within_the_limit", "retries_left >= 0 and retries_left <= retry_limit");
 
                         t.HasCheckConstraint("ck_runs_running_on_a_runner", "state <> 'Running' or runner_id is not null");

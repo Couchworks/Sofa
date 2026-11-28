@@ -12,4 +12,4 @@ A Run's Repository token comes from Code, which asks Connections for an installa
 - A forbidden push lands for the seconds until Code hears of it: checks and workflows on that branch may start. A Repository should still protect its main branch.
 - When several Runs could push to a Repository, all of them end, as the App's event can't say which one pushed.
 - An installation token lasts an hour; a Run running longer loses its access to GitHub, until tokens are refreshed for a running Run.
-- Code hands out Repository tokens over HTTP inside Sofa's network, as Connections does (ADR 0027); Workers can't reach it (ADR 0042).
+- Code hands out Repository tokens over HTTP inside Sofa's network, as Connections does (ADR 0027); Workers can't reach it (ADR 0045).

@@ -18,16 +18,16 @@ public class SandboxTests(SofaApp sofa)
     [Fact]
     public async Task A_finished_Runs_Transcript_is_read_as_entries_with_a_planted_secret_and_the_Runs_own_secrets_scrubbed()
     {
-        var (nia, niaId) = await _runs.UserOfTheirOwnAsync(FakeGitHub.Nia);
-        var apiKey = $"sk-ant-api03-nia-{Guid.NewGuid():N}";
-        await _runs.AddRunnerAsync(nia, "api-key", new { name = "Nia's key", apiKey, forTheTeam = false });
+        var (quinn, quinnId) = await _runs.UserOfTheirOwnAsync(FakeGitHub.Quinn);
+        var apiKey = $"sk-ant-api03-quinn-{Guid.NewGuid():N}";
+        await _runs.AddRunnerAsync(quinn, "api-key", new { name = "Quinn's key", apiKey, forTheTeam = false });
         var planted = "ghp_" + new string('P', 36);
 
-        var runId = await _runs.StartAsync(niaId, "Triage", $"STUB: say {planted} STUB: tell its secrets");
-        await _runs.UntilAsync(nia, runId, r => r.State == "Finished");
-        var transcript = await _runs.WholeTranscriptAsync(nia, runId);
-        var whole = await _runs.TranscriptAsync(nia, runId);
-        var sinceTheEnd = await _runs.TranscriptAsync(nia, runId, after: whole.ReadUpToLine);
+        var runId = await _runs.StartAsync(quinnId, "Triage", $"STUB: say {planted} STUB: tell its secrets");
+        await _runs.UntilAsync(quinn, runId, r => r.State == "Finished");
+        var transcript = await _runs.WholeTranscriptAsync(quinn, runId);
+        var whole = await _runs.TranscriptAsync(quinn, runId);
+        var sinceTheEnd = await _runs.TranscriptAsync(quinn, runId, after: whole.ReadUpToLine);
         var said = transcript.Single(e => e.Text?.StartsWith("The planted secret", StringComparison.Ordinal) == true);
         var call = transcript.Single(e => e.ToolName == "Bash");
         var told = transcript.Single(e => e.Text?.StartsWith("GH_TOKEN=", StringComparison.Ordinal) == true);
@@ -116,8 +116,8 @@ public class SandboxTests(SofaApp sofa)
     [Fact]
     public async Task A_Worker_container_reaches_the_Agent_Gateway_and_GitHub_but_no_other_port_of_the_box()
     {
-        var (nia, niaId) = await _runs.UserOfTheirOwnAsync(FakeGitHub.Nia);
-        await _runs.AddRunnerAsync(nia, "api-key", new { name = "Nia's other key", apiKey = $"sk-ant-api03-nia-other-{Guid.NewGuid():N}", forTheTeam = false });
+        var (quinn, quinnId) = await _runs.UserOfTheirOwnAsync(FakeGitHub.Quinn);
+        await _runs.AddRunnerAsync(quinn, "api-key", new { name = "Quinn's other key", apiKey = $"sk-ant-api03-quinn-other-{Guid.NewGuid():N}", forTheTeam = false });
         var boxPort = sofa.AddressOf(SofaServices.Execution).Port;
         var probes = new[]
         {
@@ -128,13 +128,13 @@ public class SandboxTests(SofaApp sofa)
             "tcp:@github.com:22",
         };
 
-        var runId = await _runs.StartAsync(niaId, "Triage", $"STUB: probe {string.Join(' ', probes)}");
-        var finished = await _runs.UntilAsync(nia, runId, r => r.State == "Finished");
-        var seen = (await _runs.WholeTranscriptAsync(nia, runId))
+        var runId = await _runs.StartAsync(quinnId, "Triage", $"STUB: probe {string.Join(' ', probes)}");
+        var finished = await _runs.UntilAsync(quinn, runId, r => r.State == "Finished");
+        var seen = (await _runs.WholeTranscriptAsync(quinn, runId))
             .Where(e => e.Text?.StartsWith("probe ", StringComparison.Ordinal) == true)
             .ToDictionary(e => e.Text!["probe ".Length..e.Text!.IndexOf(": ", StringComparison.Ordinal)], e => e.Text![(e.Text!.IndexOf(": ", StringComparison.Ordinal) + 2)..]);
 
-        Assert.Equal("The stub played back a recorded Run.", finished.Summary);
+        Assert.Equal("small", finished.Outcome);
         Assert.StartsWith("reached", seen["https://github.com"]);
         Assert.StartsWith("failed", seen["https://example.com"]);
         Assert.StartsWith("failed", seen[$"tcp:host.docker.internal:{boxPort}"]);

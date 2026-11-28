@@ -25,6 +25,8 @@ public sealed class SofaApp : IAsyncLifetime
 
     public FakeGitHub GitHub { get; private set; } = null!;
 
+    public string RecordsFiles { get; } = Path.Combine(Path.GetTempPath(), $"sofa-records-{Guid.NewGuid():N}");
+
     public async ValueTask InitializeAsync()
     {
         using var cancellation = new CancellationTokenSource(StartTimeout);
@@ -56,6 +58,9 @@ public sealed class SofaApp : IAsyncLifetime
 
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Code)
             .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString());
+
+        builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Records)
+            .WithEnvironment("Records__Files__Root", RecordsFiles);
 
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Execution)
             .WithEnvironment("Workers__Image", StubWorker.Image)
@@ -173,5 +178,9 @@ public sealed class SofaApp : IAsyncLifetime
         }
 
         await StubWorker.RemoveTheVolumesMadeAsync();
+        if (Directory.Exists(RecordsFiles))
+        {
+            Directory.Delete(RecordsFiles, recursive: true);
+        }
     }
 }

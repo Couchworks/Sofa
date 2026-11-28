@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Sofa.Records.Data.Migrations;
 
 /// <inheritdoc />
-public partial class _20261127221209_ConvertTranscriptsIntoEntries : Migration
+public partial class _20261128100643_ConvertTranscriptsIntoEntries : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)

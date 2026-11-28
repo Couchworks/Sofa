@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sofa.Contracts;
 using Sofa.Flow.Projects;
+using Sofa.Flow.Questions;
 using Sofa.Flow.WorkItems;
 
 namespace Sofa.Flow.Data;
@@ -14,6 +15,7 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
     public DbSet<Phase> Phases => Set<Phase>();
     public DbSet<Agent> Agents => Set<Agent>();
     public DbSet<WorkItem> WorkItems => Set<WorkItem>();
+    public DbSet<Question> Questions => Set<Question>();
 
     public static void Configure(DbContextOptionsBuilder options, NpgsqlDataSource dataSource) =>
         options.UseNpgsql(dataSource, MigrationsInOwnSchema).UseSnakeCaseNamingConvention();
@@ -52,6 +54,18 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
             workItem.HasIndex(w => new { w.ProjectId, w.Number }).IsUnique();
             workItem.HasIndex(w => w.RequestId).IsUnique();
             workItem.Ignore(w => w.Request);
+        });
+
+        model.Entity<Question>(question =>
+        {
+            question.Property(q => q.Id).ValueGeneratedNever();
+            question.Property(q => q.Phase).HasConversion<string>().HasMaxLength(20);
+            question.Property(q => q.Text).HasMaxLength(Contracts.Execution.RunLimits.LongestQuestion);
+            question.Property(q => q.Answer).HasMaxLength(QuestionRules.LongestAnswer);
+            question.HasOne<WorkItem>().WithMany().HasForeignKey(q => q.WorkItemId);
+            question.HasIndex(q => new { q.WorkItemId, q.AskedAt });
+            question.Ignore(q => q.IsOpen);
+            question.Ignore(q => q.Details);
         });
 
         model.Entity<Agent>(agent =>

@@ -42,6 +42,7 @@ public sealed class FakeGitHub : IAsyncDisposable
     public static readonly GitHubAccountOnFake Nia = new(5015, "nia-gh", "Nia", "nia@example.com");
     public static readonly GitHubAccountOnFake Oz = new(5016, "oz-gh", "Oz", "oz@example.com");
     public static readonly GitHubAccountOnFake Pia = new(5017, "pia-gh", "Pia", "pia@example.com");
+    public static readonly GitHubAccountOnFake Quinn = new(5018, "quinn-gh", "Quinn", "quinn@example.com");
 
     public static readonly RepositoryOnFake[] Repositories =
     [
@@ -51,7 +52,7 @@ public sealed class FakeGitHub : IAsyncDisposable
     ];
 
     private readonly ConcurrentDictionary<long, GitHubAccountOnFake> _accounts =
-        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max, Nia, Oz, Pia }.Select(account => KeyValuePair.Create(account.Id, account)));
+        new(new[] { Ada, Bea, Mallory, Carol, Dave, Erin, Fay, Gus, Hal, Ida, Jo, Kim, Lu, Max, Nia, Oz, Pia, Quinn }.Select(account => KeyValuePair.Create(account.Id, account)));
 
     private readonly RSA _appKey = RSA.Create(2048);
     private readonly WebApplication _server;
@@ -81,6 +82,11 @@ public sealed class FakeGitHub : IAsyncDisposable
     public ConcurrentQueue<RefChangeOnFake> RefChanges { get; } = new();
 
     public ConcurrentDictionary<(string Repository, long Number), PullRequestOnFake> PullRequests { get; } = new();
+
+    public ConcurrentDictionary<(string Repository, long Number), IssueOnFake> Issues { get; } = new();
+
+    public void Write(string repository, long number, string title, string body) =>
+        Issues[(repository, number)] = new IssueOnFake(title, body);
 
     private long _lastCommentId = 1_000_000;
 
@@ -176,6 +182,12 @@ public sealed class FakeGitHub : IAsyncDisposable
                     repositories = Repositories.Select(repository => new { full_name = repository.FullName, @private = repository.Private }),
                 })
                 : Results.Unauthorized());
+
+        _server.MapGet("/repos/{owner}/{repo}/issues/{number:long}", (string owner, string repo, long number, HttpRequest request) =>
+            !ByTheInstallation(request) ? Results.Unauthorized()
+            : Issues.TryGetValue(($"{owner}/{repo}", number), out var issue)
+                ? Results.Json(new { number, title = issue.Title, body = issue.Body, state = "open", html_url = $"https://github.com/{owner}/{repo}/issues/{number}" })
+                : Results.NotFound());
 
         _server.MapPost("/repos/{owner}/{repo}/issues/{number:long}/comments", async (string owner, string repo, long number, HttpRequest request) =>
         {
@@ -401,6 +413,8 @@ public sealed record GitHubAccountOnFake(long Id, string Login, string Name, str
 public sealed record RepositoryOnFake(string FullName, bool Private);
 
 public sealed record CommentOnFake(long Id, string Repository, long Number, string Body, int Edits);
+
+public sealed record IssueOnFake(string Title, string Body);
 
 public sealed record IssueChangeOnFake(string Repository, long Number, string Change);
 

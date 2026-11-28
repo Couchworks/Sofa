@@ -6,6 +6,11 @@ namespace Sofa.AgentGateway.Mcp;
 
 public static class OnlyWhileTheRunRuns
 {
+    private static readonly object ServedRun = new();
+
+    public static RunDetails RunServedTo(HttpContext http) =>
+        http.Items[ServedRun] as RunDetails ?? throw new InvalidOperationException("The Agent Gateway serves only a Run it checked is running.");
+
     public static IApplicationBuilder ServeRunsOnlyWhileTheyRun(this IApplicationBuilder app) =>
         app.UseWhen(
             http => http.Request.Path.StartsWithSegments(SofaTools.McpPath) && http.User.Identity?.IsAuthenticated == true,
@@ -25,6 +30,7 @@ public static class OnlyWhileTheRunRuns
                     return;
                 }
 
+                http.Items[ServedRun] = run;
                 await next(http);
             }));
 

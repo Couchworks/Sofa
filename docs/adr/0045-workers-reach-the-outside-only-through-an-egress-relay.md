@@ -10,7 +10,7 @@ A Worker container runs on an internal Docker network of its own, which has no r
 
 ## Consequences
 
-- The relay allows names, not Repositories: a Worker can reach any of GitHub, limited by its token (ADR 0041), and its vendor's API with any key.
+- The relay allows names, not Repositories: a Worker can reach any of GitHub, limited by its token (ADR 0044), and its vendor's API with any key.
 - This is tested on Docker Desktop, where an internal network reaches nothing. On Linux, depending on Docker's version, the box's address on the network's bridge may still answer, and needs checking there. Kubernetes will need a NetworkPolicy instead.
 - Execution needs the relay's image (`Workers:RelayImage`, nginx), pulled once like the Worker's.
 - `sofa runner login` runs outside this network, as signing in needs claude.ai.

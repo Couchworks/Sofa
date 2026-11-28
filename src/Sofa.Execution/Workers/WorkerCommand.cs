@@ -1,6 +1,7 @@
 using Sofa.Contracts.AgentGateway;
 using Sofa.Contracts.Code;
 using Sofa.Contracts.Execution;
+using Sofa.Contracts.Flow;
 using Sofa.Execution.Runners;
 using Sofa.Execution.Runs;
 
@@ -11,14 +12,15 @@ public sealed record RunSecrets(string RunToken, string? ApiKey, RepositoryToken
 public static class WorkerCommand
 {
     public const string WhereClaudeCodeKeepsItsSignIn = "/claude";
+    public const string WorkingDirectory = "/work";
+    public const int AttachmentOutsideTheWorkingDirectory = 3;
+    public const int NoSuchAttachment = 4;
     public const string GoAhead = "start";
     public const string DontStart = "stop";
     public const int ExitWithoutStarting = 75;
     public const string RunLabel = "sofa.run";
 
     public const string ContainerNamePrefix = "sofa-run-";
-
-    public const string WhereTheRunWorks = "/work";
 
     public static readonly IReadOnlyList<string> NeverReachable =
     [
@@ -68,7 +70,7 @@ public static class WorkerCommand
             ["SOFA_MCP_URL"] = new Uri(placement.AgentGateway, SofaTools.McpPath).ToString(),
             ["SOFA_RUN_TOKEN"] = secrets.RunToken,
             ["SOFA_RUN_ID"] = run.Id.ToString(),
-            ["SOFA_BRIEF"] = BriefFor(run.Brief, SofaTools.EveryRunsTools, secrets.Repositories),
+            ["SOFA_BRIEF"] = BriefFor(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase), secrets.Repositories),
             ["SOFA_MODEL"] = run.Model,
             ["GH_TOKEN"] = secrets.Repositories.Token,
             ["ENABLE_TOOL_SEARCH"] = "false",
@@ -93,12 +95,17 @@ public static class WorkerCommand
             placement.Network);
     }
 
-    public static string BriefFor(string brief, IReadOnlyList<SofaTool> tools, RepositoryToken repositories) =>
+    public static string BriefFor(string brief, IReadOnlyList<SofaTool> tools, IReadOnlyList<Outcome> outcomes, RepositoryToken repositories) =>
         $"""
         {brief.TrimEnd()}
 
         Sofa's tools for this Run are ready to call, with no need to search for them:
         {string.Join('\n', tools.Select(tool => $"- {tool.AsClaudeCodeNamesIt}: {tool.Purpose}"))}
+
+        The Outcomes this Phase's finish takes:
+        {string.Join('\n', outcomes.Select(outcome => $"- `{outcome.Name}`: {outcome.Meaning}"))}
+
+        Attach files by their paths in your working directory, {WorkingDirectory}.
 
         {WhatTheRunMayDoWith(repositories)}
         """;
@@ -109,4 +116,18 @@ public static class WorkerCommand
         + (repositories is { Access: RepositoryAccess.PushItsOwnBranch, PushesTo: { } branch }
             ? $". It may push only its own branch, {branch}: Sofa undoes a push to any other branch and ends the Run."
             : ". It may read them, never push.");
+
+    public static IReadOnlyList<string> CopyingOutAttachment(string path, long mostBytes) =>
+    [
+        "sh", "-c",
+        $$"""
+        cd {{WorkingDirectory}} || exit {{NoSuchAttachment}}
+        found=$(realpath -e -- "$1" 2>/dev/null) || exit {{NoSuchAttachment}}
+        case "$found" in {{WorkingDirectory}}/*) ;; *) exit {{AttachmentOutsideTheWorkingDirectory}} ;; esac
+        [ -f "$found" ] || exit {{NoSuchAttachment}}
+        exec head -c {{mostBytes + 1}} -- "$found"
+        """,
+        "sofa-attachment",
+        path,
+    ];
 }

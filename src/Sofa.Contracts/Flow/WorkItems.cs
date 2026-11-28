@@ -11,3 +11,24 @@ public sealed record WorkItemSummary(
 public sealed record WorkItemEnteredPhase(Guid WorkItemId, Guid WorkspaceId, Guid RequestId, string Key, PhaseName Phase);
 
 public sealed record WorkItemReachedMainBranch(Guid WorkItemId, Guid WorkspaceId, Guid RequestId, string Key);
+
+public sealed record WorkItemDetails(
+    Guid Id,
+    string Key,
+    string Title,
+    Guid ProjectId,
+    Guid RequestId,
+    RequestRef Request,
+    Guid? DelegatingUserId,
+    DateTimeOffset OpenedAt,
+    IReadOnlyList<QuestionDetails> Questions);
+
+public sealed record QuestionDetails(
+    Guid Id,
+    Guid RunId,
+    PhaseName Phase,
+    string Text,
+    DateTimeOffset AskedAt,
+    string? Answer,
+    Guid? AnsweredByUserId,
+    DateTimeOffset? AnsweredAt);

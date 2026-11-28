@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Sofa.Execution.Data.Migrations;
 
 /// <inheritdoc />
-public partial class _20261127221845_KeepTheWorkItemKeyOfARun : Migration
+public partial class _20261128100641_KeepTheWorkItemKeyOfARun : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)

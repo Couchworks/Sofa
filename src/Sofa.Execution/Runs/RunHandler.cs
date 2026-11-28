@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Sofa.Contracts.Execution;
+using Sofa.Contracts.Flow;
 using Sofa.Execution.Data;
 
 namespace Sofa.Execution.Runs;
@@ -28,18 +30,84 @@ public static class RunHandler
     }
 
     public static async Task<RunAnswer> Handle(
-        EndTestRun command, RunChanges changes, RunsInContainers containers, CancellationToken cancellation)
+        FinishRun command,
+        ExecutionDb db,
+        RunChanges changes,
+        RunsInContainers containers,
+        RecordsContributions records,
+        ILogger<FinishRun> logger,
+        CancellationToken cancellation)
     {
-        var (run, ended) = await changes.ChangeAsync(command.RunId, (r, now) => r.Finish(command.Summary.Trim(), now), cancellation);
-        if (ended)
+        if (await RunOfItsAgentAsync(db, command.RunId, command.AgentId, cancellation) is not { } run)
         {
-            containers.EndedByItsAgent(command.RunId);
+            return NoSuchRun;
         }
 
-        return run is null ? RunAnswer.Refused(RunRefusal.NotFound, "Sofa has no such Run.")
-            : ended ? RunAnswer.Done(run.Id)
-            : RunAnswer.Refused(RunRefusal.NotNow, RunRules.WhyItCannotEnd(run));
+        if (run.State != RunState.Running)
+        {
+            return RunAnswer.Refused(RunRefusal.NotNow, RunRules.WhyItCannotEnd(run));
+        }
+
+        if (RunRules.ProblemWith(command, run.Phase) is { } problem)
+        {
+            return RunAnswer.Refused(RunRefusal.Invalid, problem);
+        }
+
+        var attachments = new List<AttachmentCopied>();
+        foreach (var path in command.AttachmentPaths)
+        {
+            switch (await containers.CopyOutAsync(run.Id, path, cancellation))
+            {
+                case CopiedOut.Copied copied:
+                    attachments.Add(copied.Attachment);
+                    break;
+                case CopiedOut.Refused refused:
+                    return RunAnswer.Refused(RunRefusal.Invalid, refused.Why);
+            }
+        }
+
+        var outcome = PhaseOutcomes.Named(run.Phase, command.Outcome)!.Name;
+        await records.KeepAsync(run, outcome, command.Contribution, attachments, cancellation);
+        var (ended, finished) = await changes.ChangeAsync(run.Id, (r, now) => r.Finish(outcome, now), cancellation);
+        if (!finished)
+        {
+            logger.LogWarning("Run {RunId}'s Contribution is kept, but the Run ended otherwise before it finished: it is {State}",
+                run.Id, ended?.State);
+            return RunAnswer.Refused(RunRefusal.NotNow, RunRules.WhyItCannotEnd(ended!));
+        }
+
+        containers.EndedByItsAgent(run.Id);
+        return RunAnswer.Done(run.Id);
     }
+
+    public static async Task<RunAnswer> Handle(
+        EndRunWithQuestion command, ExecutionDb db, RunChanges changes, RunsInContainers containers, CancellationToken cancellation)
+    {
+        if (await RunOfItsAgentAsync(db, command.RunId, command.AgentId, cancellation) is null)
+        {
+            return NoSuchRun;
+        }
+
+        if (RunRules.ProblemWith(command) is { } problem)
+        {
+            return RunAnswer.Refused(RunRefusal.Invalid, problem);
+        }
+
+        var (run, asked) = await changes.ChangeAsync(command.RunId,
+            (r, now) => r.EndWithQuestion(command.QuestionId, command.Question.Trim(), now), cancellation);
+        if (!asked)
+        {
+            return RunAnswer.Refused(RunRefusal.NotNow, RunRules.WhyItCannotEnd(run!));
+        }
+
+        containers.EndedByItsAgent(command.RunId);
+        return RunAnswer.Done(command.RunId);
+    }
+
+    private static Task<Run?> RunOfItsAgentAsync(ExecutionDb db, Guid runId, Guid agentId, CancellationToken cancellation) =>
+        db.Runs.AsNoTracking().SingleOrDefaultAsync(r => r.Id == runId && r.AgentId == agentId, cancellation);
+
+    private static RunAnswer NoSuchRun => RunAnswer.Refused(RunRefusal.NotFound, "Sofa has no such Run.");
 
     public static async Task<RunAnswer> Handle(
         StopRun command, ExecutionDb db, RunChanges changes, RunsInContainers containers, CancellationToken cancellation)

@@ -465,6 +465,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/runs/{runId}/contribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Contribution the Run finished with: its Outcome, its Markdown and its attachments. */
+        get: operations["GetContribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/runs/{runId}/contribution/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One file attached to the Run's Contribution, such as a screenshot. */
+        get: operations["GetAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/runs/{runId}/retry": {
         parameters: {
             query?: never;
@@ -527,6 +561,19 @@ export interface components {
         AgentRegistrationState: "Pending" | "Registered" | "Refused";
         /** @enum {unknown} */
         AgentRole: "Triager" | "Lead" | "Builder";
+        AskedQuestion: {
+            /** Format: uuid */
+            questionId: string;
+            text: string;
+        };
+        AttachmentDetails: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            contentType: string;
+            /** Format: int64 */
+            size: number | string;
+        };
         CodeProviderBinding: {
             /** Format: uuid */
             connectionId: string;
@@ -545,6 +592,20 @@ export interface components {
             /** Format: date-time */
             addedAt: string;
             suspended: boolean;
+        };
+        ContributionDetails: {
+            /** Format: uuid */
+            runId: string;
+            /** Format: uuid */
+            workItemId: string;
+            phase: components["schemas"]["PhaseName"];
+            /** Format: uuid */
+            agentId: string;
+            outcome: string;
+            markdown: string;
+            attachments: components["schemas"]["AttachmentDetails"][];
+            /** Format: date-time */
+            madeAt: string;
         };
         DelegatingUser: {
             /** Format: uuid */
@@ -718,7 +779,8 @@ export interface components {
             /** Format: uuid */
             retriedBy: null | string;
             waitsForRetry: boolean;
-            summary: null | string;
+            outcome: null | string;
+            question: null | components["schemas"]["AskedQuestion"];
             /** Format: date-time */
             queuedAt: string;
             /** Format: date-time */
@@ -2321,6 +2383,107 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Transcript"];
                 };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetContribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                runId: string;
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {

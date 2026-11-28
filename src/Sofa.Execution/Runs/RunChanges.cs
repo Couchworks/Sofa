@@ -49,7 +49,7 @@ public sealed class RunChanges(IServiceScopeFactory scopes, TimeProvider time, R
             {
                 await scope.ServiceProvider.GetRequiredService<IMessageBus>().PublishAsync(run.Ended);
                 logger.LogInformation("Run {RunId} (attempt {Attempt}) ended {State}: {Why}{Retry}",
-                    run.Id, run.Attempt, run.State, run.Why ?? run.Summary,
+                    run.Id, run.Attempt, run.State, run.Why ?? (run.Outcome is { } outcome ? $"with Outcome {outcome}" : $"asking Question {run.QuestionId}"),
                     retry is null ? "" : $"; retried as Run {retry.Id}");
             }
 

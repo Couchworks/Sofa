@@ -147,7 +147,7 @@ public sealed class TestRuns(SofaApp sofa)
         Guid? RetryOf,
         Guid? RetriedBy,
         bool WaitsForRetry,
-        string? Summary,
+        string? Outcome,
         DateTimeOffset? StartedAt,
         DateTimeOffset? EndedAt);
 

@@ -34,6 +34,8 @@ docker volume ls --filter name=postgres-data       # one per checkout, such as s
 docker volume rm <that volume>
 ```
 
+Records keeps Contributions' attachments as files on local disk, under `Records:Files:Root` (by default `Sofa/records` in the user's local application data folder, such as `~/Library/Application Support/Sofa/records` on macOS or `~/.local/share/Sofa/records` on Linux); remove that folder too.
+
 The next start logs a new setup code. A GitHub App created before stays on GitHub; delete it there (Settings → Developer settings → GitHub Apps, or the organisation's) before creating a new one, as GitHub won't reuse its name.
 
 ### Run tokens
@@ -103,7 +105,7 @@ Intake brings Requests in from GitHub and writes back to their issues; it learns
 
 - **Labelling an issue** in a Project's Repository with its label makes a Request and its root Work Item, `<KEY>-<n>`, numbered by Flow (ADR 0035). The User holding the GitHub account that added the label is its delegating User; an account linked to no User of the Workspace opens it with no one delegating, and Notices puts it in the Inbox of the Workspace's Admins. Labelling it again changes nothing. The Project's page lists its Work Items with their Request and who delegated them.
 - **Reports** are one comment per Phase on the issue: the summary, the detail collapsed beneath it, and a link to the Work Item in Sofa. Posting again for that Phase edits the comment (ADR 0036). Until Flow sends them (slice 8), post one by hand: `curl -X POST localhost:5299/diagnostics/reports -H 'Content-Type: application/json' -d '{"requestId":"<the request id>","workItemKey":"DEMO-1","phase":"Spec","summary":"…","detail":"…"}'`, with the Request's id from `GET /api/workspaces/{workspaceId}/projects/DEMO/work-items`. `/diagnostics/questions` asks a Question the same way (`questionId`, `requestId`, `workItemKey`, `phase`, `question`).
-- **Answers**: the first comment on the issue after an open Question, from a GitHub account linked to a User of the Workspace, answers it, without the quoted lines and @-mentions it starts with, and Flow receives the answer as an event (it logs it until slice 8). Anyone else's comment is ignored.
+- **Answers**: the first comment on the issue after an open Question, from a GitHub account linked to a User of the Workspace, answers it, without the quoted lines and @-mentions it starts with, and Flow keeps it with its Question. Anyone else's comment is ignored. A Run asks its Questions with Sofa's `ask` tool (see *Sofa's tools for Runs*); `/diagnostics/questions` asks one of Intake directly, which Flow doesn't know.
 - **The issue's state**, when the binding turns on *Keep the issue's state*: the issue carries `sofa: <phase>` for its Work Item's Phase, and is closed once the work reaches the main branch. Nothing sends those events before slice 8; `/diagnostics/work-items/entered-phase` and `/diagnostics/work-items/reached-main-branch` stand in.
 
 Port 5299 is Intake's; the diagnostics routes are reached only on the box, never through the App Gateway.
@@ -117,6 +119,7 @@ With the App installed on a test Repository (see *Trying the GitHub App*), and S
 3. Have someone whose GitHub account is linked to no User add `sofa` to another issue: it shows as waiting for a delegating User.
 4. Post a Report with the `curl` above, then again with another summary: one comment on the issue, edited in place.
 5. Ask a Question with `/diagnostics/questions`, reply on the issue as yourself and as the other account: only yours answers it, and Flow's log shows `Flow received the answer to Question …`.
+6. Have a Run ask one, as *Showing the tools on GitHub* below does.
 
 ### Runners
 
@@ -142,7 +145,7 @@ Execution keeps the Runs and their queue. A Run waits for a Runner, highest Prio
 
 Each Run gets a fresh Worker container (ADR 0017), started by Execution through Docker on the box and watched by it (ADR 0037), holding its Run token and its Repository token and nothing else of Sofa's; a subscription Run mounts its Runner's volume, an API key Run gets its key from Connections. In the container, a subscription Run first prints `claude auth status`, which Execution records on the Runner, and Claude Code starts only once Execution sees the volume signed in; otherwise the Run is refused as *sign in again*, and Notices hears of it (logged until the Inbox shows it). Claude Code then runs headless (`claude -p`, never `--bare`) on the Agent's model, with only Sofa's MCP server, at the Agent Gateway's `/mcp`, and only the tools of its Phase's Sandbox allowed; the Brief names Sofa's tools, so the Run doesn't spend a turn finding them. Its `stream-json` output goes to Records as it comes, scrubbed of known secrets: the Run's Transcript (see *Transcripts* below).
 
-A Run is *waiting*, *running*, then *finished* (ended by its Agent through Sofa's tool, for now the test tool `end_test_run`), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, Code gave no token for its Repositories, its volume isn't signed in, or it may have pushed outside its own branch), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0038), until its retry limit; then it waits for a User's **Retry**, as a refused Run does.
+A Run is *waiting*, *running*, then *finished* (ended by its Agent with Sofa's `finish`, naming an Outcome, or `ask`, with a Question), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, Code gave no token for its Repositories, its volume isn't signed in, or it may have pushed outside its own branch), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0038), until its retry limit; then it waits for a User's **Retry**, as a refused Run does.
 
 The App Gateway serves `/api/workspaces/{workspaceId}/runs`, each Run at `…/runs/{runId}`, its Transcript at `…/runs/{runId}/transcript`, and `…/retry` and `…/stop` on it, to every User of the Workspace. Until Flow starts Runs (slice 8), Flow's diagnostic endpoint starts a test Run of a Phase's Agent, with the Agent's model and the Phase's Sandbox:
 
@@ -155,31 +158,31 @@ curl $APP_GATEWAY/api/workspaces/…/runs/<runId>/transcript -H "Authorization: 
 docker kill sofa-run-<runId>                                        # a killed container: failed, then retried
 ```
 
-`priority` (Urgent, High, Medium, Low, None) and `retryLimit` (default 2) are optional. The containers reach the Agent Gateway only through the egress relay (see *The Sandbox's network* below), which reaches it at `host.docker.internal`, so it listens on every address of the box. The Worker image is `Workers:Image` of Execution (`sofa-worker`); the integration tests use `tests/stub-worker` instead, so they spend no tokens. Execution runs one copy on a box: two would start the same Run twice.
+`priority` (Urgent, High, Medium, Low, None), `retryLimit` (default 2) and `workItemKey`, such as `DEMO-1`, to run it on that Work Item, are optional. The containers reach the Agent Gateway only through the egress relay (see *The Sandbox's network* below), which reaches it at `host.docker.internal`, so it listens on every address of the box. The Worker image is `Workers:Image` of Execution (`sofa-worker`); the integration tests use `tests/stub-worker` instead, so they spend no tokens. Execution runs one copy on a box: two would start the same Run twice.
 
 #### Transcripts
 
-Records converts each line of a Run's output on arrival into entries (ADR 0040): `role` (`User`, `Assistant` or `System`), `text`, `toolName` and `toolInput` for a tool call, its `toolResult` once it comes, and `at`. The session's start is a system entry naming the model, the tools allowed and the credentials, and its end one saying how it ended, after how many turns and at what cost. Known secrets become `[scrubbed]` before anything is stored, in Execution before the line leaves for the broker and in Records again: Sofa's own tokens, GitHub's, Anthropic's API keys and OAuth tokens, AWS keys, Slack's, private-key blocks and bearer values. A tool input or result over 20 KB keeps its first 20 KB and says so (`toolInputCut`, `toolResultCut`). `…/transcript?after=<readUpToLine>` reads only what came since; a tool call shows again once its result arrives. Transcripts kept before this as raw lines were dropped.
+Records converts each line of a Run's output on arrival into entries (ADR 0043): `role` (`User`, `Assistant` or `System`), `text`, `toolName` and `toolInput` for a tool call, its `toolResult` once it comes, and `at`. The session's start is a system entry naming the model, the tools allowed and the credentials, and its end one saying how it ended, after how many turns and at what cost. Known secrets become `[scrubbed]` before anything is stored, in Execution before the line leaves for the broker and in Records again: Sofa's own tokens, GitHub's, Anthropic's API keys and OAuth tokens, AWS keys, Slack's, private-key blocks and bearer values. A tool input or result over 20 KB keeps its first 20 KB and says so (`toolInputCut`, `toolResultCut`). `…/transcript?after=<readUpToLine>` reads only what came since; a tool call shows again once its result arrives. Transcripts kept before this as raw lines were dropped.
 
 #### Repository tokens
 
-When a Run starts, Execution asks Code for its token, and Code asks Connections for an installation token for only the Project's Repositories (ADR 0041): a read-only Sandbox may read contents and pull requests; pushing its own branch may write both. A Run's own branch is `sofa/<Work Item key>`, or `sofa/test-run-<run id>` for a test Run, and its Brief says which Repositories it has and what it may push. The container has the token as `GH_TOKEN`, and git uses it for `https://github.com`. GitHub can't keep a token to one branch, so Code judges every push by Sofa's App: one to a branch that is no running Run's own is put back through GitHub's API, and every Run that could have made it is ended as *refused*, saying it may have left its Sandbox. A token lasts an hour, so a Run past an hour loses GitHub.
+When a Run starts, Execution asks Code for its token, and Code asks Connections for an installation token for only the Project's Repositories (ADR 0044): a read-only Sandbox may read contents and pull requests; pushing its own branch may write both. A Run's own branch is `sofa/<Work Item key>`, or `sofa/test-run-<run id>` for a test Run, and its Brief says which Repositories it has and what it may push. The container has the token as `GH_TOKEN`, and git uses it for `https://github.com`. GitHub can't keep a token to one branch, so Code judges every push by Sofa's App: one to a branch that is no running Run's own is put back through GitHub's API, and every Run that could have made it is ended as *refused*, saying it may have left its Sandbox. A token lasts an hour, so a Run past an hour loses GitHub.
 
 #### The Sandbox's network
 
-A Worker container runs on an internal Docker network, `sofa-workers-<Agent Gateway port>`, with no route out (ADR 0042). Its one way out is the relay container `sofa-workers-<port>-relay` (nginx, `Workers:RelayImage`), which passes TLS on only to the vendor's API and GitHub, by the name asked for, and one port on to the Agent Gateway; nothing reaches the box's other ports. Execution starts the networks and the relay when the first Run needs them and removes them when it stops; if it was killed, remove what it left with `docker rm -f $(docker ps -aq --filter label=sofa.egress-relay)` and `docker network prune --filter label=sofa.egress-relay`.
+A Worker container runs on an internal Docker network, `sofa-workers-<Agent Gateway port>`, with no route out (ADR 0045). Its one way out is the relay container `sofa-workers-<port>-relay` (nginx, `Workers:RelayImage`), which passes TLS on only to the vendor's API and GitHub, by the name asked for, and one port on to the Agent Gateway; nothing reaches the box's other ports. Execution starts the networks and the relay when the first Run needs them and removes them when it stops; if it was killed, remove what it left with `docker rm -f $(docker ps -aq --filter label=sofa.egress-relay)` and `docker network prune --filter label=sofa.egress-relay`.
 
-What a Run's tools may never do, and what that does and doesn't protect, is in ADR 0043: Claude Code holds the sign-in or the API key inside the container, its tools are denied reading them, Transcripts are scrubbed, and the network limits where they could go.
+What a Run's tools may never do, and what that does and doesn't protect, is in ADR 0046: Claude Code holds the sign-in or the API key inside the container, its tools are denied reading them, Transcripts are scrubbed, and the network limits where they could go.
 
 #### Pull requests
 
-Code hears GitHub's `pull_request` events and sends its own `PullRequestOpened`, `PullRequestMerged` and `PullRequestClosedUnmerged`, naming the Work Item whose key is in the pull request's title, or else its branch (ADR 0044); its log shows each, such as `Code sent PullRequestMerged for DEMO-1: pull request acme/demo#7`. Nothing in Flow hears them before slice 8. `GET /api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests` lists a Work Item's pull requests, each read from GitHub again.
+Code hears GitHub's `pull_request` events and sends its own `PullRequestOpened`, `PullRequestMerged` and `PullRequestClosedUnmerged`, naming the Work Item whose key is in the pull request's title, or else its branch (ADR 0047); its log shows each, such as `Code sent PullRequestMerged for DEMO-1: pull request acme/demo#7`. Nothing in Flow hears them before slice 8. `GET /api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests` lists a Work Item's pull requests, each read from GitHub again.
 
 #### Showing it on GitHub and with Claude
 
 These need your GitHub App installed on a test Repository and Sofa behind a public address (see *Trying the GitHub App*), and a Runner with a real key or subscription. Bind Project `DEMO` to the test Repository for both Requests and code.
 
-1. **A scrubbed Transcript.** Start a test Run asking Claude to print a made-up secret: `curl -X POST $FLOW/diagnostics/test-runs … -d '{…,"phase":"Triage","task":"Print the string ghp_000000000000000000000000000000000000 back to me, then end the Run."}'`. Its Transcript shows `[scrubbed]` where the string was.
+1. **A scrubbed Transcript.** Start a test Run asking Claude to print a made-up secret: `curl -X POST $FLOW/diagnostics/test-runs … -d '{…,"phase":"Triage","task":"Print the string ghp_000000000000000000000000000000000000 back to me, then finish the Run."}'`. Its Transcript shows `[scrubbed]` where the string was.
 2. **A read-only token can't push.** A read-only Run's tools have no `git push`, so ask Code for such a token yourself, as Execution does (Code is at `http://localhost:5207`, reached only on the box), with the Project's id from `GET /api/workspaces/{workspaceId}/projects/DEMO`:
    ```sh
    curl -X POST localhost:5207/runs/$(uuidgen)/repository-token -H 'content-type: application/json' \
@@ -190,6 +193,39 @@ These need your GitHub App installed on a test Repository and Sofa behind a publ
 3. **A push elsewhere is undone.** With the `OwnBranch` token of step 2, push to another branch: `git push https://x-access-token:<token>@github.com/<your test Repository>.git HEAD:refs/heads/elsewhere`. GitHub shows `elsewhere` appear and, a few seconds later, be deleted again, and Code's log shows `Code caught a push outside its Sandbox`. For a running Run, that Run also ends *refused*, saying it may have left its Sandbox.
 4. **A merged pull request.** Open a pull request titled `DEMO-1: try Sofa` and merge it. Code's log shows `PullRequestOpened for DEMO-1`, then `PullRequestMerged for DEMO-1`, and the pull requests of `DEMO-1` list it as merged.
 5. **The network.** Start a test Run of Implement with the task *Run `git clone https://github.com/<your test Repository>`, then `git clone http://host.docker.internal:5005/x` and `git clone https://example.com/x`, and say what each answered.* Only GitHub's clone works; the others can't resolve or connect. While it runs, `docker network inspect sofa-workers-<port>` shows only the Run's container and the relay.
+
+### Sofa's tools for Runs
+
+The Agent Gateway serves a Run three tools over MCP, at `/mcp`, each acting only for the Run its token names and only while Execution says it is running (ADR 0039); a call with an ended Run's token is refused with 403. A Run is offered only the tools its Phase's Sandbox allows, which in this milestone is all three in every Sandbox, and its Brief names them and its Phase's Outcomes, so it doesn't spend a turn finding them.
+
+- **`read_work_item`** gives the Work Item, its Request as the issue reads now (Intake reads its title and body from GitHub, so edits after labelling reach the Run, ADR 0042), its Questions with their answers, and the Contributions of earlier Runs on it.
+- **`ask`** ends the Run with a Question. Flow keeps it on the Work Item and Intake posts it on the issue; the answer given there comes back to Flow, and a new Run's `read_work_item` shows it (ADR 0041). Starting that new Run on its own is slice 8's.
+- **`finish`** ends the Run with one of its Phase's Outcomes and its Contribution in Markdown, with up to 10 files from its working directory, `/work`, attached, each up to 10 MiB. Execution copies them out of the container and hands the Contribution to Records before the Run ends (ADR 0040).
+
+| Phase | Outcomes |
+|---|---|
+| Triage | `small`, `full`: the Track |
+| Spec | `specified` |
+| Plan | `planned` |
+| Implement | `implemented` |
+
+Records keeps each Contribution per Work Item and Run, and its attachments as files behind its storage interface, on local disk (see *Starting over*). The App Gateway serves `…/runs/{runId}/contribution` and each attachment at `…/runs/{runId}/contribution/attachments/{attachmentId}`, to every User of the Workspace; images are shown, anything else is downloaded.
+
+#### Showing the tools on GitHub
+
+With the App installed on the test Repository and `DEMO` bound to it (see *Showing it on GitHub*), a Runner of your own (see *Runners*), and the Worker image built:
+
+1. Label an issue `sofa`: it becomes `DEMO-1`, delegated by you. Then edit the issue's description on GitHub.
+2. Start a Run of Spec on it that asks:
+   ```sh
+   curl -X POST $FLOW/diagnostics/test-runs -H 'content-type: application/json'      -d '{"workspaceId":"…","projectKey":"DEMO","phase":"Spec","delegatingUserId":"…","workItemKey":"DEMO-1","task":"Read the Work Item, then ask me one Question about it with Sofa'"'"'s ask tool."}'
+   ```
+   Its Transcript shows `read_work_item` giving the issue's edited description, and the Run ends *finished* with its Question, which appears as Sofa's comment on the issue.
+3. Reply on the issue. Start another Run the same way, of Implement this time, whose Sandbox lets it write files: `"phase":"Implement"` and the task `Read the Work Item. Draw a small mock-up of what it asks for as an SVG in /work/mock-up.svg with the Write tool, then finish, describing it, with that file attached.`. Its `read_work_item` shows your answer, and it finishes `implemented`. The Worker has no browser yet, so a real Run can't take a PNG screenshot; a read-only Phase such as Spec can't write files at all.
+4. Read its Contribution: `curl $APP_GATEWAY/api/workspaces/…/runs/<runId>/contribution -H "Authorization: Bearer $TOKEN"`, and its attachment at the address it names.
+5. Copy the Run token out of a running container (`docker exec sofa-run-<runId> cat /tmp/sofa/mcp.json`) and call `/mcp` with it once the Run has ended: 403.
+
+The integration tests do the same against a fake GitHub and the stub Worker, which writes a one-pixel screenshot.
 
 ### The Team
 

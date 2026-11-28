@@ -17,7 +17,7 @@ partial class FlowDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127202423_HearAgentRegistrations";
+    public override string LastMigrationId => "20261127220937_Questions";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -220,6 +220,62 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                 b.ToTable("projects", "flow");
             });
 
+        modelBuilder.Entity("Sofa.Flow.Questions.Question", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<string>("Answer")
+                    .HasMaxLength(65536)
+                    .HasColumnType("character varying(65536)")
+                    .HasColumnName("answer");
+
+                b.Property<DateTimeOffset?>("AnsweredAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("answered_at");
+
+                b.Property<Guid?>("AnsweredByUserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("answered_by_user_id");
+
+                b.Property<DateTimeOffset>("AskedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("asked_at");
+
+                b.Property<string>("Phase")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("phase");
+
+                b.Property<Guid>("RunId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("run_id");
+
+                b.Property<string>("Text")
+                    .IsRequired()
+                    .HasMaxLength(4000)
+                    .HasColumnType("character varying(4000)")
+                    .HasColumnName("text");
+
+                b.Property<Guid>("WorkItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("work_item_id");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_questions");
+
+                b.HasIndex("WorkItemId", "AskedAt")
+                    .HasDatabaseName("ix_questions_work_item_id_asked_at");
+
+                b.ToTable("questions", "flow");
+            });
+
         modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>
             {
                 b.Property<Guid>("Id")
@@ -318,6 +374,16 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.Restrict)
                     .IsRequired()
                     .HasConstraintName("fk_phases_agents_project_id_cast_agent_id");
+            });
+
+        modelBuilder.Entity("Sofa.Flow.Questions.Question", b =>
+            {
+                b.HasOne("Sofa.Flow.WorkItems.WorkItem", null)
+                    .WithMany()
+                    .HasForeignKey("WorkItemId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_questions_work_items_work_item_id");
             });
 
         modelBuilder.Entity("Sofa.Flow.WorkItems.WorkItem", b =>

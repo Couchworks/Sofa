@@ -31,6 +31,11 @@ builder.Services.AddHttpClient<RunTokenClient>(identity => identity.BaseAddress 
 builder.Services.AddHttpClient<IdentityTeams>(identity => identity.BaseAddress = IdentityTeams.Address);
 builder.Services.AddHttpClient<ConnectionsApiKeys>(connections => connections.BaseAddress = ConnectionsApiKeys.Address);
 builder.Services.AddHttpClient<CodeRepositoryTokens>(code => code.BaseAddress = CodeRepositoryTokens.Address);
+builder.Services.AddHttpClient<RecordsContributions>(records =>
+{
+    records.BaseAddress = RecordsContributions.Address;
+    records.Timeout = RecordsContributions.TakesAtMost;
+}).RemoveAllResilienceHandlers();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section);
 builder.Services.AddSingleton<IWorkerContainers, DockerWorkerContainers>();
 builder.Services.AddSingleton<IWorkerNetwork, DockerWorkerNetwork>();

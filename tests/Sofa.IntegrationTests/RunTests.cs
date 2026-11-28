@@ -25,10 +25,11 @@ public class RunTests(SofaApp sofa)
         var signedIn = (await RunnersSeenByAsync(fay)).Single(r => r.Id == runner.Id).SignIn!;
 
         Assert.Equal(runner.Id, run.RunnerId);
-        Assert.Equal("The stub played back a recorded Run.", run.Summary);
+        Assert.Equal("small", run.Outcome);
         Assert.Contains("started on haiku.", start);
         Assert.Contains("Credentials: none.", start);
-        Assert.Contains("mcp__sofa__end_test_run", start);
+        Assert.Contains("mcp__sofa__finish", start);
+        Assert.DoesNotContain("mcp__sofa__end_test_run", start);
         Assert.DoesNotContain("Edit", start);
         Assert.StartsWith("Ended: success", transcript.Last().Text);
         Assert.DoesNotContain(transcript, entry => entry.Everything.Contains("stub@example.com", StringComparison.Ordinal));
