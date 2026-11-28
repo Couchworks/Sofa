@@ -20,6 +20,7 @@ Choices that aren't ADRs but shouldn't be reopened without reason.
 Each is usable before the next starts.
 
 1. **One agent, one Request.** *Built* (#1–#12): its demo ran end to end from the web client on real GitHub. Spec: `docs/specs/milestone-1.md`. A GitHub label brings a Request in; Triage, Spec and Plan run Solo and Implement opens a pull request to the main branch. Runs use Claude Code in a fresh Worker container on either an API key or the delegating User's own subscription (ADR 0009). Reports go back to the issue; Contributions and transcripts are kept in Records; a minimal web Inbox answers Questions and Approve Gates. Aspire, Identity, Connections (the GitHub App) and both Gateways as far as this needs.
+1b. **Ready for real projects.** The Known gaps that stop Sofa on a small real Project: package registries, everyday shell commands, conflicting pull requests, the pull request's base, the last Report, a Track changed to Full, and an intermittent test. Spec: `docs/specs/milestone-1b.md`.
 2. **Claude Code on the web.** A personal Runner firing a User's claude.ai routines, one per model (ADR 0021); Sofa reachable over public HTTPS with OAuth for MCP connectors; Local-only Requests kept off it.
 3. **Many agents.** Panel, Synthesis, Discussion and Review-and-triage; Split into child Work Items; Integration branches and the merge queue; Findings.
 4. **Validate.** Previews from Deployments, Showcase and the Validation guide, the Gated and Autonomous Validation modes, Stacks and accepting part of one, Corrections.
