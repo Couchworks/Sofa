@@ -107,8 +107,9 @@ Each slice is built and shown working before the next one that depends on it. Sl
 - Briefs: Sofa's preamble, the Phase's instructions for the Agent's role, the Work Item's key.
 - Implement's Builder pushes its branch and opens a pull request to the main branch with the Work Item's key in its title; Code reports it.
 - The Work Item finishes when Code reports its pull request merged; a pull request closed unmerged sends it to its delegating User's Inbox.
+- Screenshots: the Worker image gains a headless browser, and Implement's Sandbox lets its Run build and start the Project's software and screenshot it, so the Builder attaches a PNG of what it changed to its Contribution (step 6 of the demo). Where the browser runs and what the Sandbox allows gets an ADR.
 
-**Shown when:** the demo runs end to end, driven through the API.
+**Shown when:** the demo runs end to end, driven through the API, with a real screenshot attached by Implement.
 
 ### 9. Records and Code
 
