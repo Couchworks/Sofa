@@ -14,4 +14,6 @@ public static class SofaEvents
     public const string PullRequestMerged = "pull-request-merged";
     public const string PullRequestClosedUnmerged = "pull-request-closed-unmerged";
     public const string PushOutsideItsSandboxCaught = "push-outside-its-sandbox-caught";
+    public const string WorkItemAwaitsUser = "work-item-awaits-user";
+    public const string WorkItemNoLongerAwaitsUser = "work-item-no-longer-awaits-user";
 }
