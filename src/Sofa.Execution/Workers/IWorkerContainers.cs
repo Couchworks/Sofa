@@ -30,7 +30,11 @@ public interface IWorkerContainer : IAsyncDisposable
 
     Task<WorkerExit> WaitForExitAsync(CancellationToken cancellation);
 
-    Task<OutputInside> RunInsideAsync(IReadOnlyList<string> command, long mostBytesRead, CancellationToken cancellation);
+    Task<OutputInside> RunInsideAsync(
+        IReadOnlyList<string> command,
+        long mostBytesRead,
+        CancellationToken cancellation,
+        IReadOnlyDictionary<string, string>? environment = null);
 
     Task StopAsync(CancellationToken cancellation);
 }

@@ -18,7 +18,7 @@ public sealed class RepositoryGrant
 
     public required DateTimeOffset IssuedAt { get; init; }
 
-    public required DateTimeOffset ExpiresAt { get; init; }
+    public required DateTimeOffset ExpiresAt { get; set; }
 
     public DateTimeOffset? RunEndedAt { get; set; }
 }

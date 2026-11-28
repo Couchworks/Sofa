@@ -35,7 +35,18 @@ public static class WorkerCommand
         "Bash(git diff --no-index:*)",
     ];
 
+    public const string RepositoryTokenFile = "/tmp/sofa/github-token";
+    public const string GitHubCliConfiguration = "/tmp/sofa/gh";
+    public const string FreshRepositoryToken = "SOFA_FRESH_GITHUB_TOKEN";
+
     public static string ContainerNameOf(Guid runId) => $"{ContainerNamePrefix}{runId}";
+
+    public static string KeepingTheRepositoryToken(string variable) =>
+        $$"""
+        mkdir -p {{GitHubCliConfiguration}}
+        printf '%s' "${{variable}}" > {{RepositoryTokenFile}}.next && mv -f {{RepositoryTokenFile}}.next {{RepositoryTokenFile}}
+        printf 'github.com:\n    oauth_token: %s\n    user: x-access-token\n    git_protocol: https\n' "${{variable}}" > {{GitHubCliConfiguration}}/hosts.yml.next && mv -f {{GitHubCliConfiguration}}/hosts.yml.next {{GitHubCliConfiguration}}/hosts.yml
+        """;
 
     public static readonly string Script = $$"""
         set -u
@@ -43,8 +54,10 @@ public static class WorkerCommand
         mkdir -p /tmp/sofa
         printf '{"mcpServers":{"{{SofaTools.Server}}":{"type":"http","url":"%s","headers":{"Authorization":"Bearer %s"} } } }' "$SOFA_MCP_URL" "$SOFA_RUN_TOKEN" > /tmp/sofa/mcp.json
         unset SOFA_RUN_TOKEN
+        {{KeepingTheRepositoryToken("GH_TOKEN")}}
+        unset GH_TOKEN
         if command -v git >/dev/null 2>&1; then
-          git config --global credential.https://github.com.helper '!f() { test "$1" = get && echo username=x-access-token && echo "password=$GH_TOKEN"; }; f'
+          git config --global credential.https://github.com.helper '!f() { test "$1" = get && echo username=x-access-token && echo "password=$(cat {{RepositoryTokenFile}})"; }; f'
           git config --global user.name "Sofa Run $SOFA_RUN_ID"
           git config --global user.email "run-$SOFA_RUN_ID@runs.sofa.invalid"
         fi
@@ -73,6 +86,9 @@ public static class WorkerCommand
             ["SOFA_BRIEF"] = BriefFor(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase), secrets.Repositories),
             ["SOFA_MODEL"] = run.Model,
             ["GH_TOKEN"] = secrets.Repositories.Token,
+            ["GH_CONFIG_DIR"] = GitHubCliConfiguration,
+            ["GH_PROMPT_DISABLED"] = "1",
+            ["GH_NO_UPDATE_NOTIFIER"] = "1",
             ["ENABLE_TOOL_SEARCH"] = "false",
             ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1",
         };
@@ -116,6 +132,16 @@ public static class WorkerCommand
         + (repositories is { Access: RepositoryAccess.PushItsOwnBranch, PushesTo: { } branch }
             ? $". It may push only its own branch, {branch}: Sofa undoes a push to any other branch and ends the Run."
             : ". It may read them, never push.");
+
+    public static IReadOnlyList<string> ReplacingTheRepositoryToken() =>
+    [
+        "sh", "-c",
+        $"""
+        set -eu
+        umask 077
+        {KeepingTheRepositoryToken(FreshRepositoryToken)}
+        """,
+    ];
 
     public static IReadOnlyList<string> CopyingOutAttachment(string path, long mostBytes) =>
     [

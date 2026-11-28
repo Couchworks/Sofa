@@ -35,6 +35,13 @@ public static class RepositoryTokenEndpoints
             return Results.Problem(statusCode: StatusCodes.Status422UnprocessableEntity, title: branchProblem);
         }
 
+        var granted = await db.Grants.FindAsync([runId], cancellation);
+        if (granted is { RunEndedAt: not null })
+        {
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "The Run has ended, so Code hands it no Repository token.");
+        }
+
         var binding = await db.Bindings.SingleOrDefaultAsync(
             b => b.ProjectId == request.ProjectId && b.WorkspaceId == request.WorkspaceId, cancellation);
         if (binding is null && await flow.CurrentAsync(request.WorkspaceId, request.ProjectId, cancellation) is { } bound)
@@ -57,7 +64,12 @@ public static class RepositoryTokenEndpoints
         }
 
         var pushesTo = access.Access == RepositoryAccess.PushItsOwnBranch ? request.OwnBranch : null;
-        if (await db.Grants.FindAsync([runId], cancellation) is null)
+        if (granted is not null)
+        {
+            granted.ExpiresAt = token.ExpiresAt;
+            await db.SaveChangesAsync(cancellation);
+        }
+        else
         {
             db.Grants.Add(new RepositoryGrant
             {

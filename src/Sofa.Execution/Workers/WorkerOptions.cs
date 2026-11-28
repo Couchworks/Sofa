@@ -16,5 +16,7 @@ public sealed class WorkerOptions
 
     public TimeSpan GraceAfterTheRunEnds { get; set; } = TimeSpan.FromSeconds(30);
 
+    public TimeSpan RefreshRepositoryTokenBefore { get; set; } = TimeSpan.FromMinutes(10);
+
     public TimeSpan QueueLooksAgainEvery { get; set; } = TimeSpan.FromSeconds(5);
 }
