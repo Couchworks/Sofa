@@ -33,7 +33,7 @@ public static class WorkItemEndpoints
         return Results.Ok(new WorkItemDetails(
             workItem.Id, workItem.Key, workItem.Title, workItem.ProjectId, workItem.RequestId, workItem.Request,
             workItem.DelegatingUserId, workItem.OpenedAt, questions.Select(q => q.Details).ToList(),
-            workItem.State, workItem.Phase, workItem.Track, workItem.Waiting,
+            workItem.State, workItem.Phase, workItem.Track, workItem.TrackChosenByAUser, workItem.Waiting,
             workItem.Runs.OrderBy(r => r.StartedAt).ThenBy(r => r.RunId).Select(r => r.Details).ToList(),
             workItem.PhaseEnds.OrderBy(e => e.EndedAt).Select(e => e.Details).ToList(),
             workItem.PullRequest, workItem.DoneAt));

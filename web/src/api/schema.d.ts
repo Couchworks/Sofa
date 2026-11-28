@@ -380,6 +380,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Puts the Work Item on another Track; it applies to the Phases still ahead of it, and Triage no longer picks one. */
+        put: operations["ChangeTrack"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/questions/{questionId}/answer": {
         parameters: {
             query?: never;
@@ -618,6 +635,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/user-names": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Users of the Workspace by name, to say who delegated, answered or decided something. */
+        get: operations["GetUserNames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -728,6 +762,7 @@ export interface components {
             /** Format: uuid */
             subjectId: string;
             projectKey: string;
+            workItemKey: null | string;
             title: string;
             detail: string;
             url: string;
@@ -983,6 +1018,9 @@ export interface components {
         };
         /** @enum {unknown} */
         Track: "Small" | "Full" | null;
+        TrackChange: {
+            track: components["schemas"]["Track"];
+        };
         Transcript: {
             /** Format: uuid */
             runId: string;
@@ -1079,6 +1117,7 @@ export interface components {
             state: components["schemas"]["WorkItemState"];
             phase: null | components["schemas"]["PhaseName"];
             track: null | components["schemas"]["Track"];
+            trackChosenByAUser: boolean;
             waiting: null | components["schemas"]["WaitDetails"];
             runs: components["schemas"]["WorkItemRunDetails"][];
             phaseEnds: components["schemas"]["PhaseEndDetails"][];
@@ -2384,6 +2423,71 @@ export interface operations {
             };
         };
     };
+    ChangeTrack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+                key: string;
+                workItemKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackChange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemDetails"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AnswerQuestion: {
         parameters: {
             query?: never;
@@ -3100,6 +3204,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InboxItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetUserNames: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Workspace the signed-in User belongs to. */
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DelegatingUser"][];
                 };
             };
             /** @description Unauthorized */

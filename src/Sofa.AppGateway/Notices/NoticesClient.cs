@@ -3,7 +3,16 @@ using Sofa.Contracts;
 namespace Sofa.AppGateway.Notices;
 
 public sealed record InboxItem(
-    Guid Id, string Kind, string For, Guid SubjectId, string ProjectKey, string Title, string Detail, string Url, DateTimeOffset RaisedAt);
+    Guid Id,
+    string Kind,
+    string For,
+    Guid SubjectId,
+    string ProjectKey,
+    string? WorkItemKey,
+    string Title,
+    string Detail,
+    string Url,
+    DateTimeOffset RaisedAt);
 
 public sealed class NoticesClient(HttpClient notices)
 {

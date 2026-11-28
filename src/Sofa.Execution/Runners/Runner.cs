@@ -40,6 +40,11 @@ public sealed class Runner
         SignInCheckedAt = now;
     }
 
+    public SubscriptionSignInSeen? SignInSeen =>
+        Kind == RunnerKind.Subscription && OwnerUserId is { } userId && SignInCheckedAt is { } checkedAt
+            ? new SubscriptionSignInSeen(WorkspaceId, userId, Id, Name, SignedIn, SignInEndsAt, checkedAt)
+            : null;
+
     public RunnerOwner Owner => OwnerUserId is { } userId ? RunnerOwner.User(userId) : RunnerOwner.Team(OwnerTeamId!.Value);
 
     public RunnerDetails Details => new(

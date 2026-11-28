@@ -16,7 +16,7 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261128103837_InboxItemsForAUser";
+    public override string LastMigrationId => "20261128122324_WarnBeforeASignInEnds";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -90,6 +90,11 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid")
                     .HasColumnName("user_id");
 
+                b.Property<string>("WorkItemKey")
+                    .HasMaxLength(21)
+                    .HasColumnType("character varying(21)")
+                    .HasColumnName("work_item_key");
+
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")
                     .HasColumnName("workspace_id");
@@ -108,6 +113,51 @@ partial class NoticesDbModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_inbox_items_workspace_id_user_id");
 
                 b.ToTable("inbox_items", "notices");
+            });
+
+        modelBuilder.Entity("Sofa.Notices.SignIns.RunnerSignIn", b =>
+            {
+                b.Property<Guid>("RunnerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("runner_id");
+
+                b.Property<DateTimeOffset?>("EndsAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("ends_at");
+
+                b.Property<DateTimeOffset?>("RefusedARunAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("refused_a_run_at");
+
+                b.Property<string>("RunnerName")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("runner_name");
+
+                b.Property<DateTimeOffset>("SeenAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("seen_at");
+
+                b.Property<bool>("SignedIn")
+                    .HasColumnType("boolean")
+                    .HasColumnName("signed_in");
+
+                b.Property<Guid>("UserId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
+
+                b.Property<Guid>("WorkspaceId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("workspace_id");
+
+                b.HasKey("RunnerId")
+                    .HasName("pk_runner_sign_ins");
+
+                b.HasIndex("WorkspaceId", "UserId")
+                    .HasDatabaseName("ix_runner_sign_ins_workspace_id_user_id");
+
+                b.ToTable("runner_sign_ins", "notices");
             });
 #pragma warning restore 612, 618
     }

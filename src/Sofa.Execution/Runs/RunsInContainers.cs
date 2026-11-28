@@ -280,6 +280,10 @@ public sealed class RunsInContainers(
             {
                 recorded.Saw(seen, time.GetUtcNow());
                 await db.SaveChangesAsync(cancellation);
+                if (recorded.SignInSeen is { } signInSeen)
+                {
+                    await scope.ServiceProvider.GetRequiredService<IMessageBus>().PublishAsync(signInSeen);
+                }
             }
         }
 

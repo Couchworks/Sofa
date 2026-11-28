@@ -17,6 +17,9 @@ builder.AddSofaMessaging(SofaServices.Execution, options =>
 {
     options.PublishEvent<RunEnded>(SofaEvents.RunEnded);
     options.PublishEvent<SubscriptionSignedOut>(SofaEvents.SubscriptionSignedOut);
+    options.PublishEvent<SubscriptionSignInSeen>(SofaEvents.SubscriptionSignInSeen);
+    options.PublishEvent<RunChanged>(SofaEvents.RunChanged);
+    options.PublishEvent<RunRetriedByAUser>(SofaEvents.RunRetriedByAUser);
     options.PublishMessage<AppendTranscript>().ToRabbitQueue(SofaServices.Records);
     options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
     options.CodeGeneration.AlwaysUseServiceLocationFor<ExecutionDb>();
@@ -43,6 +46,7 @@ builder.Services.AddSingleton<RunQueueSignal>();
 builder.Services.AddSingleton<RunChanges>();
 builder.Services.AddSingleton<RunsInContainers>();
 builder.Services.AddHostedService<RunQueue>();
+builder.Services.AddHostedService<RepublishSignInsOnStart>();
 
 var app = builder.Build();
 

@@ -16,4 +16,9 @@ public static class SofaEvents
     public const string PushOutsideItsSandboxCaught = "push-outside-its-sandbox-caught";
     public const string WorkItemAwaitsUser = "work-item-awaits-user";
     public const string WorkItemNoLongerAwaitsUser = "work-item-no-longer-awaits-user";
+    public const string WorkItemChanged = "work-item-changed";
+    public const string RunChanged = "run-changed";
+    public const string RunRetriedByAUser = "run-retried-by-a-user";
+    public const string SubscriptionSignInSeen = "subscription-sign-in-seen";
+    public const string InboxChanged = "inbox-changed";
 }

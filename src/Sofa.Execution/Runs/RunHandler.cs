@@ -2,23 +2,24 @@ using Microsoft.EntityFrameworkCore;
 using Sofa.Contracts.Execution;
 using Sofa.Contracts.Flow;
 using Sofa.Execution.Data;
+using Wolverine;
 
 namespace Sofa.Execution.Runs;
 
 public static class RunHandler
 {
-    public static async Task Handle(
+    public static async Task<OutgoingMessages> Handle(
         StartRun command, ExecutionDb db, TimeProvider time, RunQueueSignal queue, ILogger<StartRun> logger, CancellationToken cancellation)
     {
         if (await db.Runs.FindAsync([command.RunId], cancellation) is not null)
         {
-            return;
+            return [];
         }
 
         if (RunRules.ProblemWith(command) is { } problem)
         {
             logger.LogError("Execution can't queue Run {RunId}: {Problem}", command.RunId, problem);
-            return;
+            return [];
         }
 
         var run = Run.From(command, time.GetUtcNow());
@@ -27,6 +28,7 @@ public static class RunHandler
         logger.LogInformation("Run {RunId} of Agent {AgentId} on {Model} waits for a Runner of User {UserId}, at Priority {Priority}",
             run.Id, run.AgentId, run.Model, run.DelegatingUserId, run.Priority);
         queue.Wake();
+        return [run.Changed];
     }
 
     public static async Task<RunAnswer> Handle(
@@ -128,25 +130,31 @@ public static class RunHandler
         return RunAnswer.Done(command.RunId);
     }
 
-    public static async Task<RunAnswer> Handle(
+    public static async Task<(RunAnswer, OutgoingMessages)> Handle(
         RetryRun command, ExecutionDb db, TimeProvider time, RunQueueSignal queue, ILogger<RetryRun> logger, CancellationToken cancellation)
     {
         if (await db.Runs.FindAsync([command.RunId], cancellation) is not { } run || run.WorkspaceId != command.WorkspaceId)
         {
-            return RunAnswer.Refused(RunRefusal.NotFound, "The Workspace has no such Run.");
+            return (RunAnswer.Refused(RunRefusal.NotFound, "The Workspace has no such Run."), []);
         }
 
-        if (run.RetryForAUser(Guid.CreateVersion7(), time.GetUtcNow()) is not { } retry)
+        var now = time.GetUtcNow();
+        if (run.RetryForAUser(Guid.CreateVersion7(), now) is not { } retry)
         {
-            return RunAnswer.Refused(RunRefusal.NotNow, run.RetriedBy is { } retriedBy
+            return (RunAnswer.Refused(RunRefusal.NotNow, run.RetriedBy is { } retriedBy
                 ? $"The Run was already retried, as Run {retriedBy}."
-                : $"Only a Run that failed, was lost or was refused is retried; this one is {run.State}.");
+                : $"Only a Run that failed, was lost or was refused is retried; this one is {run.State}."), []);
         }
 
         db.Runs.Add(retry);
         await db.SaveChangesAsync(cancellation);
         logger.LogInformation("User {UserId} retried Run {RunId} as Run {RetryId}", command.ByUserId, run.Id, retry.Id);
         queue.Wake();
-        return RunAnswer.Done(retry.Id);
+        return (RunAnswer.Done(retry.Id),
+        [
+            new RunRetriedByAUser(retry.Id, run.Id, run.WorkspaceId, run.WorkItemId, run.Phase, command.ByUserId, now),
+            run.Changed,
+            retry.Changed,
+        ]);
     }
 }

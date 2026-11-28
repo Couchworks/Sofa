@@ -1717,6 +1717,105 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/track": {
+      "put": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "Puts the Work Item on another Track; it applies to the Phases still ahead of it, and Triage no longer picks one.",
+        "operationId": "ChangeTrack",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/questions/{questionId}/answer": {
       "post": {
         "tags": [
@@ -2778,6 +2877,62 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspaceId}/user-names": {
+      "get": {
+        "tags": [
+          "WorkspaceMemberEndpoints"
+        ],
+        "summary": "The Users of the Workspace by name, to say who delegated, answered or decided something.",
+        "operationId": "GetUserNames",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DelegatingUser"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3158,6 +3313,7 @@
           "for",
           "subjectId",
           "projectKey",
+          "workItemKey",
           "title",
           "detail",
           "url",
@@ -3181,6 +3337,12 @@
           },
           "projectKey": {
             "type": "string"
+          },
+          "workItemKey": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "title": {
             "type": "string"
@@ -4194,6 +4356,17 @@
           null
         ]
       },
+      "TrackChange": {
+        "required": [
+          "track"
+        ],
+        "type": "object",
+        "properties": {
+          "track": {
+            "$ref": "#/components/schemas/Track"
+          }
+        }
+      },
       "Transcript": {
         "required": [
           "runId",
@@ -4469,6 +4642,7 @@
           "state",
           "phase",
           "track",
+          "trackChosenByAUser",
           "waiting",
           "runs",
           "phaseEnds",
@@ -4537,6 +4711,9 @@
                 "$ref": "#/components/schemas/Track"
               }
             ]
+          },
+          "trackChosenByAUser": {
+            "type": "boolean"
           },
           "waiting": {
             "oneOf": [
@@ -4817,6 +4994,9 @@
     },
     {
       "name": "WorkItemEndpoints"
+    },
+    {
+      "name": "WorkspaceMemberEndpoints"
     },
     {
       "name": "WorkspaceUserEndpoints"

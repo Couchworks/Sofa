@@ -37,6 +37,8 @@ public sealed class WorkItem
 
     public Track? Track { get; private set; }
 
+    public bool TrackChosenByAUser { get; private set; }
+
     public Guid? CurrentRunId { get; private set; }
 
     public Guid? WaitId { get; private set; }
@@ -128,6 +130,32 @@ public sealed class WorkItem
         return steps;
     }
 
+    public IReadOnlyList<FlowStep> HearRetriedByAUser(RunRetriedByAUser retried, DateTimeOffset now)
+    {
+        if (State != WorkItemState.AwaitsUser || WaitingFor != WaitKind.RunGoneWrong || WaitId != retried.RetryOf || retried.Phase != Phase)
+        {
+            return [];
+        }
+
+        var steps = StopAwaiting();
+        State = WorkItemState.Running;
+        CurrentRunId = retried.RunId;
+        Runs.Add(new WorkItemRun { RunId = retried.RunId, WorkItemId = Id, Phase = retried.Phase, StartedAt = now, RetryOf = retried.RetryOf });
+        return steps;
+    }
+
+    public UsersDecision ChangeTrack(Track track)
+    {
+        if (State == WorkItemState.Done)
+        {
+            return UsersDecision.Refused($"{Key} is done; its Track no longer changes anything.");
+        }
+
+        Track = track;
+        TrackChosenByAUser = true;
+        return UsersDecision.Taken([]);
+    }
+
     public UsersDecision Approve(PhaseName phase, Guid byUserId, DateTimeOffset now, FlowOfAProject flow)
     {
         if (AwaitingApproval(phase) is { } end)
@@ -202,7 +230,7 @@ public sealed class WorkItem
 
     private List<FlowStep> Finished(PhaseName phase, string outcome, Guid runId, FlowOfAProject flow, DateTimeOffset now)
     {
-        if (phase == PhaseName.Triage)
+        if (phase == PhaseName.Triage && !TrackChosenByAUser)
         {
             Track = FlowOfAProject.TrackOf(outcome);
         }

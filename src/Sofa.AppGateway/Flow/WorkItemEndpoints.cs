@@ -32,6 +32,12 @@ public static class WorkItemEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        workspace.MapPut("/projects/{key}/work-items/{workItemKey}/track", ChangeTrack)
+            .WithName("ChangeTrack")
+            .WithSummary("Puts the Work Item on another Track; it applies to the Phases still ahead of it, and Triage no longer picks one.")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         workspace.MapPost("/projects/{key}/work-items/{workItemKey}/questions/{questionId:guid}/answer", AnswerQuestion)
             .WithName("AnswerQuestion")
             .WithSummary("Answers a Question a Run asked; a new Run of its Phase reads the answer.")
@@ -62,6 +68,16 @@ public static class WorkItemEndpoints
         CancellationToken cancellation) =>
         DecideAsync(new SendPhaseBack(user.WorkspaceId, key, workItemKey, phase, user.UserId, sendingBack.Comment ?? ""),
             user, key, workItemKey, flow, bus, cancellation);
+
+    private static Task<Results<Ok<WorkItemDetails>, ProblemHttpResult>> ChangeTrack(
+        string key,
+        string workItemKey,
+        TrackChange change,
+        SignedInWorkspaceUser user,
+        FlowClient flow,
+        IMessageBus bus,
+        CancellationToken cancellation) =>
+        DecideAsync(new ChangeTrack(user.WorkspaceId, key, workItemKey, change.Track, user.UserId), user, key, workItemKey, flow, bus, cancellation);
 
     private static Task<Results<Ok<WorkItemDetails>, ProblemHttpResult>> AnswerQuestion(
         string key,
@@ -129,6 +145,8 @@ public sealed record WorkItemOfProject(
     Track? Track);
 
 public sealed record SendingBack(string? Comment);
+
+public sealed record TrackChange(Track Track);
 
 public sealed record AnswerToQuestion(string? Answer);
 

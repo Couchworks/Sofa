@@ -106,6 +106,11 @@ public sealed record RunEnded(
     AskedQuestion? Question,
     Guid? RetryOf = null);
 
+public sealed record RunRetriedByAUser(
+    Guid RunId, Guid RetryOf, Guid WorkspaceId, Guid WorkItemId, PhaseName Phase, Guid ByUserId, DateTimeOffset At);
+
+public sealed record RunChanged(Guid RunId, Guid WorkspaceId, Guid WorkItemId, RunState State);
+
 public sealed record SubscriptionSignedOut(Guid WorkspaceId, Guid UserId, Guid RunnerId, string RunnerName, Guid RunId);
 
 public static class RunLimits

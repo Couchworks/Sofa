@@ -68,6 +68,9 @@ public sealed record RunnerToSignIn(Guid Id, Guid WorkspaceId, string Name, Runn
 
 public sealed record SignInSeen(bool SignedIn, DateTimeOffset? EndsAt);
 
+public sealed record SubscriptionSignInSeen(
+    Guid WorkspaceId, Guid UserId, Guid RunnerId, string RunnerName, bool SignedIn, DateTimeOffset? EndsAt, DateTimeOffset At);
+
 public static class RunnerLimits
 {
     public const int DefaultRunsAtOnce = 2;

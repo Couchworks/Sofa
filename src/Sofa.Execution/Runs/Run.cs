@@ -184,6 +184,8 @@ public sealed class Run
 
     public RunEnded Ended => new(Id, WorkspaceId, WorkItemId, Phase, State, Why, RefusedAs, RetriedBy, Outcome, Asked, RetryOf);
 
+    public RunChanged Changed => new(Id, WorkspaceId, WorkItemId, State);
+
     public RunDetails Details => new(
         Id, WorkspaceId, ProjectId, WorkItemId, Phase, AgentId, Model, Sandbox, DelegatingUserId, Priority, State, Why, RefusedAs,
         RunnerId, Attempt, RetriesLeft, RetryOf, RetriedBy, WaitsForRetry, Outcome, Asked, QueuedAt, StartedAt, EndedAt, Brief);

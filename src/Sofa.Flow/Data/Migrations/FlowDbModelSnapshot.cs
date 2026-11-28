@@ -17,7 +17,7 @@ partial class FlowDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261128103741_MoveWorkItemsThroughTheFlow";
+    public override string LastMigrationId => "20261128121714_ATrackChosenByAUser";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -438,6 +438,10 @@ partial class FlowDbModelSnapshot : ModelSnapshot
                     .HasMaxLength(20)
                     .HasColumnType("character varying(20)")
                     .HasColumnName("track");
+
+                b.Property<bool>("TrackChosenByAUser")
+                    .HasColumnType("boolean")
+                    .HasColumnName("track_chosen_by_a_user");
 
                 b.Property<uint>("Version")
                     .IsConcurrencyToken()

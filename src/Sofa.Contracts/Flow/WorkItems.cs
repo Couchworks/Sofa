@@ -37,6 +37,7 @@ public sealed record WorkItemDetails(
     WorkItemState State,
     PhaseName? Phase,
     Track? Track,
+    bool TrackChosenByAUser,
     WaitDetails? Waiting,
     IReadOnlyList<WorkItemRunDetails> Runs,
     IReadOnlyList<PhaseEndDetails> PhaseEnds,
@@ -92,6 +93,10 @@ public sealed record WorkItemAwaitsUser(
     DateTimeOffset Since);
 
 public sealed record WorkItemNoLongerAwaitsUser(Guid WaitId, Guid WorkspaceId, Guid WorkItemId, DateTimeOffset At);
+
+public sealed record ChangeTrack(Guid WorkspaceId, string ProjectKey, string WorkItemKey, Track Track, Guid ByUserId);
+
+public sealed record WorkItemChanged(Guid WorkspaceId, Guid ProjectId, string ProjectKey, Guid WorkItemId, string WorkItemKey);
 
 [JsonConverter(typeof(JsonStringEnumConverter<WorkItemState>))]
 public enum WorkItemState
