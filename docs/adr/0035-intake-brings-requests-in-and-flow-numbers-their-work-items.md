@@ -11,5 +11,5 @@ A label added by an account linked to no User of the Workspace still opens the W
 
 ## Consequences
 
-- Work Items carry the Request's Repository, issue number, title and address, which Flow copies once; the issue's later edits don't reach Sofa in this milestone.
+- Work Items carry the Request's Repository, issue number, title and address, which Flow copies once; the issue's later edits reach Runs through `read_work_item` instead (ADR 0042).
 - The labelling User is found at the moment of labelling: linking an account afterwards doesn't delegate a Request already in.

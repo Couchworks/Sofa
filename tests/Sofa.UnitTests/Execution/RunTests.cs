@@ -27,11 +27,36 @@ public class RunTests
         var waiting = Waiting();
         var running = Running();
 
-        Assert.False(waiting.Finish("done", Now));
-        Assert.True(running.Finish("done", Now));
-        Assert.Equal((RunState.Finished, "done"), (running.State, running.Summary));
+        Assert.False(waiting.Finish("small", Now));
+        Assert.True(running.Finish("small", Now));
+        Assert.Equal((RunState.Finished, "small"), (running.State, running.Outcome));
         Assert.False(running.Fail("too late", Now));
         Assert.Equal(RunState.Finished, running.State);
+    }
+
+    [Fact]
+    public void A_Run_ends_with_a_Question_only_while_it_runs_and_says_so_when_it_ends()
+    {
+        var running = Running();
+        var questionId = Guid.NewGuid();
+
+        Assert.False(Waiting().EndWithQuestion(questionId, "Follow the system?", Now));
+        Assert.True(running.EndWithQuestion(questionId, "Follow the system?", Now));
+        Assert.False(running.Finish("small", Now));
+        Assert.Equal((RunState.Finished, null, new AskedQuestion(questionId, "Follow the system?")),
+            (running.State, running.Outcome, running.Asked));
+        Assert.Equal(new AskedQuestion(questionId, "Follow the system?"), running.Ended.Question);
+        Assert.Equal(new AskedQuestion(questionId, "Follow the system?"), running.Details.Question);
+    }
+
+    [Fact]
+    public void A_finished_Run_says_its_Outcome_and_Phase_when_it_ends()
+    {
+        var running = Running();
+        running.Finish("full", Now);
+
+        Assert.Equal((PhaseName.Triage, "full", (AskedQuestion?)null), (running.Ended.Phase, running.Ended.Outcome, running.Ended.Question));
+        Assert.Equal("full", running.Details.Outcome);
     }
 
     [Fact]
@@ -114,7 +139,7 @@ public class RunTests
         failed.Fail("killed", Now);
         var retry = failed.RetryOnItsOwn(Guid.NewGuid(), Now)!;
 
-        Assert.Equal(new RunEnded(failed.Id, failed.WorkspaceId, failed.WorkItemId, RunState.Failed, "killed", null, retry.Id), failed.Ended);
+        Assert.Equal(new RunEnded(failed.Id, failed.WorkspaceId, failed.WorkItemId, PhaseName.Triage, RunState.Failed, "killed", null, retry.Id, null, null), failed.Ended);
     }
 
     [Theory]

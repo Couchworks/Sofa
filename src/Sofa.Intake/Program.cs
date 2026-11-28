@@ -49,6 +49,7 @@ builder.Services.AddHttpClient<ConnectionsTokens>(connections => connections.Bas
 builder.Services.AddHttpClient<IdentityGitHubAccounts>(identity => identity.BaseAddress = IdentityGitHubAccounts.Address);
 builder.Services.AddHttpClient<GitHubIssues>((services, gitHub) =>
     GitHubIssues.Configure(gitHub, services.GetRequiredService<IOptions<GitHubApiOptions>>().Value));
+builder.Services.AddTransient<IRequestSource>(services => services.GetRequiredService<GitHubIssues>());
 builder.Services.AddTransient<IRequestReporter>(services => services.GetRequiredService<GitHubIssues>());
 builder.Services.AddTransient<IRequestState>(services => services.GetRequiredService<GitHubIssues>());
 
@@ -63,5 +64,6 @@ app.UseExceptionHandler();
 
 app.MapDefaultEndpoints();
 app.MapDiagnostics();
+app.MapRequests();
 
 app.Run();

@@ -28,10 +28,11 @@ public class RunTests(SofaApp sofa)
         var signedIn = (await RunnersSeenByAsync(fay)).Single(r => r.Id == runner.Id).SignIn!;
 
         Assert.Equal(runner.Id, run.RunnerId);
-        Assert.Equal("The stub played back a recorded Run.", run.Summary);
+        Assert.Equal("small", run.Outcome);
         Assert.Equal("haiku", init.GetProperty("model").GetString());
         Assert.Equal("none", init.GetProperty("apiKeySource").GetString());
-        Assert.Contains("mcp__sofa__end_test_run", Tools(init));
+        Assert.Contains("mcp__sofa__finish", Tools(init));
+        Assert.DoesNotContain("mcp__sofa__end_test_run", Tools(init));
         Assert.DoesNotContain("Edit", Tools(init));
         Assert.Equal("success", transcript.Last().GetProperty("subtype").GetString());
         Assert.DoesNotContain(transcript, line => line.GetRawText().Contains("stub@example.com", StringComparison.Ordinal));
@@ -353,7 +354,7 @@ public class RunTests(SofaApp sofa)
         Guid? RetryOf,
         Guid? RetriedBy,
         bool WaitsForRetry,
-        string? Summary,
+        string? Outcome,
         DateTimeOffset? StartedAt,
         DateTimeOffset? EndedAt);
 

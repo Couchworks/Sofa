@@ -30,6 +30,11 @@ builder.Services.AddOptions<RunTokenClientOptions>().BindConfiguration(RunTokenC
 builder.Services.AddHttpClient<RunTokenClient>(identity => identity.BaseAddress = RunTokenClient.IdentityAddress);
 builder.Services.AddHttpClient<IdentityTeams>(identity => identity.BaseAddress = IdentityTeams.Address);
 builder.Services.AddHttpClient<ConnectionsApiKeys>(connections => connections.BaseAddress = ConnectionsApiKeys.Address);
+builder.Services.AddHttpClient<RecordsContributions>(records =>
+{
+    records.BaseAddress = RecordsContributions.Address;
+    records.Timeout = RecordsContributions.TakesAtMost;
+}).RemoveAllResilienceHandlers();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section);
 builder.Services.AddSingleton<IWorkerContainers, DockerWorkerContainers>();
 builder.Services.AddSingleton<RunQueueSignal>();

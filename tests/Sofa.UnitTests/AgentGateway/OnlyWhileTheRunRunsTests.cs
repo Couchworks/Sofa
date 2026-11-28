@@ -11,7 +11,7 @@ public class OnlyWhileTheRunRunsTests
 
     private static RunDetails RunIn(RunState state, Guid? agentId = null) => new(
         Holder.RunId, Holder.WorkspaceId, Guid.NewGuid(), Guid.NewGuid(), PhaseName.Spec, agentId ?? Holder.AgentId, "opus", Sandbox.ReadOnly,
-        Guid.NewGuid(), Priority.None, state, null, null, Guid.NewGuid(), 1, 2, null, null, false, null, DateTimeOffset.UnixEpoch, null, null);
+        Guid.NewGuid(), Priority.None, state, null, null, Guid.NewGuid(), 1, 2, null, null, false, null, null, DateTimeOffset.UnixEpoch, null, null);
 
     [Fact]
     public void A_running_Run_is_served()

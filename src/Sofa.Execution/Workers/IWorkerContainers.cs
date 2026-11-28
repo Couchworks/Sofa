@@ -12,6 +12,8 @@ public sealed record WorkerVolume(string Name, string MountedAt);
 
 public sealed record WorkerExit(int ExitCode, string LastErrors);
 
+public sealed record OutputInside(int ExitCode, byte[] Output, bool CutShort);
+
 public interface IWorkerContainers
 {
     Task<IWorkerContainer> StartAsync(WorkerContainerSpec spec, CancellationToken cancellation);
@@ -26,6 +28,8 @@ public interface IWorkerContainer : IAsyncDisposable
     Task TellAsync(string line, CancellationToken cancellation);
 
     Task<WorkerExit> WaitForExitAsync(CancellationToken cancellation);
+
+    Task<OutputInside> RunInsideAsync(IReadOnlyList<string> command, long mostBytesRead, CancellationToken cancellation);
 
     Task StopAsync(CancellationToken cancellation);
 }

@@ -6,6 +6,13 @@ public sealed record CommentRef(IssueRef Issue, long CommentId);
 
 public sealed record WantedIssueState(string? PhaseLabel, string? PreviousPhaseLabel, bool Closed);
 
+public sealed record IssueNow(string Title, string Body, string State);
+
+public interface IRequestSource
+{
+    Task<IssueNow?> ReadAsync(IssueRef issue, CancellationToken cancellation);
+}
+
 public interface IRequestReporter
 {
     Task<CommentRef> PostAsync(IssueRef issue, string body, CancellationToken cancellation);

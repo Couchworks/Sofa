@@ -18,3 +18,5 @@ public sealed record RequestAwaitingDelegation(
 
 public sealed record QuestionAnsweredOnRequest(
     Guid QuestionId, Guid RequestId, Guid WorkspaceId, Guid AnsweredByUserId, string Answer, DateTimeOffset AnsweredAt);
+
+public sealed record RequestNow(Guid RequestId, string Repository, long Number, string Url, string Title, string Body, string State);

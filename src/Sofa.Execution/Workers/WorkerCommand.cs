@@ -1,5 +1,6 @@
 using Sofa.Contracts.AgentGateway;
 using Sofa.Contracts.Execution;
+using Sofa.Contracts.Flow;
 using Sofa.Execution.Runners;
 using Sofa.Execution.Runs;
 
@@ -10,6 +11,9 @@ public sealed record RunSecrets(string RunToken, string? ApiKey);
 public static class WorkerCommand
 {
     public const string WhereClaudeCodeKeepsItsSignIn = "/claude";
+    public const string WorkingDirectory = "/work";
+    public const int AttachmentOutsideTheWorkingDirectory = 3;
+    public const int NoSuchAttachment = 4;
     public const string GoAhead = "start";
     public const string DontStart = "stop";
     public const int ExitWithoutStarting = 75;
@@ -51,7 +55,7 @@ public static class WorkerCommand
         {
             ["SOFA_MCP_URL"] = new Uri(new Uri(agentGateway), SofaTools.McpPath).ToString(),
             ["SOFA_RUN_TOKEN"] = secrets.RunToken,
-            ["SOFA_BRIEF"] = BriefNamingItsTools(run.Brief, SofaTools.EveryRunsTools),
+            ["SOFA_BRIEF"] = BriefNamingItsTools(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase)),
             ["SOFA_MODEL"] = run.Model,
             ["ENABLE_TOOL_SEARCH"] = "false",
         };
@@ -73,11 +77,30 @@ public static class WorkerCommand
             new Dictionary<string, string> { [RunLabel] = run.Id.ToString() });
     }
 
-    public static string BriefNamingItsTools(string brief, IReadOnlyList<SofaTool> tools) =>
+    public static string BriefNamingItsTools(string brief, IReadOnlyList<SofaTool> tools, IReadOnlyList<Outcome> outcomes) =>
         $"""
         {brief.TrimEnd()}
 
         Sofa's tools for this Run are ready to call, with no need to search for them:
         {string.Join('\n', tools.Select(tool => $"- {tool.AsClaudeCodeNamesIt}: {tool.Purpose}"))}
+
+        The Outcomes this Phase's finish takes:
+        {string.Join('\n', outcomes.Select(outcome => $"- `{outcome.Name}`: {outcome.Meaning}"))}
+
+        Attach files by their paths in your working directory, {WorkingDirectory}.
         """;
+
+    public static IReadOnlyList<string> CopyingOutAttachment(string path, long mostBytes) =>
+    [
+        "sh", "-c",
+        $$"""
+        cd {{WorkingDirectory}} || exit {{NoSuchAttachment}}
+        found=$(realpath -e -- "$1" 2>/dev/null) || exit {{NoSuchAttachment}}
+        case "$found" in {{WorkingDirectory}}/*) ;; *) exit {{AttachmentOutsideTheWorkingDirectory}} ;; esac
+        [ -f "$found" ] || exit {{NoSuchAttachment}}
+        exec head -c {{mostBytes + 1}} -- "$found"
+        """,
+        "sofa-attachment",
+        path,
+    ];
 }

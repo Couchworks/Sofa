@@ -86,7 +86,7 @@ public class WorkerCommandTests
     {
         var tools = AllowedTools(WorkerCommand.For(RunIn(Sandbox.ReadOnly), RunnerOf(RunnerKind.ApiKey), new RunSecrets(RunToken, ApiKey), Options));
 
-        Assert.Equal(["mcp__sofa__end_test_run", "Read", "Glob", "Grep"], tools);
+        Assert.Equal(["mcp__sofa__read_work_item", "mcp__sofa__ask", "mcp__sofa__finish", "Read", "Glob", "Grep"], tools);
     }
 
     [Fact]
@@ -105,7 +105,33 @@ public class WorkerCommandTests
         var spec = WorkerCommand.For(RunIn(Sandbox.ReadOnly), RunnerOf(RunnerKind.ApiKey), new RunSecrets(RunToken, ApiKey), Options);
 
         Assert.StartsWith("Build it.", spec.Environment["SOFA_BRIEF"]);
-        Assert.Contains("- mcp__sofa__end_test_run: ends this Run", spec.Environment["SOFA_BRIEF"]);
+        Assert.Contains("- mcp__sofa__read_work_item: reads this Run's Work Item", spec.Environment["SOFA_BRIEF"]);
+        Assert.Contains("- mcp__sofa__ask: ends this Run with a Question", spec.Environment["SOFA_BRIEF"]);
+        Assert.Contains("- mcp__sofa__finish: ends this Run with one of its Phase's Outcomes", spec.Environment["SOFA_BRIEF"]);
+        Assert.DoesNotContain("end_test_run", spec.Environment["SOFA_BRIEF"]);
+    }
+
+    [Fact]
+    public void The_Brief_names_its_Phases_Outcomes_and_where_attachments_come_from()
+    {
+        var brief = WorkerCommand.For(RunIn(Sandbox.OwnBranch), RunnerOf(RunnerKind.ApiKey), new RunSecrets(RunToken, ApiKey), Options)
+            .Environment["SOFA_BRIEF"];
+
+        Assert.Contains("- `implemented`: the change is built and its pull request opened", brief);
+        Assert.DoesNotContain("`small`", brief);
+        Assert.Contains("your working directory, /work", brief);
+    }
+
+    [Fact]
+    public void An_attachment_is_copied_out_of_the_container_by_its_path_as_an_argument_never_in_the_script()
+    {
+        var command = WorkerCommand.CopyingOutAttachment("/work/a'; rm -rf / #.png", 1000);
+
+        Assert.Equal(["sh", "-c"], command.Take(2));
+        Assert.DoesNotContain("rm -rf", command[2]);
+        Assert.Contains("realpath -e", command[2]);
+        Assert.Contains("head -c 1001", command[2]);
+        Assert.Equal("/work/a'; rm -rf / #.png", command[^1]);
     }
 
     [Fact]

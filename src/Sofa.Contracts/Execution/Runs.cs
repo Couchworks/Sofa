@@ -18,7 +18,11 @@ public sealed record StartRun(
     string Brief,
     int RetryLimit);
 
-public sealed record EndTestRun(Guid RunId, string Summary);
+public sealed record FinishRun(Guid RunId, Guid AgentId, string Outcome, string Contribution, IReadOnlyList<string> AttachmentPaths);
+
+public sealed record EndRunWithQuestion(Guid RunId, Guid AgentId, Guid QuestionId, string Question);
+
+public sealed record AskedQuestion(Guid QuestionId, string Text);
 
 public sealed record StopRun(Guid WorkspaceId, Guid RunId, Guid ByUserId);
 
@@ -79,13 +83,23 @@ public sealed record RunDetails(
     Guid? RetryOf,
     Guid? RetriedBy,
     bool WaitsForRetry,
-    string? Summary,
+    string? Outcome,
+    AskedQuestion? Question,
     DateTimeOffset QueuedAt,
     DateTimeOffset? StartedAt,
     DateTimeOffset? EndedAt);
 
 public sealed record RunEnded(
-    Guid RunId, Guid WorkspaceId, Guid WorkItemId, RunState State, string? Why, RefusedAs? RefusedAs, Guid? RetriedBy);
+    Guid RunId,
+    Guid WorkspaceId,
+    Guid WorkItemId,
+    PhaseName Phase,
+    RunState State,
+    string? Why,
+    RefusedAs? RefusedAs,
+    Guid? RetriedBy,
+    string? Outcome,
+    AskedQuestion? Question);
 
 public sealed record SubscriptionSignedOut(Guid WorkspaceId, Guid UserId, Guid RunnerId, string RunnerName, Guid RunId);
 
@@ -94,4 +108,8 @@ public static class RunLimits
     public const int DefaultRetryLimit = 2;
     public const int MostRetries = 10;
     public const int LongestBrief = 100_000;
+    public const int LongestContribution = 200_000;
+    public const int LongestQuestion = 4_000;
+    public const int MostAttachments = 10;
+    public const long LargestAttachment = 10 * 1024 * 1024;
 }

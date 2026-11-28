@@ -49,7 +49,11 @@ public sealed class Run
 
     public Guid? RunnerId { get; private set; }
 
-    public string? Summary { get; private set; }
+    public string? Outcome { get; private set; }
+
+    public Guid? QuestionId { get; private set; }
+
+    public string? Question { get; private set; }
 
     public DateTimeOffset QueuedAt { get; init; }
 
@@ -109,7 +113,30 @@ public sealed class Run
         return true;
     }
 
-    public bool Finish(string summary, DateTimeOffset now) => EndWhileRunning(RunState.Finished, why: null, now, summary);
+    public AskedQuestion? Asked => QuestionId is { } questionId ? new AskedQuestion(questionId, Question!) : null;
+
+    public bool Finish(string outcome, DateTimeOffset now)
+    {
+        if (!EndWhileRunning(RunState.Finished, why: null, now))
+        {
+            return false;
+        }
+
+        Outcome = outcome;
+        return true;
+    }
+
+    public bool EndWithQuestion(Guid questionId, string question, DateTimeOffset now)
+    {
+        if (!EndWhileRunning(RunState.Finished, why: null, now))
+        {
+            return false;
+        }
+
+        QuestionId = questionId;
+        Question = question;
+        return true;
+    }
 
     public bool Fail(string why, DateTimeOffset now) => EndWhileRunning(RunState.Failed, why, now);
 
@@ -149,13 +176,13 @@ public sealed class Run
     public Run? RetryForAUser(Guid retryId, DateTimeOffset now) =>
         MayBeRetriedByAUser ? RetriedAs(retryId, RetryLimit, now) : null;
 
-    public RunEnded Ended => new(Id, WorkspaceId, WorkItemId, State, Why, RefusedAs, RetriedBy);
+    public RunEnded Ended => new(Id, WorkspaceId, WorkItemId, Phase, State, Why, RefusedAs, RetriedBy, Outcome, Asked);
 
     public RunDetails Details => new(
         Id, WorkspaceId, ProjectId, WorkItemId, Phase, AgentId, Model, Sandbox, DelegatingUserId, Priority, State, Why, RefusedAs,
-        RunnerId, Attempt, RetriesLeft, RetryOf, RetriedBy, WaitsForRetry, Summary, QueuedAt, StartedAt, EndedAt);
+        RunnerId, Attempt, RetriesLeft, RetryOf, RetriedBy, WaitsForRetry, Outcome, Asked, QueuedAt, StartedAt, EndedAt);
 
-    private bool EndWhileRunning(RunState state, string? why, DateTimeOffset now, string? summary = null)
+    private bool EndWhileRunning(RunState state, string? why, DateTimeOffset now)
     {
         if (State != RunState.Running)
         {
@@ -164,7 +191,6 @@ public sealed class Run
 
         State = state;
         Why = why;
-        Summary = summary;
         EndedAt = now;
         WaitsForRetry = state is (RunState.Failed or RunState.Lost) && RetriesLeft == 0;
         return true;
