@@ -17,11 +17,11 @@ public static class TranscriptEndpoints
         Guid workspaceId, Guid runId, [FromQuery] int? after, RecordsDb db, CancellationToken cancellation)
     {
         var from = after ?? 0;
-        var lines = await db.TranscriptLines.AsNoTracking()
-            .Where(l => l.WorkspaceId == workspaceId && l.RunId == runId && l.Number > from)
-            .OrderBy(l => l.Number)
-            .Select(l => new TranscriptLine(l.Number, l.Text))
+        var entries = await db.TranscriptEntries.AsNoTracking()
+            .Where(e => e.WorkspaceId == workspaceId && e.RunId == runId && (e.Line > from || e.ToolResultLine > from))
+            .OrderBy(e => e.Line).ThenBy(e => e.Part)
             .ToListAsync(cancellation);
-        return new Transcript(runId, lines);
+        var readUpTo = entries.Select(e => Math.Max(e.Line, e.ToolResultLine ?? 0)).DefaultIfEmpty(from).Max();
+        return new Transcript(runId, entries.Select(TranscriptRules.AsRead).ToList(), readUpTo);
     }
 }

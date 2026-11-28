@@ -10,4 +10,8 @@ public static class SofaEvents
     public const string QuestionAnsweredOnRequest = "question-answered-on-request";
     public const string WorkItemEnteredPhase = "work-item-entered-phase";
     public const string WorkItemReachedMainBranch = "work-item-reached-main-branch";
+    public const string PullRequestOpened = "pull-request-opened";
+    public const string PullRequestMerged = "pull-request-merged";
+    public const string PullRequestClosedUnmerged = "pull-request-closed-unmerged";
+    public const string PushOutsideItsSandboxCaught = "push-outside-its-sandbox-caught";
 }

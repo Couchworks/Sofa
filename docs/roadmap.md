@@ -40,3 +40,7 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **An issue in several Projects.** An issue matching the bindings of several Projects becomes a Request in each (from #6).
 - **Delegation fixed at labelling.** A Request's delegating User is whoever labelled it, and can't be changed afterwards (from #6).
 - **One Execution per box.** Execution runs as a single copy; running several needs claiming Runs safely (from #7).
+- **Repository tokens past an hour.** A Run's installation token expires after an hour while a Run may last two; a running Run should get a fresh one (from slice 9).
+- **A caught push ends every Run that could have made it.** GitHub's push event names only Sofa's App, so every running Run able to push to that Repository ends (from slice 9).
+- **Deleting a Transcript.** A secret the scrubbing missed stays until a User can delete the Transcript (from slice 9).
+- **Linux hosts.** The Worker network is tested on Docker Desktop only; on Linux, depending on Docker's version, the box's address on an internal network's bridge may still answer a Worker (from slice 9).

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using Npgsql;
 using Sofa.Contracts;
 
@@ -69,14 +68,14 @@ public class RunToolTests(SofaApp sofa)
         var runId = await StartTestRunAsync(niaId, "Triage", "Triage it.", workItemKey: null);
         var run = await RunUntilAsync(nia, runId, r => r.State == "Finished");
         var transcript = await WholeTranscriptAsync(nia, runId);
-        var offered = transcript.Single(line => SubtypeOf(line) == "stub_tools_offered");
-        var afterTheEnd = transcript.Single(line => SubtypeOf(line) == "stub_called_after_the_end");
+        var offered = SaidBySystem(transcript, "stub_tools_offered");
+        var afterTheEnd = SaidBySystem(transcript, "stub_called_after_the_end");
 
         Assert.Equal("small", run.Outcome);
-        Assert.Equal(["read_work_item", "ask", "finish"], offered.GetProperty("tools").EnumerateArray().Select(tool => tool.GetString()));
+        Assert.Equal(["read_work_item", "ask", "finish"], offered.Split(", "));
         Assert.Contains(transcript, line => ToolResult(line).Contains("Sofa has no Work Item for this Run", StringComparison.Ordinal));
-        Assert.StartsWith("403", afterTheEnd.GetProperty("answer").GetString());
-        Assert.Contains("The Run has ended", afterTheEnd.GetProperty("answer").GetString());
+        Assert.StartsWith("403", afterTheEnd);
+        Assert.Contains("The Run has ended", afterTheEnd);
     }
 
     [Fact]
@@ -174,16 +173,8 @@ public class RunToolTests(SofaApp sofa)
         }
     }
 
-    private async Task<List<JsonElement>> WholeTranscriptAsync(WebClientSignIn user, Guid runId) =>
-        await EventuallyAsync(async () =>
-        {
-            using var read = await user.GetWithTokenAsync($"{await WorkspaceApiAsync()}/runs/{runId}/transcript", Cancellation);
-            read.EnsureSuccessStatusCode();
-            var lines = (await read.Content.ReadFromJsonAsync<Transcript>(Cancellation))!.Lines
-                .Select(line => JsonDocument.Parse(line.Text).RootElement.Clone())
-                .ToList();
-            return lines.Count > 0 && lines.Last().GetProperty("type").GetString() == "result" ? lines : null;
-        });
+    private Task<List<TestRuns.TranscriptEntry>> WholeTranscriptAsync(WebClientSignIn user, Guid runId) =>
+        new TestRuns(sofa).WholeTranscriptAsync(user, runId);
 
     private async Task<List<Question>> QuestionsInFlowAsync(Guid workItemId)
     {
@@ -209,13 +200,11 @@ public class RunToolTests(SofaApp sofa)
         return (long)(await query.ExecuteScalarAsync(Cancellation))! == 1;
     }
 
-    private static string ToolResult(JsonElement line) =>
-        line.GetProperty("type").GetString() == "user"
-            ? line.GetProperty("message").GetProperty("content")[0].GetProperty("content").GetString() ?? ""
-            : "";
+    private static string ToolResult(TestRuns.TranscriptEntry entry) => entry.ToolResult ?? "";
 
-    private static string? SubtypeOf(JsonElement line) =>
-        line.TryGetProperty("subtype", out var subtype) ? subtype.GetString() : null;
+    private static string SaidBySystem(List<TestRuns.TranscriptEntry> transcript, string subtype) =>
+        transcript.Single(entry => entry.Role == "System" && entry.Text?.StartsWith($"{subtype}: ", StringComparison.Ordinal) == true)
+            .Text![(subtype.Length + 2)..];
 
     private static async Task<T> EventuallyAsync<T>(Func<Task<T?>> find)
     {
@@ -239,10 +228,6 @@ public class RunToolTests(SofaApp sofa)
     private sealed record Run(Guid Id, string State, string? Why, string? Outcome, AskedQuestion? Question);
 
     private sealed record AskedQuestion(Guid QuestionId, string Text);
-
-    private sealed record Transcript(Guid RunId, List<TranscriptLine> Lines);
-
-    private sealed record TranscriptLine(int Number, string Text);
 
     private sealed record WorkItem(Guid Id, string Key, string Title, Guid RequestId, RequestRef Request);
 

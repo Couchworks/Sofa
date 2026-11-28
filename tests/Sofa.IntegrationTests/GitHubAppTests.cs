@@ -165,7 +165,7 @@ public class GitHubAppTests(SofaApp sofa)
 
         response.EnsureSuccessStatusCode();
         var token = await response.Content.ReadFromJsonAsync<InstallationToken>(Cancellation);
-        Assert.Equal($"ghs_fake_{FakeGitHub.InstallationId}", token!.Token);
+        Assert.Equal(FakeGitHub.InstallationToken, token!.Token);
         Assert.True(token.ExpiresAt > DateTimeOffset.UtcNow);
         Assert.Contains(sofa.GitHub.TokenRequests, request =>
             request.TryGetProperty("repositories", out var repositories) && repositories[0].GetString() == "web");

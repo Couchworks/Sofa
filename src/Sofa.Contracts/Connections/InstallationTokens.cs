@@ -5,3 +5,5 @@ public sealed record InstallationTokenRequest(
     IReadOnlyDictionary<string, string>? Permissions = null);
 
 public sealed record InstallationToken(string Token, DateTimeOffset ExpiresAt);
+
+public sealed record GitHubAppBot(string Login);

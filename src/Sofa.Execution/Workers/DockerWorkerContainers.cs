@@ -5,11 +5,14 @@ namespace Sofa.Execution.Workers;
 
 public sealed class DockerWorkerContainers : IWorkerContainers
 {
-    public const string HostTheContainersReach = "host.docker.internal";
-
     public static IReadOnlyList<string> RunArguments(WorkerContainerSpec spec)
     {
-        List<string> arguments = ["run", "--rm", "--interactive", "--name", spec.Name, $"--add-host={HostTheContainersReach}:host-gateway"];
+        List<string> arguments = ["run", "--rm", "--interactive", "--name", spec.Name, "--network", spec.Network.Name];
+        foreach (var (host, address) in spec.Network.HostsAt)
+        {
+            arguments.Add($"--add-host={host}:{address}");
+        }
+
         foreach (var (name, value) in spec.Labels)
         {
             arguments.AddRange(["--label", $"{name}={value}"]);

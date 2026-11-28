@@ -20,7 +20,7 @@ builder.AddSofaMessaging(SofaServices.Execution, options =>
     options.PublishMessage<AppendTranscript>().ToRabbitQueue(SofaServices.Records);
     options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
     options.CodeGeneration.AlwaysUseServiceLocationFor<ExecutionDb>();
-});
+}, eventsSubscribedTo: [SofaEvents.PushOutsideItsSandboxCaught]);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -30,6 +30,7 @@ builder.Services.AddOptions<RunTokenClientOptions>().BindConfiguration(RunTokenC
 builder.Services.AddHttpClient<RunTokenClient>(identity => identity.BaseAddress = RunTokenClient.IdentityAddress);
 builder.Services.AddHttpClient<IdentityTeams>(identity => identity.BaseAddress = IdentityTeams.Address);
 builder.Services.AddHttpClient<ConnectionsApiKeys>(connections => connections.BaseAddress = ConnectionsApiKeys.Address);
+builder.Services.AddHttpClient<CodeRepositoryTokens>(code => code.BaseAddress = CodeRepositoryTokens.Address);
 builder.Services.AddHttpClient<RecordsContributions>(records =>
 {
     records.BaseAddress = RecordsContributions.Address;
@@ -37,6 +38,7 @@ builder.Services.AddHttpClient<RecordsContributions>(records =>
 }).RemoveAllResilienceHandlers();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section);
 builder.Services.AddSingleton<IWorkerContainers, DockerWorkerContainers>();
+builder.Services.AddSingleton<IWorkerNetwork, DockerWorkerNetwork>();
 builder.Services.AddSingleton<RunQueueSignal>();
 builder.Services.AddSingleton<RunChanges>();
 builder.Services.AddSingleton<RunsInContainers>();

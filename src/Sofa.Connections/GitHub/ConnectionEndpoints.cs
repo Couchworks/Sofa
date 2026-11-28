@@ -9,6 +9,7 @@ public static class ConnectionEndpoints
     public static IEndpointRouteBuilder MapConnections(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/github-app", GitHubAppStatus);
+        endpoints.MapGet("/github-app/bot", GitHubAppBot);
         endpoints.MapGet("/workspaces/{workspaceId:guid}/connections", ConnectionsOf);
         endpoints.MapGet("/workspaces/{workspaceId:guid}/connections/{connectionId:guid}/repositories", RepositoriesOf);
         endpoints.MapPost("/connections/{connectionId:guid}/installation-tokens", IssueInstallationToken);
@@ -58,6 +59,11 @@ public static class ConnectionEndpoints
             PublicAddress: publicAddress.Address.ToString(),
             GitHubCanReachPublicAddress: publicAddress.GitHubCanReachIt);
     }
+
+    private static async Task<IResult> GitHubAppBot(GitHubAppAccess access, CancellationToken cancellation) =>
+        await access.FindApp(cancellation) is { } app
+            ? Results.Ok(new GitHubAppBot($"{app.Slug}[bot]"))
+            : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Sofa's GitHub App hasn't been created yet.");
 
     private static async Task<List<ConnectionSummary>> ConnectionsOf(
         Guid workspaceId, ConnectionsDb db, CancellationToken cancellation) =>

@@ -16,7 +16,7 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127221705_RunsEndWithAnOutcomeOrAQuestion";
+    public override string LastMigrationId => "20261128100641_KeepTheWorkItemKeyOfARun";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -247,6 +247,11 @@ partial class ExecutionDbModelSnapshot : ModelSnapshot
                 b.Property<Guid>("WorkItemId")
                     .HasColumnType("uuid")
                     .HasColumnName("work_item_id");
+
+                b.Property<string>("WorkItemKey")
+                    .HasMaxLength(21)
+                    .HasColumnType("character varying(21)")
+                    .HasColumnName("work_item_key");
 
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")

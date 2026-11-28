@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { lookup } from "node:dns/promises";
+import { connect } from "node:net";
 import { deflateSync } from "node:zlib";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -61,6 +63,49 @@ print({
   stub: true,
 });
 print({ type: "assistant", message: { content: [{ type: "text", text: `Read the Brief (${brief.length} characters).` }] } });
+
+const said = /STUB: say (\S+)/.exec(brief);
+if (said) {
+  print({ type: "assistant", message: { content: [
+    { type: "text", text: `The planted secret is ${said[1]}.` },
+    { type: "tool_use", id: "toolu_say", name: "Bash", input: { command: `echo ${said[1]}` } },
+  ] } });
+  print({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "toolu_say", content: said[1] }] } });
+}
+
+if (brief.includes("STUB: tell its secrets")) {
+  print({ type: "assistant", message: { content: [{ type: "text",
+    text: `GH_TOKEN=${process.env.GH_TOKEN ?? "none"} ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ?? "none"}` }] } });
+}
+
+const reach = (host, port) => new Promise((resolve) => {
+  const socket = connect({ host, port, timeout: 3000 });
+  socket.on("connect", () => { socket.destroy(); resolve("reached"); });
+  socket.on("timeout", () => { socket.destroy(); resolve("failed (timeout)"); });
+  socket.on("error", (error) => resolve(`failed (${error.code})`));
+});
+
+const probe = async (target) => {
+  if (target.startsWith("https://")) {
+    try {
+      const response = await fetch(target, { method: "HEAD", signal: AbortSignal.timeout(10000) });
+      return `reached (${response.status})`;
+    } catch (error) {
+      return `failed (${error.cause?.code ?? error.name})`;
+    }
+  }
+  const [, name, port] = /^tcp:(.+):(\d+)$/.exec(target) ?? [];
+  if (!name) return "failed (not a target)";
+  const host = name.startsWith("@") ? (await lookup(name.slice(1)).catch(() => ({ address: name.slice(1) }))).address : name;
+  return reach(host, Number(port));
+};
+
+const probes = /STUB: probe ([^\n]+)/.exec(brief);
+if (probes) {
+  for (const target of probes[1].trim().split(/\s+/)) {
+    print({ type: "assistant", message: { content: [{ type: "text", text: `probe ${target}: ${await probe(target)}` }] } });
+  }
+}
 
 if (brief.includes("STUB: hang")) {
   await sleep(24 * 60 * 60 * 1000);
@@ -133,7 +178,7 @@ const initialized = await call("initialize", {
 let ended = initialized;
 if (!initialized.error) {
   const listed = await call("tools/list", {});
-  print({ type: "system", subtype: "stub_tools_offered", tools: listed.result?.tools?.map((tool) => tool.name) ?? [], error: listed.error });
+  print({ type: "system", subtype: "stub_tools_offered", content: listed.error ?? (listed.result?.tools ?? []).map((tool) => tool.name).join(", ") });
   await callTool("read_work_item", {});
 
   const asking = /STUB: ask (.+)/.exec(brief);
@@ -154,7 +199,7 @@ if (!initialized.error) {
 
   if (!ended.error && !ended.result?.isError) {
     const afterTheEnd = await call("tools/call", { name: "read_work_item", arguments: {} });
-    print({ type: "system", subtype: "stub_called_after_the_end", answer: afterTheEnd.error ?? afterTheEnd.result?.content?.[0]?.text });
+    print({ type: "system", subtype: "stub_called_after_the_end", content: afterTheEnd.error ?? afterTheEnd.result?.content?.[0]?.text });
   }
 }
 

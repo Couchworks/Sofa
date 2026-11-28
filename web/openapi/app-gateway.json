@@ -1434,6 +1434,88 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests": {
+      "get": {
+        "tags": [
+          "PullRequestEndpoints"
+        ],
+        "summary": "The pull requests naming the Work Item in their title or branch, oldest first, each as GitHub has it now.",
+        "operationId": "GetPullRequestsOfWorkItem",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PullRequestOfWorkItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/runners": {
       "get": {
         "tags": [
@@ -1861,7 +1943,7 @@
         "tags": [
           "RunEndpoints"
         ],
-        "summary": "The Run's Transcript as it arrived, line by line; `after` skips the lines already read.",
+        "summary": "The Run's Transcript: its messages and tool calls in order, with known secrets scrubbed; `after` skips the lines already read.",
         "operationId": "GetTranscript",
         "parameters": [
           {
@@ -2608,6 +2690,7 @@
           }
         }
       },
+      "JsonElement": { },
       "NewApiKeyRunner": {
         "required": [
           "name",
@@ -2949,11 +3032,91 @@
           }
         }
       },
+      "PullRequestOfWorkItem": {
+        "required": [
+          "workspaceId",
+          "projectId",
+          "projectKey",
+          "workItemKey",
+          "repository",
+          "number",
+          "title",
+          "url",
+          "headBranch",
+          "baseBranch",
+          "state",
+          "openedAt",
+          "closedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectKey": {
+            "type": "string"
+          },
+          "workItemKey": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "headBranch": {
+            "type": "string"
+          },
+          "baseBranch": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PullRequestState"
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PullRequestState": {
+        "enum": [
+          "Open",
+          "Merged",
+          "ClosedUnmerged"
+        ]
+      },
       "RefusedAs": {
         "enum": [
           "SignInAgain",
           "AgentNotRegistered",
           "ApiKeyUnavailable",
+          "NoRepositoryToken",
+          "LeftItsSandbox",
           null
         ]
       },
@@ -3371,7 +3534,8 @@
       "Transcript": {
         "required": [
           "runId",
-          "lines"
+          "entries",
+          "readUpToLine"
         ],
         "type": "object",
         "properties": {
@@ -3379,33 +3543,120 @@
             "type": "string",
             "format": "uuid"
           },
-          "lines": {
+          "entries": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TranscriptLine"
+              "$ref": "#/components/schemas/TranscriptEntry"
             }
-          }
-        }
-      },
-      "TranscriptLine": {
-        "required": [
-          "number",
-          "text"
-        ],
-        "type": "object",
-        "properties": {
-          "number": {
+          },
+          "readUpToLine": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
+            "description": "The last line of the Run's output read into these entries: pass it as `after` to read only what came since.",
             "format": "int32"
-          },
-          "text": {
-            "type": "string"
           }
         }
+      },
+      "TranscriptEntry": {
+        "required": [
+          "line",
+          "part",
+          "role",
+          "text",
+          "toolName",
+          "toolInput",
+          "toolInputCut",
+          "toolResult",
+          "toolResultCut",
+          "toolResultLine",
+          "at"
+        ],
+        "type": "object",
+        "properties": {
+          "line": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The line of the Run's output it came from, from 1.",
+            "format": "int32"
+          },
+          "part": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Its place among the entries of that line, from 1.",
+            "format": "int32"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TranscriptRole"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A message's text; null for a tool call."
+          },
+          "toolName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tool called, for a tool call."
+          },
+          "toolInput": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the tool was called with. One whose JSON was over 20 KB is cut: a string of its JSON's first 20 KB, with `toolInputCut` set.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "toolInputCut": {
+            "type": "boolean"
+          },
+          "toolResult": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What the tool answered, once it has; cut to its first 20 KB, with `toolResultCut` set."
+          },
+          "toolResultCut": {
+            "type": "boolean"
+          },
+          "toolResultLine": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The line its tool result came on, which a reader reading with `after` sees again.",
+            "format": "int32"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TranscriptRole": {
+        "enum": [
+          "User",
+          "Assistant",
+          "System"
+        ]
       },
       "UserAdded": {
         "required": [
@@ -3613,6 +3864,9 @@
     },
     {
       "name": "ProjectEndpoints"
+    },
+    {
+      "name": "PullRequestEndpoints"
     },
     {
       "name": "RunEndpoints"

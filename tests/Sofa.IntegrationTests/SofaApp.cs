@@ -56,6 +56,9 @@ public sealed class SofaApp : IAsyncLifetime
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Intake)
             .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString());
 
+        builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Code)
+            .WithEnvironment("GitHub__ApiAddress", GitHub.ApiAddress.ToString());
+
         builder.CreateResourceBuilder<DotnetProjectResource>(SofaServices.Records)
             .WithEnvironment("Records__Files__Root", RecordsFiles);
 
@@ -164,7 +167,9 @@ public sealed class SofaApp : IAsyncLifetime
     {
         if (App is not null)
         {
+            var agentGatewayPort = AddressOf(SofaServices.AgentGateway).Port;
             await App.DisposeAsync();
+            await StubWorker.RemoveTheWorkerNetworkAsync(agentGatewayPort);
         }
 
         if (GitHub is not null)

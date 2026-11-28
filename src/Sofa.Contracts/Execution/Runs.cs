@@ -16,7 +16,8 @@ public sealed record StartRun(
     Guid DelegatingUserId,
     Priority Priority,
     string Brief,
-    int RetryLimit);
+    int RetryLimit,
+    string? WorkItemKey = null);
 
 public sealed record FinishRun(Guid RunId, Guid AgentId, string Outcome, string Contribution, IReadOnlyList<string> AttachmentPaths);
 
@@ -61,6 +62,8 @@ public enum RefusedAs
     SignInAgain,
     AgentNotRegistered,
     ApiKeyUnavailable,
+    NoRepositoryToken,
+    LeftItsSandbox,
 }
 
 public sealed record RunDetails(

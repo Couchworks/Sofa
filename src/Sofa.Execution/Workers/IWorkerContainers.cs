@@ -6,7 +6,8 @@ public sealed record WorkerContainerSpec(
     WorkerVolume? Volume,
     IReadOnlyDictionary<string, string> Environment,
     IReadOnlyList<string> Command,
-    IReadOnlyDictionary<string, string> Labels);
+    IReadOnlyDictionary<string, string> Labels,
+    WorkerNetwork Network);
 
 public sealed record WorkerVolume(string Name, string MountedAt);
 

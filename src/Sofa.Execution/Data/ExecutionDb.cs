@@ -58,12 +58,14 @@ public sealed class ExecutionDb(DbContextOptions<ExecutionDb> options) : DbConte
             run.Property(r => r.State).HasConversion<string>().HasMaxLength(20);
             run.Property(r => r.RefusedAs).HasConversion<string>().HasMaxLength(30);
             run.Property(r => r.Model).HasMaxLength(100);
+            run.Property(r => r.WorkItemKey).HasMaxLength(21);
             run.Property(r => r.Brief).HasMaxLength(Contracts.Execution.RunLimits.LongestBrief);
             run.Property(r => r.Why).HasMaxLength(4000);
             run.Property(r => r.Outcome).HasMaxLength(50);
             run.Property(r => r.Question).HasMaxLength(Contracts.Execution.RunLimits.LongestQuestion);
             run.Ignore(r => r.Asked);
             run.Property(r => r.Version).IsRowVersion();
+            run.Ignore(r => r.OwnBranch);
             run.Ignore(r => r.HasEnded);
             run.Ignore(r => r.IsRetriedOnItsOwn);
             run.Ignore(r => r.MayBeRetriedByAUser);

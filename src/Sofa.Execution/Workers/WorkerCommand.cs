@@ -1,4 +1,5 @@
 using Sofa.Contracts.AgentGateway;
+using Sofa.Contracts.Code;
 using Sofa.Contracts.Execution;
 using Sofa.Contracts.Flow;
 using Sofa.Execution.Runners;
@@ -6,7 +7,7 @@ using Sofa.Execution.Runs;
 
 namespace Sofa.Execution.Workers;
 
-public sealed record RunSecrets(string RunToken, string? ApiKey);
+public sealed record RunSecrets(string RunToken, string? ApiKey, RepositoryToken Repositories);
 
 public static class WorkerCommand
 {
@@ -22,7 +23,17 @@ public static class WorkerCommand
     public const string ContainerNamePrefix = "sofa-run-";
 
     public static readonly IReadOnlyList<string> NeverReachable =
-        [$"Read(/{WhereClaudeCodeKeepsItsSignIn}/**)", $"Edit(/{WhereClaudeCodeKeepsItsSignIn}/**)", "Read(//proc/**)"];
+    [
+        $"Read(/{WhereClaudeCodeKeepsItsSignIn}/**)",
+        $"Edit(/{WhereClaudeCodeKeepsItsSignIn}/**)",
+        $"Write(/{WhereClaudeCodeKeepsItsSignIn}/**)",
+        "Read(//proc/**)",
+        "Edit(**/.git/**)",
+        "Write(**/.git/**)",
+        "Edit(**/.claude/**)",
+        "Write(**/.claude/**)",
+        "Bash(git diff --no-index:*)",
+    ];
 
     public static string ContainerNameOf(Guid runId) => $"{ContainerNamePrefix}{runId}";
 
@@ -32,6 +43,11 @@ public static class WorkerCommand
         mkdir -p /tmp/sofa
         printf '{"mcpServers":{"{{SofaTools.Server}}":{"type":"http","url":"%s","headers":{"Authorization":"Bearer %s"} } } }' "$SOFA_MCP_URL" "$SOFA_RUN_TOKEN" > /tmp/sofa/mcp.json
         unset SOFA_RUN_TOKEN
+        if command -v git >/dev/null 2>&1; then
+          git config --global credential.https://github.com.helper '!f() { test "$1" = get && echo username=x-access-token && echo "password=$GH_TOKEN"; }; f'
+          git config --global user.name "Sofa Run $SOFA_RUN_ID"
+          git config --global user.email "run-$SOFA_RUN_ID@runs.sofa.invalid"
+        fi
         if [ "${SOFA_CHECK_SIGN_IN:-}" = yes ]; then
           claude auth status --json 2>/dev/null | tr -d '\n'
           echo
@@ -41,10 +57,8 @@ public static class WorkerCommand
         exec claude -p "$SOFA_BRIEF" --model "$SOFA_MODEL" --mcp-config /tmp/sofa/mcp.json --strict-mcp-config --output-format stream-json --verbose --no-session-persistence --disallowedTools {{string.Join(' ', NeverReachable.Select(rule => $"'{rule}'"))}} --allowedTools "$@" < /dev/null
         """;
 
-    public static WorkerContainerSpec For(Run run, Runner runner, RunSecrets secrets, WorkerOptions options)
+    public static WorkerContainerSpec For(Run run, Runner runner, RunSecrets secrets, WorkerPlacement placement, WorkerOptions options)
     {
-        var agentGateway = options.AgentGatewayAddress
-            ?? throw new InvalidOperationException($"Execution needs {WorkerOptions.Section}:AgentGatewayAddress, where its Workers reach the Agent Gateway.");
         var onASubscription = runner.Kind == RunnerKind.Subscription;
         if (onASubscription == secrets.ApiKey is not null)
         {
@@ -53,11 +67,14 @@ public static class WorkerCommand
 
         var environment = new Dictionary<string, string>
         {
-            ["SOFA_MCP_URL"] = new Uri(new Uri(agentGateway), SofaTools.McpPath).ToString(),
+            ["SOFA_MCP_URL"] = new Uri(placement.AgentGateway, SofaTools.McpPath).ToString(),
             ["SOFA_RUN_TOKEN"] = secrets.RunToken,
-            ["SOFA_BRIEF"] = BriefNamingItsTools(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase)),
+            ["SOFA_RUN_ID"] = run.Id.ToString(),
+            ["SOFA_BRIEF"] = BriefFor(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase), secrets.Repositories),
             ["SOFA_MODEL"] = run.Model,
+            ["GH_TOKEN"] = secrets.Repositories.Token,
             ["ENABLE_TOOL_SEARCH"] = "false",
+            ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1",
         };
         if (onASubscription)
         {
@@ -74,10 +91,11 @@ public static class WorkerCommand
             onASubscription ? new WorkerVolume(runner.WorkerVolume!, WhereClaudeCodeKeepsItsSignIn) : null,
             environment,
             ["sh", "-c", Script, "sofa-run", .. SandboxTools.AllowedIn(run.Sandbox)],
-            new Dictionary<string, string> { [RunLabel] = run.Id.ToString() });
+            new Dictionary<string, string> { [RunLabel] = run.Id.ToString() },
+            placement.Network);
     }
 
-    public static string BriefNamingItsTools(string brief, IReadOnlyList<SofaTool> tools, IReadOnlyList<Outcome> outcomes) =>
+    public static string BriefFor(string brief, IReadOnlyList<SofaTool> tools, IReadOnlyList<Outcome> outcomes, RepositoryToken repositories) =>
         $"""
         {brief.TrimEnd()}
 
@@ -88,7 +106,16 @@ public static class WorkerCommand
         {string.Join('\n', outcomes.Select(outcome => $"- `{outcome.Name}`: {outcome.Meaning}"))}
 
         Attach files by their paths in your working directory, {WorkingDirectory}.
+
+        {WhatTheRunMayDoWith(repositories)}
         """;
+
+    public static string WhatTheRunMayDoWith(RepositoryToken repositories) =>
+        $"This Run's Repositories, which git reaches over HTTPS with the token Sofa gave it: "
+        + string.Join(", ", repositories.Repositories.Select(repository => $"https://github.com/{repository}.git"))
+        + (repositories is { Access: RepositoryAccess.PushItsOwnBranch, PushesTo: { } branch }
+            ? $". It may push only its own branch, {branch}: Sofa undoes a push to any other branch and ends the Run."
+            : ". It may read them, never push.");
 
     public static IReadOnlyList<string> CopyingOutAttachment(string path, long mostBytes) =>
     [

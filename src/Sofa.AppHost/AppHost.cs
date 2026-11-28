@@ -64,6 +64,9 @@ var identity = AddService(SofaServices.Identity, "Sofa.Identity")
 var flow = AddService(SofaServices.Flow, "Sofa.Flow")
     .WithReference(connections);
 var records = AddService(SofaServices.Records, "Sofa.Records");
+var code = AddService(SofaServices.Code, "Sofa.Code")
+    .WithReference(connections)
+    .WithReference(flow);
 var intake = AddService(SofaServices.Intake, "Sofa.Intake")
     .WithReference(connections)
     .WithReference(identity)
@@ -72,6 +75,7 @@ var execution = AddService(SofaServices.Execution, "Sofa.Execution")
     .WithReference(identity)
     .WithReference(connections)
     .WithReference(records)
+    .WithReference(code)
     .WithEnvironment("Execution__ClientSecret", executionClientSecret)
     .WithEnvironment("Execution__ConnectionsSecret", executionsSecretForConnections);
 
@@ -87,15 +91,17 @@ var agentGateway = AddService(SofaServices.AgentGateway, "Sofa.AgentGateway")
 
 execution.WithEnvironment("Workers__AgentGatewayAddress", ReferenceExpression.Create(
     $"http://{WorkerContainers.ReachTheBoxAt}:{agentGateway.GetEndpoint("http").Property(EndpointProperty.Port)}"));
+execution.WithEnvironment("Workers__Network", ReferenceExpression.Create(
+    $"{WorkerContainers.NetworkPrefix}{agentGateway.GetEndpoint("http").Property(EndpointProperty.Port)}"));
 
 appGateway.WithReference(identity)
     .WithReference(connections)
     .WithReference(flow)
     .WithReference(execution)
     .WithReference(records)
+    .WithReference(code)
     .WithEnvironment(publicAddress.TellIssuer);
 
-AddService(SofaServices.Code, "Sofa.Code");
 AddService(SofaServices.Knowledge, "Sofa.Knowledge");
 AddService(SofaServices.Notices, "Sofa.Notices");
 
@@ -104,6 +110,7 @@ builder.Build().Run();
 static class WorkerContainers
 {
     public const string ReachTheBoxAt = "host.docker.internal";
+    public const string NetworkPrefix = "sofa-workers-";
 }
 
 static class SofaAppHostSettings

@@ -16,7 +16,7 @@ partial class RecordsDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127220842_Contributions";
+    public override string LastMigrationId => "20261128100643_ConvertTranscriptsIntoEntries";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -128,36 +128,78 @@ partial class RecordsDbModelSnapshot : ModelSnapshot
                 b.ToTable("contributions", "records");
             });
 
-        modelBuilder.Entity("Sofa.Records.Transcripts.StoredTranscriptLine", b =>
+        modelBuilder.Entity("Sofa.Records.Transcripts.StoredTranscriptEntry", b =>
             {
                 b.Property<Guid>("RunId")
                     .HasColumnType("uuid")
                     .HasColumnName("run_id");
 
-                b.Property<int>("Number")
+                b.Property<int>("Line")
                     .HasColumnType("integer")
-                    .HasColumnName("number");
+                    .HasColumnName("line");
 
-                b.Property<DateTimeOffset>("ReceivedAt")
+                b.Property<int>("Part")
+                    .HasColumnType("integer")
+                    .HasColumnName("part");
+
+                b.Property<DateTimeOffset>("At")
                     .HasColumnType("timestamp with time zone")
-                    .HasColumnName("received_at");
+                    .HasColumnName("at");
+
+                b.Property<string>("Role")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasColumnName("role");
 
                 b.Property<string>("Text")
-                    .IsRequired()
                     .HasColumnType("text")
                     .HasColumnName("text");
+
+                b.Property<string>("ToolInput")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("tool_input");
+
+                b.Property<bool>("ToolInputCut")
+                    .HasColumnType("boolean")
+                    .HasColumnName("tool_input_cut");
+
+                b.Property<string>("ToolName")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("tool_name");
+
+                b.Property<string>("ToolResult")
+                    .HasColumnType("text")
+                    .HasColumnName("tool_result");
+
+                b.Property<bool>("ToolResultCut")
+                    .HasColumnType("boolean")
+                    .HasColumnName("tool_result_cut");
+
+                b.Property<int?>("ToolResultLine")
+                    .HasColumnType("integer")
+                    .HasColumnName("tool_result_line");
+
+                b.Property<string>("ToolUseId")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("tool_use_id");
 
                 b.Property<Guid>("WorkspaceId")
                     .HasColumnType("uuid")
                     .HasColumnName("workspace_id");
 
-                b.HasKey("RunId", "Number")
-                    .HasName("pk_transcript_lines");
+                b.HasKey("RunId", "Line", "Part")
+                    .HasName("pk_transcript_entries");
+
+                b.HasIndex("RunId", "ToolUseId")
+                    .HasDatabaseName("ix_transcript_entries_run_id_tool_use_id");
 
                 b.HasIndex("WorkspaceId", "RunId")
-                    .HasDatabaseName("ix_transcript_lines_workspace_id_run_id");
+                    .HasDatabaseName("ix_transcript_entries_workspace_id_run_id");
 
-                b.ToTable("transcript_lines", "records");
+                b.ToTable("transcript_entries", "records");
             });
 
         modelBuilder.Entity("Sofa.Records.Contributions.StoredAttachment", b =>

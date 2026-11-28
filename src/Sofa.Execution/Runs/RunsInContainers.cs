@@ -18,6 +18,7 @@ public abstract record CopiedOut
 public sealed class RunsInContainers(
     IServiceScopeFactory scopes,
     IWorkerContainers containers,
+    IWorkerNetwork network,
     RunChanges changes,
     IOptions<WorkerOptions> options,
     TimeProvider time,
@@ -85,6 +86,7 @@ public sealed class RunsInContainers(
     {
         await _stopping.CancelAsync();
         await Task.WhenAll(_watched.Values.Select(watched => watched.Ran));
+        await network.RemoveAsync(CancellationToken.None);
     }
 
     private async Task RunAsync(Run run, Runner runner, WatchedRun watched)
@@ -97,7 +99,8 @@ public sealed class RunsInContainers(
                 return;
             }
 
-            var spec = WorkerCommand.For(run, runner, secrets, options.Value);
+            var placement = await network.PlaceAsync(cancellation);
+            var spec = WorkerCommand.For(run, runner, secrets, placement, options.Value);
             await using var container = await containers.StartAsync(spec, cancellation);
             watched.Container = container;
             if (watched.StopAsked)
@@ -141,9 +144,17 @@ public sealed class RunsInContainers(
             return null;
         }
 
+        var repositories = await scope.ServiceProvider.GetRequiredService<CodeRepositoryTokens>().ForAsync(run, cancellation);
+        if (repositories.Token is not { } repositoryToken)
+        {
+            await changes.ChangeAsync(run.Id, (r, now) => r.Refuse(RefusedAs.NoRepositoryToken,
+                $"Code gave no token for the Project's Repositories: {repositories.Problem}", now), cancellation);
+            return null;
+        }
+
         if (runner.Kind == RunnerKind.Subscription)
         {
-            return new RunSecrets(runToken, ApiKey: null);
+            return new RunSecrets(runToken, ApiKey: null, repositoryToken);
         }
 
         var apiKey = await scope.ServiceProvider.GetRequiredService<ConnectionsApiKeys>()
@@ -155,7 +166,7 @@ public sealed class RunsInContainers(
             return null;
         }
 
-        return new RunSecrets(runToken, apiKey);
+        return new RunSecrets(runToken, apiKey, repositoryToken);
     }
 
     private async Task WatchAsync(Run run, Runner runner, IWorkerContainer container, CancellationToken cancellation)

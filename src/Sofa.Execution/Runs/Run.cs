@@ -1,3 +1,4 @@
+using Sofa.Contracts.Code;
 using Sofa.Contracts.Execution;
 using Sofa.Contracts.Flow;
 
@@ -12,6 +13,8 @@ public sealed class Run
     public required Guid ProjectId { get; init; }
 
     public required Guid WorkItemId { get; init; }
+
+    public string? WorkItemKey { get; init; }
 
     public required PhaseName Phase { get; init; }
 
@@ -63,6 +66,8 @@ public sealed class Run
 
     public uint Version { get; private set; }
 
+    public string OwnBranch => OwnBranches.Of(WorkItemKey, Id);
+
     public bool HasEnded => State is not (RunState.Waiting or RunState.Running);
 
     public bool IsRetriedOnItsOwn => State is (RunState.Failed or RunState.Lost) && RetriesLeft > 0;
@@ -75,6 +80,7 @@ public sealed class Run
         WorkspaceId = start.WorkspaceId,
         ProjectId = start.ProjectId,
         WorkItemId = start.WorkItemId,
+        WorkItemKey = start.WorkItemKey,
         Phase = start.Phase,
         AgentId = start.AgentId,
         Vendor = start.Vendor,
@@ -206,6 +212,7 @@ public sealed class Run
             WorkspaceId = WorkspaceId,
             ProjectId = ProjectId,
             WorkItemId = WorkItemId,
+            WorkItemKey = WorkItemKey,
             Phase = Phase,
             AgentId = AgentId,
             Vendor = Vendor,
