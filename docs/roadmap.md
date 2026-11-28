@@ -50,13 +50,15 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **Leftover relays.** If Execution is killed, a Run's relay container and networks stay behind until removed by hand (from #9).
 - **Protecting the main branch.** A push outside its Sandbox stands for a few seconds before Code puts it back, so a Project's Repositories should still protect their main branch (from #9).
 - **A subscription's refresh untested.** The host Claude Code refreshes a subscription's sign-in through was allowed from reading its binary; no Run has refreshed one yet (from #9).
-- **Changing the Track.** A User can't change a Work Item's Track yet, though `docs/default-flow.md` lets them at any time (from slice 8).
-- **A User's Retry shows late.** Flow hears of a User's Retry of a Run gone wrong only once that Run ends, so the Work Item still shows as waiting while it runs (from slice 8).
 - **Work Items from before the Flow.** Work Items opened before slice 8 have no Phase and never start (from slice 8).
 - **Building with packages.** Implement can't reach a package registry, so a Project whose build downloads packages can't be built or screenshotted in a Run (ADR 0050, from slice 8).
 - **Implement's scripts can read its credentials.** `npm run` and `node` in Implement run code the agent may write, past the tool rules that keep it from the API key or sign-in (ADR 0050, from slice 8).
 - **The pull request's base.** A Work Item finishes when any pull request naming it is merged, whatever branch it merged into (from slice 8).
-- **An answer given in Sofa.** Answering a Question in Sofa leaves its comment open on the issue, so Intake still takes a later reply there as its answer, which Flow then ignores (from slice 8).
 - **The last Report is an edit.** The merge is reported by editing the Implement Report, which GitHub notifies nobody of (from slice 8).
 - **Triage can't look for duplicates.** A read-only Run's token can't read issues and its Sandbox allows no `gh issue`, so Triage can't search the Repository's issues as its instructions ask (from slice 8).
 - **Commands Claude Code asks about.** Shell loops, pipes into other commands, `VAR=… command` and `rm` ask for approval that no one gives, so a Run spends turns rephrasing them (from slice 8).
+- **Live updates on one App Gateway.** Live updates reach the App Gateway on its one queue, so several replicas need a SignalR backplane and a queue each (ADR 0052, from slice 10).
+- **A live connection outlives its access.** A live connection keeps the Workspace it was opened for until it reconnects, even once its User is removed or its token has expired (ADR 0052, from slice 10).
+- **A Transcript read again, not pushed.** The web client reads a running Run's Transcript again every three seconds rather than hearing each line (ADR 0052, from slice 10).
+- **A sign-in warning without a push.** A sign-in entering its last three days appears in the Inbox on the next read of it, not live, as nothing happens at that moment (from slice 10).
+- **A Track changed to Full goes on.** Changing a Work Item to the Full Track after Spec was skipped doesn't send it back to Spec (from slice 10).
