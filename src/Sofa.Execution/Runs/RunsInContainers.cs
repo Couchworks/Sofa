@@ -183,7 +183,7 @@ public sealed class RunsInContainers(
     {
         using var longestRun = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         longestRun.CancelAfter(options.Value.LongestRun);
-        await using var transcript = new TranscriptToRecords(run.Id, run.WorkspaceId, scopes);
+        await using var transcript = new TranscriptToRecords(run.Id, run.WorkspaceId, SandboxTools.AllowedIn(run.Sandbox), scopes);
         var signInToCheck = runner.Kind == RunnerKind.Subscription;
         var startedClaudeCode = !signInToCheck;
         try

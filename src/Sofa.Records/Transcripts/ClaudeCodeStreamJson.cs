@@ -22,7 +22,9 @@ public sealed record ConvertedLine(IReadOnlyList<ConvertedEntry> Entries, IReadO
 
 public static class ClaudeCodeStreamJson
 {
-    public static ConvertedLine Convert(string line)
+    private const string ThinkingTokensSubtype = "thinking_tokens";
+
+    public static ConvertedLine Convert(string line, IReadOnlyList<string>? toolsTheSandboxAllows = null)
     {
         if (string.IsNullOrWhiteSpace(line))
         {
@@ -47,7 +49,7 @@ public static class ClaudeCodeStreamJson
         var at = TimeOf(parsed["timestamp"]);
         return StringOf(parsed["type"]) switch
         {
-            "system" => new ConvertedLine(SystemEntries(parsed), [], at),
+            "system" => new ConvertedLine(SystemEntries(parsed, toolsTheSandboxAllows), [], at),
             "result" => new ConvertedLine([new ConvertedEntry(TranscriptRole.System, Text: HowItEnded(parsed))], [], at),
             "assistant" => MessageOf(TranscriptRole.Assistant, parsed, at),
             "user" => MessageOf(TranscriptRole.User, parsed, at),
@@ -55,23 +57,28 @@ public static class ClaudeCodeStreamJson
         };
     }
 
-    private static IReadOnlyList<ConvertedEntry> SystemEntries(JsonObject line)
+    private static IReadOnlyList<ConvertedEntry> SystemEntries(JsonObject line, IReadOnlyList<string>? toolsTheSandboxAllows)
     {
-        if (StringOf(line["subtype"]) == "init")
+        var subtype = StringOf(line["subtype"]);
+        if (subtype == "init")
         {
-            return [new ConvertedEntry(TranscriptRole.System, Text: HowItStarted(line))];
+            return [new ConvertedEntry(TranscriptRole.System, Text: HowItStarted(line, toolsTheSandboxAllows))];
+        }
+
+        if (subtype == ThinkingTokensSubtype)
+        {
+            return [];
         }
 
         var said = StringOf(line["content"]) ?? StringOf(line["message"]);
-        var subtype = StringOf(line["subtype"]);
         return said is null && subtype is null
             ? []
             : [new ConvertedEntry(TranscriptRole.System, Text: string.Join(": ", new[] { subtype, said }.OfType<string>()))];
     }
 
-    private static string HowItStarted(JsonObject init)
+    private static string HowItStarted(JsonObject init, IReadOnlyList<string>? toolsTheSandboxAllows)
     {
-        var tools = (init["tools"] as JsonArray)?.Select(StringOf).OfType<string>().ToList() ?? [];
+        var tools = toolsTheSandboxAllows ?? (init["tools"] as JsonArray)?.Select(StringOf).OfType<string>().ToList() ?? [];
         var servers = (init["mcp_servers"] as JsonArray)?.OfType<JsonObject>()
             .Select(server => $"{StringOf(server["name"])} ({StringOf(server["status"])})").ToList() ?? [];
         return string.Join(' ', new[]

@@ -14,8 +14,8 @@ public static class TranscriptRules
             .Select((text, index) => (Number: arrived.FirstLine + index, Text: text))
             .Where(line => !alreadyStored.Contains(line.Number));
 
-    public static ConvertedLine ScrubbedAndConverted(string line) =>
-        ClaudeCodeStreamJson.Convert(SecretScrubbing.ScrubLine(line));
+    public static ConvertedLine ScrubbedAndConverted(string line, IReadOnlyList<string>? toolsTheSandboxAllows = null) =>
+        ClaudeCodeStreamJson.Convert(SecretScrubbing.ScrubLine(line), toolsTheSandboxAllows);
 
     public static List<StoredTranscriptEntry> EntriesOf(
         Guid runId, Guid workspaceId, int line, ConvertedLine converted, DateTimeOffset arrivedAt) =>
