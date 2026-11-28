@@ -134,6 +134,84 @@ public class FlowTests(SofaApp sofa)
     }
 
     [Fact]
+    public async Task A_User_changes_the_Track_and_answers_in_Sofa_which_settles_the_Question_on_the_issue_and_shows_live()
+    {
+        const long issue = 120;
+        var (lee, _) = await UserWithARunnerAsync(FakeGitHub.Lee, "Lee's key");
+        var project = await ProjectAsync("LIVE", "sofa-live", new()
+        {
+            ["Triage"] = "STUB: outcome full",
+            ["Spec"] = $"STUB: ask once {TheQuestion}",
+        });
+        await using var live = await LiveUpdates.ConnectAsync(sofa, lee, (await sofa.SetUp).FirstUser.WorkspaceId, Cancellation);
+        sofa.GitHub.Write(Demo, issue, "Add a dark mode toggle", "A toggle in the header.");
+
+        await GitHubWebhooks.LabeledAsync(sofa, Demo, issue, "Add a dark mode toggle", "sofa-live", FakeGitHub.Lee);
+        var asking = await WorkItemUntilAsync(lee, project, "LIVE-1", w => w.State == "AwaitsAnswer");
+        var question = Assert.Single(asking.Questions);
+        var inTheInbox = await InboxUntilAsync(lee, items => items.SingleOrDefault(i => i.Kind == "Question" && i.WorkItemKey == "LIVE-1"));
+        await EventuallyAsync(() => Task.FromResult(sofa.GitHub.CommentsOn(Demo, issue).SingleOrDefault(c => c.Body.StartsWith("### Question from Spec · LIVE-1", StringComparison.Ordinal))));
+        using var changingTheTrack = await lee.SendAsync(HttpMethod.Put,
+            $"{await _runs.WorkspaceApiAsync()}/projects/LIVE/work-items/LIVE-1/track", new { track = "Small" }, Cancellation);
+        var onTheSmallTrack = await changingTheTrack.Content.ReadFromJsonAsync<WorkItem>(Cancellation);
+
+        using var answering = await DecideAsync(lee, project, "LIVE-1", $"questions/{question.Id}/answer", new { answer = TheAnswer });
+        var specified = await WorkItemUntilAsync(lee, project, "LIVE-1", w => w is { State: "AwaitsApproval", Phase: "Spec" });
+        var settledOnTheIssue = await EventuallyAsync(() => Task.FromResult(sofa.GitHub.CommentsOn(Demo, issue)
+            .SingleOrDefault(c => c.Body.StartsWith("### Question from Spec · LIVE-1", StringComparison.Ordinal) && c.Body.Contains("Answered in Sofa", StringComparison.Ordinal))));
+        await GitHubWebhooks.CommentedAsync(sofa, Demo, issue, sofa.GitHub.NextCommentId(), "No, keep it light.", FakeGitHub.Lee);
+        await DecideAsync(lee, project, "LIVE-1", "phases/Spec/approval", new { });
+        var implementing = await WorkItemUntilAsync(lee, project, "LIVE-1", w => w.State == "AwaitsPullRequest");
+        var specTranscript = await _runs.WholeTranscriptAsync(lee, specified.Runs.Last(r => r.Phase == "Spec").RunId);
+        await EventuallyAsync(() => Task.FromResult(live.HeardThatWorkItemChanged("LIVE-1") && live.HeardThatTheInboxChanged
+            && live.HeardThatRunChanged(implementing.Runs.Last().RunId) ? (bool?)true : null));
+
+        Assert.Equal(HttpStatusCode.OK, changingTheTrack.StatusCode);
+        Assert.Equal(("Small", true), (onTheSmallTrack!.Track, onTheSmallTrack.TrackChosenByAUser));
+        Assert.Equal("LIVE-1: Add a dark mode toggle", inTheInbox.Title);
+        Assert.Equal(HttpStatusCode.OK, answering.StatusCode);
+        Assert.Contains($"> {TheAnswer}", settledOnTheIssue.Body);
+        Assert.Equal(TheAnswer, Assert.Single(implementing.Questions).Answer);
+        Assert.Equal(2, implementing.Runs.Count(r => r.Phase == "Spec"));
+        Assert.Equal(("ReviewAfterwards", "Unverified"),
+            (implementing.PhaseEnds.Single(e => e.Phase == "Plan").Gate, implementing.PhaseEnds.Single(e => e.Phase == "Plan").Standing));
+        var start = specTranscript.First();
+        Assert.Contains("mcp__sofa__finish", start.Text);
+        Assert.DoesNotContain("WebFetch", start.Text);
+        Assert.DoesNotContain(specTranscript, e => e.Text?.Contains("thinking_tokens", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public async Task A_Users_Retry_of_a_Run_gone_wrong_shows_on_the_Work_Item_at_once()
+    {
+        const long issue = 130;
+        var (noa, _) = await UserWithARunnerAsync(FakeGitHub.Noa, "Noa's key");
+        var project = await ProjectAsync("RETRY", "sofa-retry", new() { ["Triage"] = "STUB: hang" });
+        sofa.GitHub.Write(Demo, issue, "Something that hangs", "It hangs.");
+
+        await GitHubWebhooks.LabeledAsync(sofa, Demo, issue, "Something that hangs", "sofa-retry", FakeGitHub.Noa);
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            var running = await WorkItemUntilAsync(noa, project, "RETRY-1", w => w.State == "Running" && w.Runs.Count == attempt);
+            var runId = running.Runs.Last().RunId;
+            await _runs.RunningContainerAsync(noa, runId);
+            await StubWorker.KillAsync(runId, Cancellation);
+        }
+
+        var goneWrong = await WorkItemUntilAsync(noa, project, "RETRY-1", w => w is { State: "AwaitsUser", Waiting.Kind: "RunGoneWrong" });
+        using var retrying = await noa.PostAsJsonAsync($"{await _runs.WorkspaceApiAsync()}/runs/{goneWrong.Waiting!.WaitId}/retry", null, Cancellation);
+        var retry = (await retrying.Content.ReadFromJsonAsync<TestRuns.Run>(Cancellation))!;
+        var following = await WorkItemUntilAsync(noa, project, "RETRY-1", w => w.State == "Running" && w.Runs.Any(r => r.RunId == retry.Id));
+        var retryWhileFollowed = await _runs.UntilAsync(noa, retry.Id, _ => true);
+        using var stopping = await noa.PostAsJsonAsync($"{await _runs.WorkspaceApiAsync()}/runs/{retry.Id}/stop", null, Cancellation);
+
+        Assert.Equal(HttpStatusCode.OK, retrying.StatusCode);
+        Assert.Null(following.Waiting);
+        Assert.Equal(goneWrong.Waiting.WaitId, following.Runs.Single(r => r.RunId == retry.Id).RetryOf);
+        Assert.Contains(retryWhileFollowed.State, new[] { "Waiting", "Running" });
+    }
+
+    [Fact]
     public async Task A_Run_past_its_tokens_refresh_time_gets_a_fresh_Repository_token_in_its_container()
     {
         var (sam, samId) = await UserWithARunnerAsync(FakeGitHub.Sam, "Sam's key");
@@ -272,6 +350,7 @@ public class FlowTests(SofaApp sofa)
         string State,
         string? Phase,
         string? Track,
+        bool TrackChosenByAUser,
         Wait? Waiting,
         List<Question> Questions,
         List<WorkItemRun> Runs,
@@ -282,13 +361,13 @@ public class FlowTests(SofaApp sofa)
 
     private sealed record Question(Guid Id, string Text, string? Answer);
 
-    private sealed record WorkItemRun(Guid RunId, string Phase, string? EndedAs);
+    private sealed record WorkItemRun(Guid RunId, string Phase, string? EndedAs, Guid? RetryOf);
 
     private sealed record PhaseEnd(Guid RunId, string Phase, string Gate, string Standing, string? Comment);
 
     private sealed record PullRequest(long Number, string Url, string State);
 
-    private sealed record InboxItem(Guid Id, string Kind, string Title, string Detail, string Url);
+    private sealed record InboxItem(Guid Id, string Kind, string? WorkItemKey, string Title, string Detail, string Url);
 
     private sealed record RunWithItsBrief(Guid Id, string Brief);
 

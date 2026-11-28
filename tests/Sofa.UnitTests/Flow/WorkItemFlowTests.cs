@@ -248,6 +248,79 @@ public class WorkItemFlowTests
     }
 
     [Fact]
+    public void A_Users_Retry_of_the_Run_gone_wrong_is_followed_as_soon_as_it_is_made()
+    {
+        var workItem = Opened(Ada);
+        workItem.Begin(TheDefaultFlow, Now);
+        var refused = workItem.CurrentRunId!.Value;
+        workItem.HearRunEnded(GoneWrong(workItem, RunState.Refused), TheDefaultFlow, Now);
+        var retry = Guid.NewGuid();
+
+        var steps = workItem.HearRetriedByAUser(new RunRetriedByAUser(retry, refused, workItem.WorkspaceId, workItem.Id, PhaseName.Triage, Ada, Now), Now);
+        var ended = workItem.HearRunEnded(
+            new RunEnded(retry, workItem.WorkspaceId, workItem.Id, PhaseName.Triage, RunState.Finished, null, null, null, "full", null, RetryOf: refused),
+            TheDefaultFlow, Now);
+
+        Assert.Equal([new FlowStep.StopAwaiting(refused)], steps);
+        Assert.Equal([new EnterPhase(PhaseName.Spec), new StartRunOf(PhaseName.Spec, workItem.CurrentRunId!.Value)], ended);
+        Assert.Equal(refused, workItem.Runs.Single(r => r.RunId == retry).RetryOf);
+    }
+
+    [Fact]
+    public void A_Retry_of_a_Run_the_Work_Item_doesnt_wait_on_moves_nothing()
+    {
+        var workItem = StartedOnTheFullTrack();
+        var specRun = workItem.CurrentRunId!.Value;
+
+        var steps = workItem.HearRetriedByAUser(
+            new RunRetriedByAUser(Guid.NewGuid(), Guid.NewGuid(), workItem.WorkspaceId, workItem.Id, PhaseName.Spec, Ada, Now), Now);
+
+        Assert.Empty(steps);
+        Assert.Equal((WorkItemState.Running, specRun), (workItem.State, workItem.CurrentRunId!.Value));
+    }
+
+    [Fact]
+    public void A_User_putting_a_Work_Item_on_the_Small_Track_during_Spec_leaves_its_Plan_to_be_reviewed_afterwards()
+    {
+        var workItem = StartedOnTheFullTrack();
+
+        var changed = workItem.ChangeTrack(Track.Small);
+        workItem.HearRunEnded(Finishing(workItem, "specified"), TheDefaultFlow, Now);
+        workItem.Approve(PhaseName.Spec, Ada, Now, TheDefaultFlow);
+        var planned = workItem.HearRunEnded(Finishing(workItem, "planned"), TheDefaultFlow, Now);
+
+        Assert.Null(changed.Refusal);
+        Assert.Equal((Track.Small, true), (workItem.Track, workItem.TrackChosenByAUser));
+        Assert.Contains(new EnterPhase(PhaseName.Implement), planned);
+        Assert.Equal(PhaseEndStanding.Unverified, workItem.PhaseEnds.Single(e => e.Phase == PhaseName.Plan).Standing);
+    }
+
+    [Fact]
+    public void A_Track_a_User_chose_during_Triage_stands_over_Triages_Outcome()
+    {
+        var workItem = Opened(Ada);
+        workItem.Begin(TheDefaultFlow, Now);
+
+        workItem.ChangeTrack(Track.Full);
+        var steps = workItem.HearRunEnded(Finishing(workItem, "small"), TheDefaultFlow, Now);
+
+        Assert.Equal(Track.Full, workItem.Track);
+        Assert.Contains(new EnterPhase(PhaseName.Spec), steps);
+    }
+
+    [Fact]
+    public void A_done_Work_Items_Track_no_longer_changes()
+    {
+        var workItem = ImplementedOnTheSmallTrack();
+        workItem.HearPullRequest(OpenPullRequest with { State = PullRequestState.Merged }, Now);
+
+        var changed = workItem.ChangeTrack(Track.Full);
+
+        Assert.Equal("DEMO-1 is done; its Track no longer changes anything.", changed.Refusal);
+        Assert.Equal(Track.Small, workItem.Track);
+    }
+
+    [Fact]
     public void The_end_of_a_Run_Flow_didnt_start_such_as_a_test_Run_moves_nothing()
     {
         var workItem = StartedOnTheFullTrack();

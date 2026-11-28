@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { fakeGateway, renderWithQueries } from '@/test/fakeGateway'
+import { liveServer } from '@/test/liveServer'
 import { me, workspaceId } from '@/test/signedIn'
 import { ProjectPage } from './ProjectPage'
 
@@ -182,6 +183,9 @@ const workItems = [
     request: { repository: 'acme/demo', number: 20, url: 'https://github.com/acme/demo/issues/20' },
     delegatedBy: null,
     openedAt: '2026-11-27T13:00:00Z',
+    state: 'AwaitsDelegation',
+    phase: null,
+    track: null,
   },
   {
     key: 'DEMO-1',
@@ -190,10 +194,13 @@ const workItems = [
     request: { repository: 'acme/demo', number: 12, url: 'https://github.com/acme/demo/issues/12' },
     delegatedBy: { userId: 'u1', name: 'Ada Lovelace' },
     openedAt: '2026-11-27T12:00:00Z',
+    state: 'AwaitsApproval',
+    phase: 'Spec',
+    track: 'Full',
   },
 ]
 
-test('lists the Project’s Work Items with their key, title, Request and delegating User', async () => {
+test('lists the Project’s Work Items with their key, title, state, Request and delegating User, each linking to its page', async () => {
   fakeGateway({
     'GET /api/me': { body: me(false) },
     [`GET ${project}`]: { body: demo },
@@ -207,19 +214,28 @@ test('lists the Project’s Work Items with their key, title, Request and delega
   expect(within(demo1).getByText('Add a dark mode toggle')).toBeDefined()
   expect(within(demo1).getByRole('link', { name: 'acme/demo#12' }).getAttribute('href')).toBe('https://github.com/acme/demo/issues/12')
   expect(within(demo1).getByText('delegated by Ada Lovelace')).toBeDefined()
+  expect(within(demo1).getByText('Waiting for approval')).toBeDefined()
+  expect(within(demo1).getByText('Spec')).toBeDefined()
+  expect(within(demo1).getByRole('link', { name: 'DEMO-1' }).getAttribute('href')).toBe('/projects/DEMO/work-items/DEMO-1')
   expect(within(outside).getByText('Waiting for a delegating User')).toBeDefined()
 })
 
-test('a Work Item’s address shows its Project with the Work Item marked', async () => {
+test('a Work Item changing shows in the list as it happens', async () => {
+  let reads = 0
   fakeGateway({
     'GET /api/me': { body: me(false) },
     [`GET ${project}`]: { body: demo },
-    [`GET ${project}/work-items`]: { body: workItems },
+    [`GET ${project}/work-items`]: () => {
+      reads++
+      return { body: reads === 1 ? workItems : [workItems[0], { ...workItems[1], state: 'Running', phase: 'Plan' }] }
+    },
   })
-  renderWithQueries(<ProjectPage projectKey="DEMO" workItemKey="DEMO-1" />)
+  renderWithQueries(<ProjectPage projectKey="DEMO" />)
+  await screen.findByText('Waiting for approval')
 
-  const list = await screen.findByRole('list', { name: 'Work Items' })
-  expect(within(list).getAllByRole('listitem').map((item) => item.getAttribute('aria-current'))).toEqual([null, 'true'])
+  act(() => liveServer.say('workItemChanged', { projectKey: 'DEMO', workItemKey: 'DEMO-1' }))
+
+  expect(await screen.findByText('Plan')).toBeDefined()
 })
 
 test('a Project with no Work Items says how to bring one in', async () => {

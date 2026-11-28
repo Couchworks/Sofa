@@ -24,5 +24,7 @@ public sealed class QuestionComment
 
     public DateTimeOffset? AnsweredAt { get; set; }
 
-    public bool IsOpen => AnsweredByCommentId is null;
+    public bool AnsweredInSofa { get; set; }
+
+    public bool IsOpen => AnsweredByCommentId is null && !AnsweredInSofa;
 }

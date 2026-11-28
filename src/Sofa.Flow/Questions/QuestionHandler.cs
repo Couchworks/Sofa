@@ -46,7 +46,15 @@ public static class QuestionHandler
             return (FlowAnswer.Refused(FlowRefusal.Invalid, $"An answer has 1 to {QuestionRules.LongestAnswer} characters."), []);
         }
 
-        return await AnswerAsync(question, command.Answer, command.ByUserId, moves.Now, db, moves, cancellation);
+        var (answer, outgoing) = await AnswerAsync(question, command.Answer, command.ByUserId, moves.Now, db, moves, cancellation);
+        if (answer.Refusal is null)
+        {
+            outgoing.Add(new QuestionAnsweredInSofa(
+                question.Id, workItem.RequestId, workItem.Key, question.Phase, question.Text, command.ByUserId, question.Answer!,
+                question.AnsweredAt!.Value));
+        }
+
+        return (answer, outgoing);
     }
 
     private static async Task<(FlowAnswer, OutgoingMessages)> AnswerAsync(

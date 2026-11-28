@@ -11,13 +11,15 @@ public sealed class TranscriptToRecords : IAsyncDisposable
     private readonly Channel<string> _lines = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
     private readonly Guid _runId;
     private readonly Guid _workspaceId;
+    private readonly IReadOnlyList<string> _toolsAllowed;
     private readonly IServiceScopeFactory _scopes;
     private readonly Task _sent;
 
-    public TranscriptToRecords(Guid runId, Guid workspaceId, IServiceScopeFactory scopes)
+    public TranscriptToRecords(Guid runId, Guid workspaceId, IReadOnlyList<string> toolsAllowed, IServiceScopeFactory scopes)
     {
         _runId = runId;
         _workspaceId = workspaceId;
+        _toolsAllowed = toolsAllowed;
         _scopes = scopes;
         _sent = SendAsTheyComeAsync();
     }
@@ -43,7 +45,7 @@ public sealed class TranscriptToRecords : IAsyncDisposable
 
             await using var scope = _scopes.CreateAsyncScope();
             await scope.ServiceProvider.GetRequiredService<IMessageBus>()
-                .SendAsync(new AppendTranscript(_runId, _workspaceId, nextLine, batch));
+                .SendAsync(new AppendTranscript(_runId, _workspaceId, nextLine, batch, _toolsAllowed));
             nextLine += batch.Count;
         }
     }

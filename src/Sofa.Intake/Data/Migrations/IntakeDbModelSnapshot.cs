@@ -16,7 +16,7 @@ partial class IntakeDbModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127202420_KeepRequestsTheirBindingsReportsAndQuestions";
+    public override string LastMigrationId => "20261128121844_AQuestionAnsweredInSofa";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -105,6 +105,10 @@ partial class IntakeDbModelSnapshot : ModelSnapshot
                 b.Property<Guid?>("AnsweredByUserId")
                     .HasColumnType("uuid")
                     .HasColumnName("answered_by_user_id");
+
+                b.Property<bool>("AnsweredInSofa")
+                    .HasColumnType("boolean")
+                    .HasColumnName("answered_in_sofa");
 
                 b.Property<DateTimeOffset>("AskedAt")
                     .HasColumnType("timestamp with time zone")

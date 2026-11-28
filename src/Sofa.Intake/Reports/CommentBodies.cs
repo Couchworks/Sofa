@@ -33,5 +33,23 @@ public static class CommentBodies
         [See {workItemKey} in Sofa]({inSofa})
         """;
 
+    public static string QuestionAnsweredInSofa(PhaseName phase, string workItemKey, string question, string answer, Uri inSofa) =>
+        $"""
+        ### Question from {phase} · {workItemKey}
+
+        {Trimmed(question)}
+
+        **Answered in Sofa:**
+
+        {Quoted(answer)}
+
+        A reply here no longer answers it.
+
+        [See {workItemKey} in Sofa]({inSofa})
+        """;
+
+    private static string Quoted(string text) =>
+        string.Join('\n', Trimmed(text).ReplaceLineEndings("\n").Split('\n').Select(line => line.Length == 0 ? ">" : $"> {line}"));
+
     private static string Trimmed(string text) => text.Trim();
 }

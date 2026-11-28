@@ -7,6 +7,7 @@ using Sofa.AppGateway.Execution;
 using Sofa.AppGateway.Flow;
 using Sofa.AppGateway.GitHubReturns;
 using Sofa.AppGateway.Identity;
+using Sofa.AppGateway.Live;
 using Sofa.AppGateway.Notices;
 using Sofa.AppGateway.Records;
 using Sofa.Contracts;
@@ -31,11 +32,17 @@ builder.AddSofaMessaging(SofaServices.AppGateway, options =>
     options.PublishMessage<ApprovePhase>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<SendPhaseBack>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<AnswerQuestion>().ToRabbitQueue(SofaServices.Flow);
+    options.PublishMessage<ChangeTrack>().ToRabbitQueue(SofaServices.Flow);
     options.PublishMessage<CreateRunner>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<LimitRunsAtOnce>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<StopRun>().ToRabbitQueue(SofaServices.Execution);
     options.PublishMessage<RetryRun>().ToRabbitQueue(SofaServices.Execution);
-});
+}, eventsSubscribedTo:
+[
+    SofaEvents.WorkItemChanged,
+    SofaEvents.RunChanged,
+    SofaEvents.InboxChanged,
+]);
 builder.AcceptTokensFor(SofaServices.AppGateway);
 
 builder.Services.Configure<ForwardedHeadersOptions>(theTunnelOrProxyInFront =>
@@ -45,6 +52,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(theTunnelOrProxyInFront =>
     theTunnelOrProxyInFront.KnownProxies.Clear();
 });
 builder.Services.AddProblemDetails();
+builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IdentityUsers>(identity => identity.BaseAddress = IdentityUsers.Address);
@@ -70,6 +78,7 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseRouting();
+app.UseTheTokenALiveConnectionSendsInItsQuery();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseWorkspaceAccess();
@@ -91,7 +100,9 @@ app.MapUsersOfTheWorkspaceOnly()
     .MapPullRequests()
     .MapRunners()
     .MapRuns()
-    .MapInbox();
+    .MapInbox()
+    .MapUsersOfTheWorkspace()
+    .MapLiveUpdates();
 app.MapGitHubAppReturns();
 
 app.MapReverseProxy();

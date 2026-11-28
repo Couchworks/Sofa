@@ -45,9 +45,16 @@ public sealed class RunChanges(IServiceScopeFactory scopes, TimeProvider time, R
                 continue;
             }
 
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(run.Changed);
+            if (retry is not null)
+            {
+                await bus.PublishAsync(retry.Changed);
+            }
+
             if (endedNow)
             {
-                await scope.ServiceProvider.GetRequiredService<IMessageBus>().PublishAsync(run.Ended);
+                await bus.PublishAsync(run.Ended);
                 logger.LogInformation("Run {RunId} (attempt {Attempt}) ended {State}: {Why}{Retry}",
                     run.Id, run.Attempt, run.State, run.Why ?? (run.Outcome is { } outcome ? $"with Outcome {outcome}" : $"asking Question {run.QuestionId}"),
                     retry is null ? "" : $"; retried as Run {retry.Id}");

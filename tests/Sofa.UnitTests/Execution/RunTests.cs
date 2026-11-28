@@ -108,13 +108,15 @@ public class RunTests
     }
 
     [Fact]
-    public void A_stopped_or_finished_Run_is_not_retried()
+    public void A_stopped_Run_is_retried_only_by_a_User_and_a_finished_one_not_at_all()
     {
         var stopped = Waiting();
-        stopped.Stop("Stopped by a User", Now);
+        stopped.Stop("Stopped by a User.", Now);
         var finished = Running();
         finished.Finish("done", Now);
 
+        Assert.Null(stopped.RetryOnItsOwn(Guid.NewGuid(), Now));
+        Assert.NotNull(stopped.RetryForAUser(Guid.NewGuid(), Now));
         Assert.Null(stopped.RetryForAUser(Guid.NewGuid(), Now));
         Assert.Null(finished.RetryForAUser(Guid.NewGuid(), Now));
         Assert.False(stopped.Stop("again", Now));

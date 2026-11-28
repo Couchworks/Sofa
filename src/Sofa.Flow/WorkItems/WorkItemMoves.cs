@@ -35,11 +35,6 @@ public sealed class WorkItemMoves(FlowDb db, TimeProvider time, ILogger<WorkItem
     public async Task<OutgoingMessages> MessagesForAsync(WorkItem workItem, IReadOnlyList<FlowStep> steps, CancellationToken cancellation)
     {
         var messages = new OutgoingMessages();
-        if (steps.Count == 0)
-        {
-            return messages;
-        }
-
         var project = await db.Projects.AsNoTracking().SingleAsync(p => p.Id == workItem.ProjectId, cancellation);
         foreach (var step in steps)
         {
@@ -70,6 +65,12 @@ public sealed class WorkItemMoves(FlowDb db, TimeProvider time, ILogger<WorkItem
                     messages.Add(new WorkItemReachedMainBranch(workItem.Id, workItem.WorkspaceId, workItem.RequestId, workItem.Key));
                     break;
             }
+        }
+
+        messages.Add(new WorkItemChanged(workItem.WorkspaceId, workItem.ProjectId, project.Key, workItem.Id, workItem.Key));
+        if (steps.Count == 0)
+        {
+            return messages;
         }
 
         logger.LogInformation("{Key} is {State}{Phase}: {Steps}", workItem.Key, workItem.State,

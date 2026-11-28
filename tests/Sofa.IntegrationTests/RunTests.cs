@@ -91,7 +91,7 @@ public class RunTests(SofaApp sofa)
     }
 
     [Fact]
-    public async Task A_killed_container_ends_as_failed_and_is_retried_until_its_limit_then_waits_for_a_Users_Retry()
+    public async Task A_killed_container_ends_as_failed_and_is_retried_until_its_limit_then_waits_for_a_Users_Retry_as_a_stopped_Run_does()
     {
         var (jo, joId) = await UserOfTheirOwnAsync(FakeGitHub.Jo);
         await AddRunnerAsync(jo, "api-key", new { name = "Jo's key", apiKey = "sk-ant-api03-jo", forTheTeam = false });
@@ -112,6 +112,9 @@ public class RunTests(SofaApp sofa)
         using var stopped = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{third.Id}/stop", null, Cancellation);
         var thirdStopped = await RunUntilAsync(jo, third.Id, r => r.State == "Stopped");
         using var retryingTheStopped = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{third.Id}/retry", null, Cancellation);
+        var fourth = (await retryingTheStopped.Content.ReadFromJsonAsync<TestRuns.Run>(Cancellation))!;
+        using var retryingTheStoppedAgain = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{third.Id}/retry", null, Cancellation);
+        using var stoppingTheFourth = await jo.PostAsJsonAsync($"{await WorkspaceApiAsync()}/runs/{fourth.Id}/stop", null, Cancellation);
 
         Assert.Contains("exit code 137", failed.Why);
         Assert.Equal((2, retry, false), (failed.Attempt + 1, failed.RetriedBy, failed.WaitsForRetry));
@@ -120,7 +123,11 @@ public class RunTests(SofaApp sofa)
         Assert.Equal((3, retry), (third.Attempt, third.RetryOf));
         Assert.Equal(HttpStatusCode.OK, stopped.StatusCode);
         Assert.NotNull(thirdStopped.EndedAt);
-        Assert.Equal(HttpStatusCode.Conflict, retryingTheStopped.StatusCode);
+        Assert.Equal("Stopped by a User.", thirdStopped.Why);
+        Assert.Equal(HttpStatusCode.OK, retryingTheStopped.StatusCode);
+        Assert.Equal((4, third.Id), (fourth.Attempt, fourth.RetryOf));
+        Assert.Equal(HttpStatusCode.Conflict, retryingTheStoppedAgain.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, stoppingTheFourth.StatusCode);
     }
 
     [Fact]

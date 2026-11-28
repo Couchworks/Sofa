@@ -19,6 +19,26 @@ public class ClaudeCodeStreamJsonTests
     }
 
     [Fact]
+    public void The_start_lists_the_tools_the_Sandbox_allows_rather_than_every_tool_Claude_Code_has()
+    {
+        var converted = ClaudeCodeStreamJson.Convert(
+            """{"type":"system","subtype":"init","model":"opus","tools":["Read","WebFetch","Task"],"mcp_servers":[],"apiKeySource":"ANTHROPIC_API_KEY"}""",
+            ["mcp__sofa__finish", "Read", "Bash(git log:*)"]);
+
+        Assert.Equal(
+            "Claude Code started on opus. Tools allowed: mcp__sofa__finish, Read, Bash(git log:*). MCP servers: none. Credentials: ANTHROPIC_API_KEY.",
+            Assert.Single(converted.Entries).Text);
+    }
+
+    [Fact]
+    public void A_thinking_tokens_line_is_skipped()
+    {
+        var converted = ClaudeCodeStreamJson.Convert("""{"type":"system","subtype":"thinking_tokens","tokens":812}""");
+
+        Assert.Empty(converted.Entries);
+    }
+
+    [Fact]
     public void A_message_becomes_an_entry_for_each_text_and_tool_call_leaving_out_thinking()
     {
         var converted = ClaudeCodeStreamJson.Convert(

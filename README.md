@@ -123,7 +123,7 @@ Flow hears Identity's answer to each Agent's registration. An Agent Identity ref
 
 Intake brings Requests in from GitHub and writes back to their issues; it learns each Project's binding from Flow's `ProjectBound` events and keeps its own copy, which Flow sends again for every Project when it starts (ADR 0034).
 
-- **Labelling an issue** in a Project's Repository with its label makes a Request and its root Work Item, `<KEY>-<n>`, numbered by Flow (ADR 0035). The User holding the GitHub account that added the label is its delegating User; an account linked to no User of the Workspace opens it with no one delegating, and Notices puts it in the Inbox of the Workspace's Admins. Labelling it again changes nothing. The Project's page lists its Work Items with their Request and who delegated them.
+- **Labelling an issue** in a Project's Repository with its label makes a Request and its root Work Item, `<KEY>-<n>`, numbered by Flow (ADR 0035). The User holding the GitHub account that added the label is its delegating User; an account linked to no User of the Workspace opens it with no one delegating, and Notices puts it in the Inbox of the Workspace's Admins. Labelling it again changes nothing. The Project's page lists its Work Items with their state, Phase, Track, Request and who delegated them, each linking to its page (see *The web client* below).
 - **Reports** are one comment per Phase on the issue: the summary, the detail collapsed beneath it, and a link to the Work Item in Sofa. Posting again for that Phase edits the comment (ADR 0036). Flow sends them as Phases end (see *The Flow*); to post one by hand: `curl -X POST localhost:5299/diagnostics/reports -H 'Content-Type: application/json' -d '{"requestId":"<the request id>","workItemKey":"DEMO-1","phase":"Spec","summary":"…","detail":"…"}'`, with the Request's id from `GET /api/workspaces/{workspaceId}/projects/DEMO/work-items`. `/diagnostics/questions` asks a Question the same way (`questionId`, `requestId`, `workItemKey`, `phase`, `question`).
 - **Answers**: the first comment on the issue after an open Question, from a GitHub account linked to a User of the Workspace, answers it, without the quoted lines and @-mentions it starts with, and Flow keeps it with its Question. Anyone else's comment is ignored. A Run asks its Questions with Sofa's `ask` tool (see *Sofa's tools for Runs*); `/diagnostics/questions` asks one of Intake directly, which Flow doesn't know.
 - **The issue's state**, when the binding turns on *Keep the issue's state*: the issue carries `sofa: <phase>` for its Work Item's Phase, and is closed once the work reaches the main branch. Flow sends those events as its Work Items move; `/diagnostics/work-items/entered-phase` and `/diagnostics/work-items/reached-main-branch` send them by hand.
@@ -163,9 +163,9 @@ It starts a throwaway Worker container on the Runner's volume running `claude au
 
 Execution keeps the Runs and their queue. A Run waits for a Runner, highest Priority first, then oldest first: it spends its delegating User's personal Runner for its vendor (a subscription before an API key), else a Runner of their Team (ADR 0009), and never more Runs on a Runner than its limit. While it waits it says why, such as that every Runner it may spend is at its limit, or that its User has no Runner and no Team of theirs has one.
 
-Each Run gets a fresh Worker container (ADR 0017), started by Execution through Docker on the box and watched by it (ADR 0037), holding its Run token and its Repository token and nothing else of Sofa's; a subscription Run mounts its Runner's volume, an API key Run gets its key from Connections. In the container, a subscription Run first prints `claude auth status`, which Execution records on the Runner, and Claude Code starts only once Execution sees the volume signed in; otherwise the Run is refused as *sign in again*, and Notices hears of it (logged until the Inbox shows it). Claude Code then runs headless (`claude -p`, never `--bare`) on the Agent's model, with only Sofa's MCP server, at the Agent Gateway's `/mcp`, and only the tools of its Phase's Sandbox allowed; the Brief names Sofa's tools, so the Run doesn't spend a turn finding them. Its `stream-json` output goes to Records as it comes, scrubbed of known secrets: the Run's Transcript (see *Transcripts* below).
+Each Run gets a fresh Worker container (ADR 0017), started by Execution through Docker on the box and watched by it (ADR 0037), holding its Run token and its Repository token and nothing else of Sofa's; a subscription Run mounts its Runner's volume, an API key Run gets its key from Connections. In the container, a subscription Run first prints `claude auth status`, which Execution records on the Runner, and Claude Code starts only once Execution sees the volume signed in; otherwise the Run is refused as *sign in again*, and the Runner's User finds it signed out in their Inbox until a later `claude auth status` sees it signed in. Claude Code then runs headless (`claude -p`, never `--bare`) on the Agent's model, with only Sofa's MCP server, at the Agent Gateway's `/mcp`, and only the tools of its Phase's Sandbox allowed; the Brief names Sofa's tools, so the Run doesn't spend a turn finding them. Its `stream-json` output goes to Records as it comes, scrubbed of known secrets: the Run's Transcript (see *Transcripts* below).
 
-A Run is *waiting*, *running*, then *finished* (ended by its Agent with Sofa's `finish`, naming an Outcome, or `ask`, with a Question), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, Code gave no token for its Repositories, its volume isn't signed in, or it may have pushed outside its own branch), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0038), until its retry limit; then it waits for a User's **Retry**, as a refused Run does.
+A Run is *waiting*, *running*, then *finished* (ended by its Agent with Sofa's `finish`, naming an Outcome, or `ask`, with a Question), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, Code gave no token for its Repositories, its volume isn't signed in, or it may have pushed outside its own branch), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0038), until its retry limit; then it waits for a User's **Retry**, as a refused or stopped Run does.
 
 The App Gateway serves `/api/workspaces/{workspaceId}/runs`, each Run at `…/runs/{runId}`, its Transcript at `…/runs/{runId}/transcript`, and `…/retry` and `…/stop` on it, to every User of the Workspace, each with its Brief. Flow starts the Runs of its Work Items itself (see *The Flow*); its diagnostic endpoint starts a test Run of a Phase's Agent, with the Agent's model and the Phase's Sandbox, which moves no Work Item:
 
@@ -182,7 +182,7 @@ docker kill sofa-run-<runId>                                        # a killed c
 
 #### Transcripts
 
-Records converts each line of a Run's output on arrival into entries (ADR 0043): `role` (`User`, `Assistant` or `System`), `text`, `toolName` and `toolInput` for a tool call, its `toolResult` once it comes, and `at`. The session's start is a system entry naming the model, the tools allowed and the credentials, and its end one saying how it ended, after how many turns and at what cost. Known secrets become `[scrubbed]` before anything is stored, in Execution before the line leaves for the broker and in Records again: Sofa's own tokens, GitHub's, Anthropic's API keys and OAuth tokens, AWS keys, Slack's, private-key blocks and bearer values. A tool input or result over 20 KB keeps its first 20 KB and says so (`toolInputCut`, `toolResultCut`). `…/transcript?after=<readUpToLine>` reads only what came since; a tool call shows again once its result arrives. Transcripts kept before this as raw lines were dropped.
+Records converts each line of a Run's output on arrival into entries (ADR 0043): `role` (`User`, `Assistant` or `System`), `text`, `toolName` and `toolInput` for a tool call, its `toolResult` once it comes, and `at`. The session's start is a system entry naming the model, the tools its Phase's Sandbox allows (not every tool Claude Code has, which is what its own first line lists) and the credentials, and its end one saying how it ended, after how many turns and at what cost. Known secrets become `[scrubbed]` before anything is stored, in Execution before the line leaves for the broker and in Records again: Sofa's own tokens, GitHub's, Anthropic's API keys and OAuth tokens, AWS keys, Slack's, private-key blocks and bearer values. A tool input or result over 20 KB keeps its first 20 KB and says so (`toolInputCut`, `toolResultCut`). `…/transcript?after=<readUpToLine>` reads only what came since; a tool call shows again once its result arrives. Claude Code's `thinking_tokens` lines are left out, as thinking is. Transcripts kept before this as raw lines were dropped.
 
 #### Repository tokens
 
@@ -251,12 +251,12 @@ The integration tests do the same against a fake GitHub and the stub Worker, whi
 
 Flow takes each delegated Work Item through its Project's Flow on its own, one Run at a time (ADR 0048). Labelling an issue opens the Work Item and starts its Triage Run on the delegating User's Runner (ADR 0009); a Work Item no User delegated waits. Each Run's Brief is Sofa's preamble, the Agent's own instructions, the Phase's instructions and the Work Item's key; Execution adds Sofa's tools, the Phase's Outcomes and the Run's Repositories.
 
-- **Tracks.** Triage's Outcome, `small` or `full`, is the Track. Small skips Spec and turns Plan's Approve Gate to Review afterwards; Full runs every Phase.
+- **Tracks.** Triage's Outcome, `small` or `full`, is the Track. Small skips Spec and turns Plan's Approve Gate to Review afterwards; Full runs every Phase. A User changes the Track at any time until the Work Item is done (`PUT …/track`, or its page): the change applies to the Phases still ahead, never going back to one passed or skipped, and a Track a User chose stands over Triage's.
 - **Gates.** Auto goes on; Review afterwards goes on and leaves the Phase's end *Unverified* until a User approves it; Approve waits, and the Work Item lands in its delegating User's Inbox. Approving goes on; sending it back with a comment starts a new Run of that Phase, whose `read_work_item` shows the comment.
-- **Questions.** A Run that asks waits in the Inbox and on the issue; the answer, there or in Sofa, starts a new Run of the same Phase.
+- **Questions.** A Run that asks waits in the Inbox and on the issue; the answer, there or in Sofa, starts a new Run of the same Phase. An answer given in Sofa settles the Question on the issue too: Intake edits Sofa's comment to quote it, and a later reply there answers nothing.
 - **Reports.** When Spec, Plan and Implement end, Flow posts each Run's Contribution on the issue as the Phase's Report: its first paragraph that is no heading as the summary, the whole of it as the detail. With *Keep the issue's state* on, the issue's `sofa: <phase>` label follows the Phase.
 - **Implement** pushes its own branch, `sofa/<key>`, opens a pull request to the main branch titled with the Work Item's key, and screenshots what it changed: the Worker has Playwright's headless Chromium, and Implement's Sandbox lets it run the Project's own scripts (`npm run`, `npm start`, `npm test`, `node`) and `playwright screenshot`, with the network still limited to its vendor's API and GitHub, so nothing can be downloaded (ADR 0050). The Work Item then waits for its pull request: merged, it is *Done*, the Implement Report says so and, with the issue's state kept, the issue is closed; closed unmerged, it waits in the delegating User's Inbox until the pull request is reopened.
-- **Runs gone wrong.** A failed or lost Run is followed into its retry; once its retries run out, or if it was refused or stopped, the Work Item waits in the Inbox, and a User's **Retry** of that Run carries it on once the retry ends.
+- **Runs gone wrong.** A failed or lost Run is followed into its retry; once its retries run out, or if it was refused or stopped, the Work Item waits in the Inbox, and a User's **Retry** of that Run carries it on: Flow follows the retry as soon as it is made (ADR 0054).
 
 The App Gateway serves, to every User of the Workspace:
 
@@ -265,10 +265,11 @@ GET  $API/projects/DEMO/work-items/DEMO-1                                   # it
 POST $API/projects/DEMO/work-items/DEMO-1/phases/Spec/approval              # approve the Phase waiting at its Gate
 POST $API/projects/DEMO/work-items/DEMO-1/phases/Spec/sending-back  -d '{"comment":"…"}'
 POST $API/projects/DEMO/work-items/DEMO-1/questions/<questionId>/answer -d '{"answer":"…"}'
+PUT  $API/projects/DEMO/work-items/DEMO-1/track -d '{"track":"Small"}'              # or Full
 GET  $API/inbox                                                             # what waits for the signed-in User, and for an Admin what waits for the Admins
 ```
 
-with `API=$APP_GATEWAY/api/workspaces/<workspace id>` and `-H "Authorization: Bearer $TOKEN"` (and `-H 'content-type: application/json'` with a body) on each. The Inbox's page is slice 10's.
+with `API=$APP_GATEWAY/api/workspaces/<workspace id>` and `-H "Authorization: Bearer $TOKEN"` (and `-H 'content-type: application/json'` with a body) on each. The web client does all of it from its pages (see *The web client* below).
 
 #### Showing the demo on GitHub
 
@@ -282,6 +283,26 @@ With the App installed on the test Repository behind a public address (see *Tryi
 6. Every Run of it is listed on `DEMO-1`, each with its Brief (`GET …/runs/<runId>`), Contribution and Transcript.
 
 The integration tests run the same Flow against a fake GitHub and the stub Worker, which asks once, finishes with the Outcome its Phase's instructions name and attaches a one-pixel screenshot, so no tokens are spent.
+
+### The web client
+
+Every page is under the navigation, which shows how many items wait in the signed-in User's **Inbox** and whether the pages are *Live*.
+
+- **Inbox** (`/inbox`) lists what waits for the User, and for an Admin what waits for the Admins, newest first: a Question to answer; a Gate to approve, with the spec or plan shown in full and its attachments, approved or sent back with a comment; a Run gone wrong, with **Retry**; a pull request closed unmerged; a Request waiting for a delegating User; and a subscription Runner whose sign-in ends within three days or that refused a Run as signed out, with the command to sign it in again. Notices keeps the sign-ins it hears of from Execution, which tells it each `claude auth status` it records and all of them again when it starts.
+- **A Work Item's page** (`/projects/<key>/work-items/<key>`, where Reports link to) shows its state, Request, delegating User and Track, which a User changes there; what it waits for, with the same actions as the Inbox; each Phase of the Project's Flow with how it ended, who decided and their comment, and **Mark as looked at** for one left Unverified; each Run, opened to show its state, Brief, Contribution (Markdown, with screenshots shown as images), Question and Transcript, with **Retry** or **Stop** where they apply; its Questions with their answers and who gave them; and its pull request.
+- **Projects**, **Runners** and **Team** hold the Workspace's settings: a Project's page its Flow, its Agents and its Work Items, and Runners warns of a sign-in ending within three days.
+
+**Live updates.** The pages change as Runs do, over SignalR (ADR 0053): the App Gateway serves `/api/workspaces/{workspaceId}/live` to the Users of the Workspace, hears Flow's `WorkItemChanged`, Execution's `RunChanged` and Notices' `InboxChanged`, and tells each page what changed, which the page then reads again. A running Run's Transcript is read again every three seconds while it is open.
+
+#### Showing the demo from the web client
+
+As *Showing the demo on GitHub* above, but every step in Sofa is taken on its pages:
+
+1. Label the issue `sofa`. The Project's page lists `DEMO-1`; open it. Triage's Run shows under Triage, live, and the Track it picks.
+2. Spec's Question shows in the Inbox: answer it there. Sofa's comment on the issue now quotes the answer.
+3. The spec waits in the Inbox, shown in full: approve it. The plan follows; send it back with a comment, then approve it.
+4. Implement's Run shows on `DEMO-1`'s page; open it to see its Brief, its Transcript growing, then its Contribution with the screenshot.
+5. Merge the pull request on GitHub: the page shows `DEMO-1` done and the pull request merged, without reloading.
 
 ### The Team
 

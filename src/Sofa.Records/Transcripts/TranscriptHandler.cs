@@ -27,7 +27,7 @@ public static class TranscriptHandler
         var callsInThisBatch = new Dictionary<string, StoredTranscriptEntry>();
         foreach (var (number, text) in TranscriptRules.LinesNotYetStored(arrived, alreadyStored))
         {
-            var converted = TranscriptRules.ScrubbedAndConverted(text);
+            var converted = TranscriptRules.ScrubbedAndConverted(text, arrived.ToolsAllowed);
             var entries = TranscriptRules.EntriesOf(arrived.RunId, arrived.WorkspaceId, number, converted, now);
             db.TranscriptEntries.AddRange(entries);
             foreach (var call in entries.Where(e => e.ToolUseId is not null))

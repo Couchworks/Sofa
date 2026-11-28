@@ -97,3 +97,22 @@ test('adding a subscription Runner shows the command to sign it in', async () =>
 
   expect(await screen.findByText(`sofa runner login ${subscription.id}`)).toBeDefined()
 })
+
+test('a subscription whose sign-in ends within three days warns to sign it in again', async () => {
+  const endingSoon = { ...subscription, signIn: { ...subscription.signIn, endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() } }
+  fakeGateway({ 'GET /api/me': { body: me(false) }, [`GET ${runners}`]: { body: [endingSoon, teamKey] } })
+
+  renderWithQueries(<RunnersPage />)
+
+  expect(await screen.findByText('Its sign-in ends soon')).toBeDefined()
+})
+
+test('a subscription signed in for longer shows no warning', async () => {
+  const later = { ...subscription, signIn: { ...subscription.signIn, endsAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString() } }
+  fakeGateway({ 'GET /api/me': { body: me(false) }, [`GET ${runners}`]: { body: [later] } })
+
+  renderWithQueries(<RunnersPage />)
+
+  await screen.findByText(/Signed in until/)
+  expect(screen.queryByText('Its sign-in ends soon')).toBeNull()
+})

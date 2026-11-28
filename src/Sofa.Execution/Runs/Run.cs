@@ -72,7 +72,7 @@ public sealed class Run
 
     public bool IsRetriedOnItsOwn => State is (RunState.Failed or RunState.Lost) && RetriesLeft > 0;
 
-    public bool MayBeRetriedByAUser => State is (RunState.Failed or RunState.Lost or RunState.Refused) && RetriedBy is null;
+    public bool MayBeRetriedByAUser => State is (RunState.Failed or RunState.Lost or RunState.Refused or RunState.Stopped) && RetriedBy is null;
 
     public static Run From(StartRun start, DateTimeOffset now) => new()
     {
@@ -183,6 +183,8 @@ public sealed class Run
         MayBeRetriedByAUser ? RetriedAs(retryId, RetryLimit, now) : null;
 
     public RunEnded Ended => new(Id, WorkspaceId, WorkItemId, Phase, State, Why, RefusedAs, RetriedBy, Outcome, Asked, RetryOf);
+
+    public RunChanged Changed => new(Id, WorkspaceId, WorkItemId, State);
 
     public RunDetails Details => new(
         Id, WorkspaceId, ProjectId, WorkItemId, Phase, AgentId, Model, Sandbox, DelegatingUserId, Priority, State, Why, RefusedAs,

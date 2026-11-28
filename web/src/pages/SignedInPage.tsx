@@ -9,7 +9,7 @@ export function SignedInPage() {
 
   useEffect(() => {
     finishSigningIn().then(
-      () => replaceWith('/'),
+      (page) => replaceWith(page),
       (error: unknown) => setFailure(error instanceof Error ? error.message : String(error)),
     )
   }, [])

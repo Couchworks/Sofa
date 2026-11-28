@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sofa.Contracts.Execution;
 using Sofa.Execution.Data;
+using Wolverine;
 
 namespace Sofa.Execution.Runners;
 
@@ -41,7 +42,13 @@ public static class RunnerEndpoints
             : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Sofa has no such Runner.");
 
     private static async Task<IResult> RecordSignIn(
-        Guid runnerId, SignInSeen seen, ExecutionDb db, TimeProvider time, ILogger<SignInSeen> logger, CancellationToken cancellation)
+        Guid runnerId,
+        SignInSeen seen,
+        ExecutionDb db,
+        TimeProvider time,
+        IMessageBus bus,
+        ILogger<SignInSeen> logger,
+        CancellationToken cancellation)
     {
         var runner = await db.Runners.FindAsync([runnerId], cancellation);
         if (runner is null)
@@ -57,6 +64,10 @@ public static class RunnerEndpoints
 
         runner.Saw(seen, time.GetUtcNow());
         await db.SaveChangesAsync(cancellation);
+        if (runner.SignInSeen is { } signInSeen)
+        {
+            await bus.PublishAsync(signInSeen);
+        }
         logger.LogInformation("Subscription Runner {RunnerId} is {SignedIn}, until {EndsAt}",
             runner.Id, runner.SignedIn ? "signed in" : "not signed in", runner.SignInEndsAt);
         return Results.Ok(runner.Details);

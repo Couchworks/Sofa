@@ -35,6 +35,15 @@ public class AnswerRulesTests
     }
 
     [Fact]
+    public void A_comment_after_a_Question_answered_in_Sofa_answers_nothing()
+    {
+        var question = AskedIn(100);
+        question.AnsweredInSofa = true;
+
+        Assert.Null(AnswerRules.WhatTheCommentAnswers([question], 101));
+    }
+
+    [Fact]
     public void A_comment_once_every_Question_is_answered_answers_nothing()
     {
         Assert.Null(AnswerRules.WhatTheCommentAnswers([AskedIn(100, answeredBy: 101)], 102));

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 type Runner = components['schemas']['RunnerDetails']
 
 const defaultRunsAtOnce = 2
+const warnBeforeTheSignInEndsMs = 3 * 24 * 60 * 60 * 1000
 const signInEnds = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
 function signInCommand(runnerId: string) {
@@ -73,6 +74,7 @@ function RunnerItem({ workspaceId, runner, onChanged }: { workspaceId: string; r
         <CardDescription>{runner.kind === 'ApiKey' ? 'Its API key is saved, and never shown again.' : <SignInState runner={runner} />}</CardDescription>
       </CardHeader>
       <CardContent className="mt-2 flex flex-col gap-3">
+        {runner.kind === 'Subscription' && <SignInWarning runner={runner} />}
         {runner.kind === 'Subscription' && (
           <div className="flex flex-col gap-1">
             <span className="text-muted-foreground text-xs">Sign it in from a terminal on Sofa&apos;s box:</span>
@@ -114,6 +116,23 @@ function RunnerItem({ workspaceId, runner, onChanged }: { workspaceId: string; r
 function SignInState({ runner }: { runner: Runner }) {
   if (!runner.signIn?.signedIn) return <>Not signed in yet.</>
   return runner.signIn.endsAt ? <>Signed in until {signInEnds.format(new Date(runner.signIn.endsAt))}.</> : <>Signed in.</>
+}
+
+function signInEndsSoon(runner: Runner, now: number) {
+  const endsAt = runner.signIn?.signedIn && runner.signIn.endsAt ? new Date(runner.signIn.endsAt).getTime() : null
+  return endsAt !== null && endsAt - now <= warnBeforeTheSignInEndsMs
+}
+
+function SignInWarning({ runner }: { runner: Runner }) {
+  const [now] = useState(() => Date.now())
+  if (!signInEndsSoon(runner, now)) return null
+  const ended = new Date(runner.signIn!.endsAt!).getTime() <= now
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>{ended ? 'Its sign-in has ended' : 'Its sign-in ends soon'}</AlertTitle>
+      <AlertDescription>Its Runs are refused once it ends. Sign it in again from a terminal on Sofa&apos;s box.</AlertDescription>
+    </Alert>
+  )
 }
 
 function AddSubscriptionRunner({ workspaceId }: { workspaceId: string }) {

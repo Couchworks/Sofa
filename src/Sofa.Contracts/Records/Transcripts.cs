@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 
 namespace Sofa.Contracts.Records;
 
-public sealed record AppendTranscript(Guid RunId, Guid WorkspaceId, int FirstLine, IReadOnlyList<string> Lines);
+public sealed record AppendTranscript(
+    Guid RunId, Guid WorkspaceId, int FirstLine, IReadOnlyList<string> Lines, IReadOnlyList<string>? ToolsAllowed = null);
 
 public sealed record Transcript(
     Guid RunId,

@@ -18,7 +18,7 @@ public class WorkItemTextTests
 
     private static WorkItemDetails WorkItem(params QuestionDetails[] questions) => new(
         Guid.NewGuid(), "DEMO-1", "Add a dark mode toggle", Guid.NewGuid(), Guid.NewGuid(), Issue, Guid.NewGuid(), Asked, questions,
-        WorkItemState.Running, PhaseName.Spec, Track: null, Waiting: null, Runs: [], PhaseEnds: [], PullRequest: null, DoneAt: null);
+        WorkItemState.Running, PhaseName.Spec, Track: null, TrackChosenByAUser: false, Waiting: null, Runs: [], PhaseEnds: [], PullRequest: null, DoneAt: null);
 
     private static RequestRead.Now IssueNow(string title, string body) =>
         new(new RequestNow(Guid.NewGuid(), Issue.Repository, Issue.Number, Issue.Url, title, body, "open"));

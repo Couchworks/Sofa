@@ -7,6 +7,8 @@ public enum InboxItemKind
     Approval,
     RunGoneWrong,
     PullRequestClosedUnmerged,
+    SubscriptionSignInEnding,
+    SubscriptionSignedOut,
 }
 
 public enum InboxAudience
@@ -32,6 +34,8 @@ public sealed class InboxItem
     public required Guid ProjectId { get; init; }
 
     public required string ProjectKey { get; init; }
+
+    public string? WorkItemKey { get; init; }
 
     public required string Title { get; init; }
 

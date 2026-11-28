@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from './App'
 
@@ -263,33 +263,76 @@ test('problems with fields are shown beside them', async () => {
   expect(screen.getByLabelText('Password').getAttribute('aria-invalid')).toBe('true')
 })
 
-test('coming back from Identity finishes signing in and goes home', async () => {
-  session.finishSigningIn.mockResolvedValue(undefined)
+test('coming back from Identity finishes signing in and goes to the page it was opened on', async () => {
+  session.finishSigningIn.mockResolvedValue('/projects/DEMO/work-items/DEMO-4')
 
   renderAt('/signed-in')
 
-  await waitFor(() => expect(navigation.replaceWith).toHaveBeenCalledWith('/'))
+  await waitFor(() => expect(navigation.replaceWith).toHaveBeenCalledWith('/projects/DEMO/work-items/DEMO-4'))
 })
 
-test('a Work Item’s address from a Report opens its Project', async () => {
+test('a Work Item’s address from a Report opens the Work Item’s page', async () => {
   const workspace = ada.workspaces[0].id
   const fetch = answering({
     '/api/me': () => Response.json(ada),
-    [`/api/workspaces/${workspace}/projects/DEMO`]: () =>
+    [`/api/workspaces/${workspace}/projects/DEMO/work-items/DEMO-1`]: () =>
       Response.json({
-        id: 'p1',
-        key: 'DEMO',
-        name: 'The demo',
-        requests: { connectionId: 'c1', repository: 'acme/demo', label: 'sofa', keepsIssueState: false },
-        code: { connectionId: 'c1', repositories: ['acme/demo'] },
-        phases: [],
-        agents: [],
+        id: 'w1',
+        key: 'DEMO-1',
+        title: 'Add a dark mode toggle',
+        projectId: 'p1',
+        requestId: 'r1',
+        request: { repository: 'acme/demo', number: 12, url: 'https://github.com/acme/demo/issues/12' },
+        delegatingUserId: null,
+        openedAt: '2026-11-28T09:00:00Z',
+        questions: [],
+        state: 'Running',
+        phase: 'Triage',
+        track: null,
+        trackChosenByAUser: false,
+        waiting: null,
+        runs: [],
+        phaseEnds: [],
+        pullRequest: null,
+        doneAt: null,
       }),
-    [`/api/workspaces/${workspace}/projects/DEMO/work-items`]: () => Response.json([]),
   })
 
   renderAt('/projects/DEMO/work-items/DEMO-1')
 
-  expect(await screen.findByText('The demo')).toBeDefined()
-  await waitFor(() => expect(requestTo(fetch, `/api/workspaces/${workspace}/projects/DEMO/work-items`)).toBeDefined())
+  expect(await screen.findByText('Add a dark mode toggle')).toBeDefined()
+  expect(screen.getByRole('heading', { name: 'DEMO-1' })).toBeDefined()
+  expect(requestTo(fetch, `/api/workspaces/${workspace}/projects/DEMO/work-items/DEMO-1`)).toBeDefined()
+})
+
+test('the Inbox has its own address', async () => {
+  const workspace = ada.workspaces[0].id
+  answering({
+    '/api/me': () => Response.json(ada),
+    [`/api/workspaces/${workspace}/inbox`]: () => Response.json([]),
+  })
+
+  renderAt('/inbox')
+
+  expect(await screen.findByText(/Nothing waits for you/)).toBeDefined()
+})
+
+test('the navigation says how much waits in the Inbox, and that the pages are live', async () => {
+  const workspace = ada.workspaces[0].id
+  answering({
+    '/api/me': () => Response.json(ada),
+    '/api/status': () => Response.json({ name: 'Sofa', environment: 'Development', time: '2026-11-27T12:00:00Z' }),
+    [`/api/workspaces/${workspace}/inbox`]: () =>
+      Response.json([
+        { id: 'i1', kind: 'Question', for: 'TheUser', subjectId: 'q1', projectKey: 'DEMO', workItemKey: 'DEMO-1', title: 'DEMO-1: x', detail: '', url: '', raisedAt: '2026-11-28T09:00:00Z' },
+        { id: 'i2', kind: 'Approval', for: 'TheUser', subjectId: 'r1', projectKey: 'DEMO', workItemKey: 'DEMO-2', title: 'DEMO-2: y', detail: '', url: '', raisedAt: '2026-11-28T09:00:00Z' },
+      ]),
+  })
+
+  renderAt('/')
+
+  const navigation = await screen.findByRole('navigation', { name: 'Sofa' })
+  expect(await within(navigation).findByLabelText('2 waiting')).toBeDefined()
+  expect(within(navigation).getByRole('link', { name: /Inbox/ }).getAttribute('href')).toBe('/inbox')
+  expect(await within(navigation).findByText('Live')).toBeDefined()
 })

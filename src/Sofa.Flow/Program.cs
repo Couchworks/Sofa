@@ -35,6 +35,8 @@ builder.AddSofaMessaging(SofaServices.Flow, options =>
     options.PublishEvent<WorkItemReachedMainBranch>(SofaEvents.WorkItemReachedMainBranch);
     options.PublishEvent<WorkItemAwaitsUser>(SofaEvents.WorkItemAwaitsUser);
     options.PublishEvent<WorkItemNoLongerAwaitsUser>(SofaEvents.WorkItemNoLongerAwaitsUser);
+    options.PublishEvent<WorkItemChanged>(SofaEvents.WorkItemChanged);
+    options.PublishMessage<QuestionAnsweredInSofa>().ToRabbitQueue(SofaServices.Intake);
     options.Policies.OnException<DbUpdateConcurrencyException>().RetryTimes(5);
     options.Policies.OnException<HttpRequestException>().RetryWithCooldown(
         TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
@@ -44,6 +46,7 @@ builder.AddSofaMessaging(SofaServices.Flow, options =>
 [
     SofaEvents.QuestionAnsweredOnRequest,
     SofaEvents.RunEnded,
+    SofaEvents.RunRetriedByAUser,
     SofaEvents.PullRequestOpened,
     SofaEvents.PullRequestMerged,
     SofaEvents.PullRequestClosedUnmerged,
