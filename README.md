@@ -95,7 +95,7 @@ The pages for the GitHub App, Connections and adding Users are for a Workspace's
 
 **Projects** in the web client lists the Workspace's Projects. An Admin creates one with a key, such as `DEMO`, unique in the Workspace and never changed, and binds it through one of the Workspace's Connections to a Request Provider (the Repository whose issues come in, and the label that marks them for Sofa) and a Code Provider (one or more Repositories). Flow checks with Connections that the Connection is the Workspace's and reaches each Repository (ADR 0030). Only an Admin changes a binding.
 
-Every new Project starts with milestone 1's Flow, Triage → Spec → Plan → Implement, every Phase Solo, with the Gates and Sandboxes of `docs/default-flow.md`, and its own Triager (Haiku), Lead (Opus) and Builder (Opus), registered with Identity as actors owned by the Workspace's Team. A Project's page shows them; every User of the Workspace has Write in its Projects (ADR 0031), so they change an Agent's role, instructions and model (`opus`, `sonnet`, `haiku` or a full model name, passed to Claude Code's `--model`) and a Phase's cast, Gate and Sandbox. Nothing runs the Flow yet.
+Every new Project starts with milestone 1's Flow, Triage → Spec → Plan → Implement, every Phase Solo, with the Gates and Sandboxes of `docs/default-flow.md`, and its own Triager (Haiku), Lead (Opus) and Builder (Opus), registered with Identity as actors owned by the Workspace's Team. A Project's page shows them; every User of the Workspace has Write in its Projects (ADR 0031), so they change an Agent's role, instructions and model (`opus`, `sonnet`, `haiku` or a full model name, passed to Claude Code's `--model`) and a Phase's cast, Gate, Sandbox and instructions: what its Agent is told to do in that Phase, which starts as `docs/default-flow.md` says (see *The Flow* below).
 
 Flow hears Identity's answer to each Agent's registration. An Agent Identity refused shows on the Project's page as *Not registered*, with Identity's reason and **Retry**, which asks Identity again; its Runs are refused until it is registered. Agents Identity hasn't answered for are asked again whenever Flow starts.
 
@@ -104,9 +104,9 @@ Flow hears Identity's answer to each Agent's registration. An Agent Identity ref
 Intake brings Requests in from GitHub and writes back to their issues; it learns each Project's binding from Flow's `ProjectBound` events and keeps its own copy, which Flow sends again for every Project when it starts (ADR 0034).
 
 - **Labelling an issue** in a Project's Repository with its label makes a Request and its root Work Item, `<KEY>-<n>`, numbered by Flow (ADR 0035). The User holding the GitHub account that added the label is its delegating User; an account linked to no User of the Workspace opens it with no one delegating, and Notices puts it in the Inbox of the Workspace's Admins. Labelling it again changes nothing. The Project's page lists its Work Items with their Request and who delegated them.
-- **Reports** are one comment per Phase on the issue: the summary, the detail collapsed beneath it, and a link to the Work Item in Sofa. Posting again for that Phase edits the comment (ADR 0036). Until Flow sends them (slice 8), post one by hand: `curl -X POST localhost:5299/diagnostics/reports -H 'Content-Type: application/json' -d '{"requestId":"<the request id>","workItemKey":"DEMO-1","phase":"Spec","summary":"…","detail":"…"}'`, with the Request's id from `GET /api/workspaces/{workspaceId}/projects/DEMO/work-items`. `/diagnostics/questions` asks a Question the same way (`questionId`, `requestId`, `workItemKey`, `phase`, `question`).
+- **Reports** are one comment per Phase on the issue: the summary, the detail collapsed beneath it, and a link to the Work Item in Sofa. Posting again for that Phase edits the comment (ADR 0036). Flow sends them as Phases end (see *The Flow*); to post one by hand: `curl -X POST localhost:5299/diagnostics/reports -H 'Content-Type: application/json' -d '{"requestId":"<the request id>","workItemKey":"DEMO-1","phase":"Spec","summary":"…","detail":"…"}'`, with the Request's id from `GET /api/workspaces/{workspaceId}/projects/DEMO/work-items`. `/diagnostics/questions` asks a Question the same way (`questionId`, `requestId`, `workItemKey`, `phase`, `question`).
 - **Answers**: the first comment on the issue after an open Question, from a GitHub account linked to a User of the Workspace, answers it, without the quoted lines and @-mentions it starts with, and Flow keeps it with its Question. Anyone else's comment is ignored. A Run asks its Questions with Sofa's `ask` tool (see *Sofa's tools for Runs*); `/diagnostics/questions` asks one of Intake directly, which Flow doesn't know.
-- **The issue's state**, when the binding turns on *Keep the issue's state*: the issue carries `sofa: <phase>` for its Work Item's Phase, and is closed once the work reaches the main branch. Nothing sends those events before slice 8; `/diagnostics/work-items/entered-phase` and `/diagnostics/work-items/reached-main-branch` stand in.
+- **The issue's state**, when the binding turns on *Keep the issue's state*: the issue carries `sofa: <phase>` for its Work Item's Phase, and is closed once the work reaches the main branch. Flow sends those events as its Work Items move; `/diagnostics/work-items/entered-phase` and `/diagnostics/work-items/reached-main-branch` send them by hand.
 
 Port 5299 is Intake's; the diagnostics routes are reached only on the box, never through the App Gateway.
 
@@ -147,7 +147,7 @@ Each Run gets a fresh Worker container (ADR 0017), started by Execution through 
 
 A Run is *waiting*, *running*, then *finished* (ended by its Agent with Sofa's `finish`, naming an Outcome, or `ask`, with a Question), *failed* (its container ended first, or ran over `Workers:LongestRun`, two hours), *lost* (Execution restarted while it ran), *stopped* by a User, or *refused* (Identity refused its Run token, its API key couldn't be opened, Code gave no token for its Repositories, its volume isn't signed in, or it may have pushed outside its own branch), always saying why. A failed or lost Run is retried as a new Run, linked to it (ADR 0038), until its retry limit; then it waits for a User's **Retry**, as a refused Run does.
 
-The App Gateway serves `/api/workspaces/{workspaceId}/runs`, each Run at `…/runs/{runId}`, its Transcript at `…/runs/{runId}/transcript`, and `…/retry` and `…/stop` on it, to every User of the Workspace. Until Flow starts Runs (slice 8), Flow's diagnostic endpoint starts a test Run of a Phase's Agent, with the Agent's model and the Phase's Sandbox:
+The App Gateway serves `/api/workspaces/{workspaceId}/runs`, each Run at `…/runs/{runId}`, its Transcript at `…/runs/{runId}/transcript`, and `…/retry` and `…/stop` on it, to every User of the Workspace, each with its Brief. Flow starts the Runs of its Work Items itself (see *The Flow*); its diagnostic endpoint starts a test Run of a Phase's Agent, with the Agent's model and the Phase's Sandbox, which moves no Work Item:
 
 ```sh
 docker build -t sofa-worker worker                                  # the Worker image, once
@@ -166,7 +166,7 @@ Records converts each line of a Run's output on arrival into entries (ADR 0043):
 
 #### Repository tokens
 
-When a Run starts, Execution asks Code for its token, and Code asks Connections for an installation token for only the Project's Repositories (ADR 0044): a read-only Sandbox may read contents and pull requests; pushing its own branch may write both. A Run's own branch is `sofa/<Work Item key>`, or `sofa/test-run-<run id>` for a test Run, and its Brief says which Repositories it has and what it may push. The container has the token as `GH_TOKEN`, and git uses it for `https://github.com`. GitHub can't keep a token to one branch, so Code judges every push by Sofa's App: one to a branch that is no running Run's own is put back through GitHub's API, and every Run that could have made it is ended as *refused*, saying it may have left its Sandbox. A token lasts an hour, so a Run past an hour loses GitHub.
+When a Run starts, Execution asks Code for its token, and Code asks Connections for an installation token for only the Project's Repositories (ADR 0044): a read-only Sandbox may read contents and pull requests; pushing its own branch may write both. A Run's own branch is `sofa/<Work Item key>`, or `sofa/test-run-<run id>` for a test Run, and its Brief says which Repositories it has and what it may push. The container keeps the token in `/tmp/sofa/github-token`, which git uses for `https://github.com`, and in GitHub's CLI's configuration, so the Builder opens its pull request with `gh pr create`. GitHub can't keep a token to one branch, so Code judges every push by Sofa's App: one to a branch that is no running Run's own is put back through GitHub's API, and every Run that could have made it is ended as *refused*, saying it may have left its Sandbox. A token lasts an hour, so ten minutes before it expires (`Workers:RefreshRepositoryTokenBefore`) Execution asks Code for a fresh one and writes it into the running container (ADR 0049); Execution's log shows `Refreshed Run … 's Repository token`.
 
 #### The Sandbox's network
 
@@ -176,7 +176,7 @@ What a Run's tools may never do, and what that does and doesn't protect, is in A
 
 #### Pull requests
 
-Code hears GitHub's `pull_request` events and sends its own `PullRequestOpened`, `PullRequestMerged` and `PullRequestClosedUnmerged`, naming the Work Item whose key is in the pull request's title, or else its branch (ADR 0047); its log shows each, such as `Code sent PullRequestMerged for DEMO-1: pull request acme/demo#7`. Nothing in Flow hears them before slice 8. `GET /api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests` lists a Work Item's pull requests, each read from GitHub again.
+Code hears GitHub's `pull_request` events and sends its own `PullRequestOpened`, `PullRequestMerged` and `PullRequestClosedUnmerged`, naming the Work Item whose key is in the pull request's title, or else its branch (ADR 0047); its log shows each, such as `Code sent PullRequestMerged for DEMO-1: pull request acme/demo#7`. Flow hears them to finish its Work Items (see *The Flow*). `GET /api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/pull-requests` lists a Work Item's pull requests, each read from GitHub again.
 
 #### Showing it on GitHub and with Claude
 
@@ -199,7 +199,7 @@ These need your GitHub App installed on a test Repository and Sofa behind a publ
 The Agent Gateway serves a Run three tools over MCP, at `/mcp`, each acting only for the Run its token names and only while Execution says it is running (ADR 0039); a call with an ended Run's token is refused with 403. A Run is offered only the tools its Phase's Sandbox allows, which in this milestone is all three in every Sandbox, and its Brief names them and its Phase's Outcomes, so it doesn't spend a turn finding them.
 
 - **`read_work_item`** gives the Work Item, its Request as the issue reads now (Intake reads its title and body from GitHub, so edits after labelling reach the Run, ADR 0042), its Questions with their answers, and the Contributions of earlier Runs on it.
-- **`ask`** ends the Run with a Question. Flow keeps it on the Work Item and Intake posts it on the issue; the answer given there comes back to Flow, and a new Run's `read_work_item` shows it (ADR 0041). Starting that new Run on its own is slice 8's.
+- **`ask`** ends the Run with a Question. Flow keeps it on the Work Item and Intake posts it on the issue; the answer given there comes back to Flow, and Flow starts a new Run of the same Phase, whose `read_work_item` shows it (ADR 0041).
 - **`finish`** ends the Run with one of its Phase's Outcomes and its Contribution in Markdown, with up to 10 files from its working directory, `/work`, attached, each up to 10 MiB. Execution copies them out of the container and hands the Contribution to Records before the Run ends (ADR 0040).
 
 | Phase | Outcomes |
@@ -215,17 +215,53 @@ Records keeps each Contribution per Work Item and Run, and its attachments as fi
 
 With the App installed on the test Repository and `DEMO` bound to it (see *Showing it on GitHub*), a Runner of your own (see *Runners*), and the Worker image built:
 
-1. Label an issue `sofa`: it becomes `DEMO-1`, delegated by you. Then edit the issue's description on GitHub.
+1. Set Triage's Gate to *Approve* on the Project's page, so the Flow stops after Triage and leaves the Work Item to your test Runs. Label an issue `sofa`: it becomes `DEMO-1`, delegated by you. Then edit the issue's description on GitHub.
 2. Start a Run of Spec on it that asks:
    ```sh
    curl -X POST $FLOW/diagnostics/test-runs -H 'content-type: application/json'      -d '{"workspaceId":"…","projectKey":"DEMO","phase":"Spec","delegatingUserId":"…","workItemKey":"DEMO-1","task":"Read the Work Item, then ask me one Question about it with Sofa'"'"'s ask tool."}'
    ```
    Its Transcript shows `read_work_item` giving the issue's edited description, and the Run ends *finished* with its Question, which appears as Sofa's comment on the issue.
-3. Reply on the issue. Start another Run the same way, of Implement this time, whose Sandbox lets it write files: `"phase":"Implement"` and the task `Read the Work Item. Draw a small mock-up of what it asks for as an SVG in /work/mock-up.svg with the Write tool, then finish, describing it, with that file attached.`. Its `read_work_item` shows your answer, and it finishes `implemented`. The Worker has no browser yet, so a real Run can't take a PNG screenshot; a read-only Phase such as Spec can't write files at all.
+3. Reply on the issue. Start another Run the same way, of Implement this time, whose Sandbox lets it write files: `"phase":"Implement"` and the task `Read the Work Item. Draw a small mock-up of what it asks for as an SVG in /work/mock-up.svg with the Write tool, then finish, describing it, with that file attached.`. Its `read_work_item` shows your answer, and it finishes `implemented`. A read-only Phase such as Spec can't write files at all; Implement's Run can also take a real PNG screenshot (see *The Flow*).
 4. Read its Contribution: `curl $APP_GATEWAY/api/workspaces/…/runs/<runId>/contribution -H "Authorization: Bearer $TOKEN"`, and its attachment at the address it names.
 5. Copy the Run token out of a running container (`docker exec sofa-run-<runId> cat /tmp/sofa/mcp.json`) and call `/mcp` with it once the Run has ended: 403.
 
 The integration tests do the same against a fake GitHub and the stub Worker, which writes a one-pixel screenshot.
+
+### The Flow
+
+Flow takes each delegated Work Item through its Project's Flow on its own, one Run at a time (ADR 0048). Labelling an issue opens the Work Item and starts its Triage Run on the delegating User's Runner (ADR 0009); a Work Item no User delegated waits. Each Run's Brief is Sofa's preamble, the Agent's own instructions, the Phase's instructions and the Work Item's key; Execution adds Sofa's tools, the Phase's Outcomes and the Run's Repositories.
+
+- **Tracks.** Triage's Outcome, `small` or `full`, is the Track. Small skips Spec and turns Plan's Approve Gate to Review afterwards; Full runs every Phase.
+- **Gates.** Auto goes on; Review afterwards goes on and leaves the Phase's end *Unverified* until a User approves it; Approve waits, and the Work Item lands in its delegating User's Inbox. Approving goes on; sending it back with a comment starts a new Run of that Phase, whose `read_work_item` shows the comment.
+- **Questions.** A Run that asks waits in the Inbox and on the issue; the answer, there or in Sofa, starts a new Run of the same Phase.
+- **Reports.** When Spec, Plan and Implement end, Flow posts each Run's Contribution on the issue as the Phase's Report: its first paragraph that is no heading as the summary, the whole of it as the detail. With *Keep the issue's state* on, the issue's `sofa: <phase>` label follows the Phase.
+- **Implement** pushes its own branch, `sofa/<key>`, opens a pull request to the main branch titled with the Work Item's key, and screenshots what it changed: the Worker has Playwright's headless Chromium, and Implement's Sandbox lets it run the Project's own scripts (`npm run`, `npm start`, `npm test`, `node`) and `playwright screenshot`, with the network still limited to its vendor's API and GitHub, so nothing can be downloaded (ADR 0050). The Work Item then waits for its pull request: merged, it is *Done*, the Implement Report says so and, with the issue's state kept, the issue is closed; closed unmerged, it waits in the delegating User's Inbox until the pull request is reopened.
+- **Runs gone wrong.** A failed or lost Run is followed into its retry; once its retries run out, or if it was refused or stopped, the Work Item waits in the Inbox, and a User's **Retry** of that Run carries it on once the retry ends.
+
+The App Gateway serves, to every User of the Workspace:
+
+```sh
+GET  $API/projects/DEMO/work-items/DEMO-1                                   # its state, Phase, Track, what it waits for, Runs, Phase ends, Questions and pull request
+POST $API/projects/DEMO/work-items/DEMO-1/phases/Spec/approval              # approve the Phase waiting at its Gate
+POST $API/projects/DEMO/work-items/DEMO-1/phases/Spec/sending-back  -d '{"comment":"…"}'
+POST $API/projects/DEMO/work-items/DEMO-1/questions/<questionId>/answer -d '{"answer":"…"}'
+GET  $API/inbox                                                             # what waits for the signed-in User, and for an Admin what waits for the Admins
+```
+
+with `API=$APP_GATEWAY/api/workspaces/<workspace id>` and `-H "Authorization: Bearer $TOKEN"` (and `-H 'content-type: application/json'` with a body) on each. The Inbox's page is slice 10's.
+
+#### Showing the demo on GitHub
+
+With the App installed on the test Repository behind a public address (see *Trying the GitHub App*), your GitHub account linked, `DEMO` bound to the Repository for Requests and code with *Keep the issue's state* on, a Runner of yours (see *Runners*), and the Worker image built again (`docker build -t sofa-worker worker`, as it now holds the browser):
+
+1. Label an issue such as *Add a dark mode toggle* with `sofa`. It becomes `DEMO-1`, delegated by you, and is labelled `sofa: triage`; Triage picks a Track and posts nothing. `GET …/work-items/DEMO-1` shows each step from here on.
+2. Spec's Lead may ask a Question: it shows as Sofa's comment on the issue and in `GET …/inbox`. Reply on the issue; a new Spec Run reads the answer.
+3. The spec is posted as a Report and `DEMO-1` waits at Spec's Gate: approve it with `POST …/phases/Spec/approval`. The plan is posted and waits the same way; approve it, or send it back with a comment first.
+4. Implement's Builder pushes `sofa/DEMO-1` and opens a pull request titled `DEMO-1: …`. Its Contribution (`GET …/runs/<runId>/contribution`) has the screenshot it took attached, and the Implement Report is posted.
+5. Merge the pull request on GitHub: `DEMO-1` is *Done*, its Implement Report says the pull request is merged, and the issue is closed.
+6. Every Run of it is listed on `DEMO-1`, each with its Brief (`GET …/runs/<runId>`), Contribution and Transcript.
+
+The integration tests run the same Flow against a fake GitHub and the stub Worker, which asks once, finishes with the Outcome its Phase's instructions name and attaches a one-pixel screenshot, so no tokens are spent.
 
 ### The Team
 
