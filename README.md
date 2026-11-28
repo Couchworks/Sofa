@@ -19,20 +19,40 @@ dotnet run --project src/Sofa.AppHost
 
 This starts every service, Postgres, RabbitMQ and the web client, and prints the link to Aspire's dashboard. The web client is served through the App Gateway: open `app-gateway`'s address from the dashboard.
 
+Every checkout and worktree runs the same installation (ADR 0052): Postgres keeps its data in the Docker volume `sofa-postgres-data`, whichever checkout starts the app host, so `main` after a merge has the same Users, Connections, Projects and Runners as the slice before it. One app host runs at a time: while a container uses the volume, a second app host stops at once with `Postgres's volume sofa-postgres-data is in use by the container postgres-…`. Stop the first, or start the second on a volume of its own:
+
+```sh
+dotnet run --project src/Sofa.AppHost -- --Sofa:PostgresVolume=sofa-postgres-data-my-slice   # this start only
+dotnet user-secrets set Sofa:PostgresVolume <name> --project src/Sofa.AppHost               # every checkout, as user secrets are shared too
+```
+
+A new volume is a fresh installation. Two app hosts started within the same few seconds both pass the check; don't.
+
 ### Setting Sofa up and signing in
 
 A fresh installation has no Users. While nobody has set it up, each start of Identity logs a new setup code: in the dashboard, open `identity`'s console logs and find `Sofa is not set up yet. Open it and enter this setup code: sofa_setup_…`. Open the web client, which shows the setup page, and enter the code with the first User's name, email and password and the names of their Workspace and Team. The code works once; the first User is then signed in, and signs in again later with their email and password, or with GitHub once their account is linked (see below).
 
-Postgres keeps its data in a Docker volume, so Users, Workspaces, the GitHub App's sealed credentials and Connections survive restarts, and a setup code appears only on a fresh installation. Aspire keeps the passwords and keys it generates (Postgres's password, the key encryption key and the others) in `~/.aspire/secrets/<the app host's UserSecretsId>/`; keep them with the volume.
+Postgres keeps its data in the `sofa-postgres-data` volume, so Users, Workspaces, the GitHub App's sealed credentials and Connections survive restarts, and a setup code appears only on a fresh installation. Aspire keeps the passwords and keys it generates (Postgres's password, the key encryption key and the others) in `~/.aspire/secrets/<the app host's UserSecretsId>/`, and `dotnet user-secrets` keeps settings such as `Sofa:PublicAddress` in `~/.microsoft/usersecrets/<the same id>/`. The `UserSecretsId` is fixed in `src/Sofa.AppHost/Sofa.AppHost.csproj`, so every checkout reads the same ones; keep them with the volume.
 
 ### Starting over
 
 To go back to a fresh installation, stop the app host and remove the volume:
 
 ```sh
-docker volume ls --filter name=postgres-data       # one per checkout, such as sofa.apphost-b0c5b6a1a1-postgres-data
-docker volume rm <that volume>
+docker volume rm sofa-postgres-data
 ```
+
+Or keep it and start on a new volume with `Sofa:PostgresVolume` (see Running it). Volumes named `sofa.apphost-<hash>-postgres-data` are installations from before every checkout shared one, one per checkout; `docker volume ls --filter name=postgres-data` lists them. To carry one over, stop the app host and copy it into a new shared volume with Postgres's own image, which keeps its owner and its `18/docker` layout:
+
+```sh
+docker volume inspect sofa-postgres-data >/dev/null 2>&1 && echo "sofa-postgres-data exists: remove it or pick another name first"
+docker run --rm \
+  -v sofa.apphost-<hash>-postgres-data:/from:ro \
+  -v sofa-postgres-data:/to \
+  postgres:18.6 bash -c 'cp -a /from/. /to/'
+```
+
+The copy opens with the Postgres password in `~/.aspire/secrets/` if that volume was created after the password was; the old volume is left as it was.
 
 Records keeps Contributions' attachments as files on local disk, under `Records:Files:Root` (by default `Sofa/records` in the user's local application data folder, such as `~/Library/Application Support/Sofa/records` on macOS or `~/.local/share/Sofa/records` on Linux); remove that folder too.
 
@@ -290,7 +310,7 @@ As *Showing the demo on GitHub* above, but every step in Sofa is taken on its pa
 
 ### Databases
 
-Identity, Connections, Flow, Execution, Intake, Notices and Records keep their records in their own schemas through EF Core migrations, applied when they start. After changing a model, add a migration with the local tool:
+Identity, Connections, Flow, Execution, Intake, Notices and Records keep their records in their own schemas through EF Core migrations, applied when they start. As every checkout shares `sofa-postgres-data`, a branch's new migrations are applied to that installation as soon as it starts, and `main` then runs on a schema ahead of its own; start a branch that adds migrations on a volume of its own (`--Sofa:PostgresVolume=…`). The integration tests never touch a volume: they start Postgres fresh each run. After changing a model, add a migration with the local tool:
 
 ```sh
 dotnet tool restore
