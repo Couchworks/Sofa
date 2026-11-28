@@ -120,7 +120,7 @@ public static class RunHandler
         }
 
         var (run, stopped) = await changes.ChangeAsync(command.RunId,
-            (r, now) => r.Stop($"Stopped by User {command.ByUserId}.", now), cancellation);
+            (r, now) => r.Stop("Stopped by a User.", now), cancellation);
         if (!stopped)
         {
             return RunAnswer.Refused(RunRefusal.NotNow, RunRules.WhyItCannotEnd(run!));
