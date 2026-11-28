@@ -67,7 +67,24 @@ public static class WorkerCommand
           read -r go || exit {{ExitWithoutStarting}}
           [ "$go" = {{GoAhead}} ] || exit {{ExitWithoutStarting}}
         fi
-        exec claude -p "$SOFA_BRIEF" --model "$SOFA_MODEL" --mcp-config /tmp/sofa/mcp.json --strict-mcp-config --output-format stream-json --verbose --no-session-persistence --disallowedTools {{string.Join(' ', NeverReachable.Select(rule => $"'{rule}'"))}} --allowedTools "$@" < /dev/null
+        cd {{WorkingDirectory}}
+        if command -v git >/dev/null 2>&1; then
+          for repository in $SOFA_REPOSITORIES; do
+            clone={{WorkingDirectory}}/${repository#*/}
+            git clone --quiet "https://github.com/$repository.git" "$clone" >&2 || { echo "Sofa couldn't clone $repository." >&2; continue; }
+            if [ -n "${SOFA_OWN_BRANCH:-}" ]; then
+              if git -C "$clone" rev-parse --quiet --verify "refs/remotes/origin/$SOFA_OWN_BRANCH" >/dev/null; then
+                git -C "$clone" checkout --quiet -B "$SOFA_OWN_BRANCH" "origin/$SOFA_OWN_BRANCH" >&2
+              else
+                git -C "$clone" checkout --quiet -b "$SOFA_OWN_BRANCH" >&2
+              fi
+            fi
+          done
+          first={{WorkingDirectory}}/${SOFA_REPOSITORIES%% *}
+          first={{WorkingDirectory}}/${first##*/}
+          [ -d "$first/.git" ] && cd "$first"
+        fi
+        exec claude -p "$SOFA_BRIEF" --add-dir {{WorkingDirectory}} --model "$SOFA_MODEL" --mcp-config /tmp/sofa/mcp.json --strict-mcp-config --output-format stream-json --verbose --no-session-persistence --disallowedTools {{string.Join(' ', NeverReachable.Select(rule => $"'{rule}'"))}} --allowedTools "$@" < /dev/null
         """;
 
     public static WorkerContainerSpec For(Run run, Runner runner, RunSecrets secrets, WorkerPlacement placement, WorkerOptions options)
@@ -86,6 +103,8 @@ public static class WorkerCommand
             ["SOFA_BRIEF"] = BriefFor(run.Brief, SofaTools.AllowedIn(run.Sandbox), PhaseOutcomes.Of(run.Phase), secrets.Repositories),
             ["SOFA_MODEL"] = run.Model,
             ["GH_TOKEN"] = secrets.Repositories.Token,
+            ["SOFA_REPOSITORIES"] = string.Join(' ', secrets.Repositories.Repositories),
+            ["SOFA_OWN_BRANCH"] = secrets.Repositories.PushesTo ?? "",
             ["GH_CONFIG_DIR"] = GitHubCliConfiguration,
             ["GH_PROMPT_DISABLED"] = "1",
             ["GH_NO_UPDATE_NOTIFIER"] = "1",
@@ -131,7 +150,20 @@ public static class WorkerCommand
         + string.Join(", ", repositories.Repositories.Select(repository => $"https://github.com/{repository}.git"))
         + (repositories is { Access: RepositoryAccess.PushItsOwnBranch, PushesTo: { } branch }
             ? $". It may push only its own branch, {branch}: Sofa undoes a push to any other branch and ends the Run."
-            : ". It may read them, never push.");
+            : ". It may read them, never push.")
+        + $"\n\n{WhereTheClonesAre(repositories)}";
+
+    public static string WhereTheClonesAre(RepositoryToken repositories) =>
+        $"Sofa cloned them before the Run started, each into {WorkingDirectory}/<its name>: "
+        + string.Join(", ", repositories.Repositories.Select(ClonedAt))
+        + (repositories.PushesTo is { } ownBranch
+            ? $", with your own branch, {ownBranch}, checked out: as pushed before, or else new from the main branch."
+            : ", on the main branch.")
+        + $" The Run starts in {ClonedAt(repositories.Repositories[0])}. Run git there as plain `git <command>`: Claude Code "
+        + "refuses `git -C <path>` and `cd <path> && git`, which could run what a Repository configures. `git branch -r` "
+        + "names the main branch, as `origin/HEAD` points to it.";
+
+    private static string ClonedAt(string repository) => $"{WorkingDirectory}/{repository[(repository.IndexOf('/') + 1)..]}";
 
     public static IReadOnlyList<string> ReplacingTheRepositoryToken() =>
     [
