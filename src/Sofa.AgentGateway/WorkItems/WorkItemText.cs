@@ -20,7 +20,8 @@ public static class WorkItemText
         var text = new StringBuilder();
         text.AppendLine($"# {workItem.Key}: {workItem.Title}");
         text.AppendLine();
-        text.AppendLine($"This Run is in the {run.Phase} Phase. The Request is {workItem.Request.Repository}#{workItem.Request.Number}, {workItem.Request.Url}.");
+        text.AppendLine($"This Run is in the {run.Phase} Phase. The Request is {workItem.Request.Repository}#{workItem.Request.Number}, {workItem.Request.Url}."
+            + (workItem.Track is { } track ? $" The Work Item is on the {track} Track." : ""));
         text.AppendLine();
         text.AppendLine("## The Request, as it is now on its issue");
         text.AppendLine();
@@ -54,6 +55,22 @@ public static class WorkItemText
                 ? $"**Answered {When(question.AnsweredAt!.Value)}:**\n\n{answer.Trim()}"
                 : "*Not answered yet.*");
             text.AppendLine();
+        }
+
+        var decided = workItem.PhaseEnds.Where(end => end.DecidedAt is not null).ToList();
+        if (decided.Count > 0)
+        {
+            text.AppendLine("## What Users decided at the Gates");
+            text.AppendLine();
+            foreach (var end in decided)
+            {
+                text.AppendLine(end.Standing switch
+                {
+                    PhaseEndStanding.SentBack => $"### {end.Phase} sent back, {When(end.DecidedAt!.Value)}\n\n{Quoted(end.Comment ?? "")}",
+                    _ => $"### {end.Phase} {end.Standing.ToString().ToLowerInvariant()}, {When(end.DecidedAt!.Value)}",
+                });
+                text.AppendLine();
+            }
         }
 
         text.AppendLine("## Contributions of earlier Runs");
