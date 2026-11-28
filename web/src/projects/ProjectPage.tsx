@@ -219,7 +219,7 @@ function FlowCard({ workspaceId, project, onChanged }: { workspaceId: string; pr
     <Card>
       <CardHeader>
         <CardTitle>Flow</CardTitle>
-        <CardDescription>The Phases its Work Items go through, in order.</CardDescription>
+        <CardDescription>The Phases its Work Items go through, in order, each with what its Agent is told to do.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {project.phases.map((phase) => (
@@ -244,8 +244,10 @@ function PhaseRow({
   const [cast, setCast] = useState(phase.castAgentId)
   const [gate, setGate] = useState<Gate>(phase.gate)
   const [sandbox, setSandbox] = useState<Sandbox>(phase.sandbox)
+  const [instructions, setInstructions] = useState(phase.instructions)
   const changing = api.useMutation('put', '/api/workspaces/{workspaceId}/projects/{key}/phases/{phase}', { onSuccess: onChanged })
-  const changed = cast !== phase.castAgentId || gate !== phase.gate || sandbox !== phase.sandbox
+  const changed =
+    cast !== phase.castAgentId || gate !== phase.gate || sandbox !== phase.sandbox || instructions !== phase.instructions
   const id = `phase-${phase.name}`
 
   return (
@@ -256,7 +258,7 @@ function PhaseRow({
         event.preventDefault()
         changing.mutate({
           params: { path: { workspaceId, key: project.key, phase: phase.name } },
-          body: { castAgentId: cast, gate, sandbox },
+          body: { castAgentId: cast, gate, sandbox, instructions },
         })
       }}
     >
@@ -297,6 +299,10 @@ function PhaseRow({
       <Button type="submit" variant="outline" disabled={!changed || changing.isPending}>
         Save
       </Button>
+      <div className="flex flex-col gap-1 sm:col-span-5">
+        <Label htmlFor={`${id}-instructions`}>Instructions</Label>
+        <Textarea id={`${id}-instructions`} value={instructions} onChange={(event) => setInstructions(event.target.value)} />
+      </div>
       {changing.isError && (
         <p role="alert" className="text-destructive text-sm sm:col-span-5">
           {problemOf(changing.error, 'The Phase couldn’t be changed.')}
