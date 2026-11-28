@@ -60,3 +60,5 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **The last Report is an edit.** The merge is reported by editing the Implement Report, which GitHub notifies nobody of (from slice 8).
 - **Triage can't look for duplicates.** A read-only Run's token can't read issues and its Sandbox allows no `gh issue`, so Triage can't search the Repository's issues as its instructions ask (from slice 8).
 - **Commands Claude Code asks about.** Shell loops, pipes into other commands, `VAR=… command` and `rm` ask for approval that no one gives, so a Run spends turns rephrasing them (from slice 8).
+- **Two app hosts started together.** An app host refuses a Postgres volume a running container uses, but two started within seconds of each other both pass the check (ADR 0052).
+- **A branch's migrations reach the shared installation.** Starting a branch that adds migrations on `sofa-postgres-data` leaves `main` running on a newer schema, unless the branch starts on a volume of its own (ADR 0052).
