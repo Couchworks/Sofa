@@ -44,3 +44,10 @@ Small things left behind by merged slices, waiting for a slice of their own or a
 - **A caught push ends every Run that could have made it.** GitHub's push event names only Sofa's App, so every running Run able to push to that Repository ends (from slice 9).
 - **Deleting a Transcript.** A secret the scrubbing missed stays until a User can delete the Transcript (from slice 9).
 - **Linux hosts.** The Worker network is tested on Docker Desktop only; on Linux, depending on Docker's version, the box's address on an internal network's bridge may still answer a Worker (from slice 9).
+- **A symlink race on attachments.** For Runs allowed to write files, a file can be swapped for a link between the path check and the copy out of the container (from #8).
+- **A Contribution of a stopped Run.** A Run stopped between `finish` and its end can keep its Contribution (from #8).
+- **A GitHub call per read.** Every `read_work_item` reads the issue from GitHub, spending the installation's rate limit (from #8).
+- **Open endpoints on the box.** Connections' and Code's token endpoints answer any caller on the box; running on several machines needs service-to-service authentication (from #9).
+- **Leftover relays.** If Execution is killed, a Run's relay container and networks stay behind until removed by hand (from #9).
+- **Protecting the main branch.** A push outside its Sandbox stands for a few seconds before Code puts it back, so a Project's Repositories should still protect their main branch (from #9).
+- **A subscription's refresh untested.** The host Claude Code refreshes a subscription's sign-in through was allowed from reading its binary; no Run has refreshed one yet (from #9).
