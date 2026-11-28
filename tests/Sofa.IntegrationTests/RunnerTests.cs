@@ -42,6 +42,39 @@ public class RunnerTests(SofaApp sofa)
     }
 
     [Fact]
+    public async Task A_subscription_whose_sign_in_ends_within_three_days_warns_its_User_in_their_Inbox_and_live()
+    {
+        var (uma, _) = await new TestRuns(sofa).UserOfTheirOwnAsync(FakeGitHub.Uma);
+        var runner = await AddAsync(uma, "subscription", new { name = "Uma's Pro" });
+        await using var live = await LiveUpdates.ConnectAsync(sofa, uma, (await sofa.SetUp).FirstUser.WorkspaceId, Cancellation);
+        using var execution = sofa.CreateHttpClient(SofaServices.Execution);
+
+        using var seen = await execution.PutAsJsonAsync($"/runners/{runner.Id}/sign-in",
+            new { signedIn = true, endsAt = DateTimeOffset.UtcNow.AddDays(2) }, Cancellation);
+        var warning = await EventuallyAsync(async () => (await InboxOfAsync(uma)).SingleOrDefault(i => i.Kind == "SubscriptionSignInEnding"));
+        await EventuallyAsync(() => Task.FromResult(live.Heard.Any(h => h.Message == "inboxChanged") ? (bool?)true : null));
+        using var signedInAgain = await execution.PutAsJsonAsync($"/runners/{runner.Id}/sign-in",
+            new { signedIn = true, endsAt = DateTimeOffset.UtcNow.AddDays(30) }, Cancellation);
+        var settled = await EventuallyAsync(async () => (await InboxOfAsync(uma)).Any(i => i.Kind == "SubscriptionSignInEnding") ? null : (bool?)true);
+
+        Assert.Equal(HttpStatusCode.OK, seen.StatusCode);
+        Assert.Equal(("Uma's Pro's sign-in ends soon", "/runners", runner.Id), (warning.Title, warning.Url, warning.SubjectId));
+        Assert.Contains($"sofa runner login {runner.Id}", warning.Detail);
+        Assert.True(settled);
+    }
+
+    [Fact]
+    public async Task A_live_connection_is_refused_to_anyone_outside_the_Workspace()
+    {
+        using var gateway = sofa.CreateHttpClient(SofaServices.AppGateway);
+
+        using var negotiating = await gateway.PostAsync(
+            $"/api/workspaces/{(await sofa.SetUp).FirstUser.WorkspaceId}/live/negotiate?negotiateVersion=1&access_token=not-a-token", null, Cancellation);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, negotiating.StatusCode);
+    }
+
+    [Fact]
     public async Task An_Admin_has_a_Runner_of_each_kind_each_with_its_limit()
     {
         using var ada = await sofa.AdaSignedInAsync(Cancellation);
@@ -165,6 +198,28 @@ public class RunnerTests(SofaApp sofa)
         return stored;
     }
 
+    private async Task<List<InboxItem>> InboxOfAsync(WebClientSignIn user)
+    {
+        using var read = await user.GetWithTokenAsync($"{await WorkspaceApiAsync()}/inbox", Cancellation);
+        read.EnsureSuccessStatusCode();
+        return (await read.Content.ReadFromJsonAsync<List<InboxItem>>(Cancellation))!;
+    }
+
+    private static async Task<T> EventuallyAsync<T>(Func<Task<T?>> find)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        timeout.CancelAfter(TestRuns.RunsSettleWithin);
+        while (true)
+        {
+            if (await find() is { } found)
+            {
+                return found;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), timeout.Token);
+        }
+    }
+
     private async Task<string> WorkspaceApiAsync() => $"/api/workspaces/{(await sofa.SetUp).FirstUser.WorkspaceId}";
 
     private sealed class DockerThatSignsIn(string status) : IDocker
@@ -185,6 +240,8 @@ public class RunnerTests(SofaApp sofa)
         Guid Id, string Name, string Kind, string Vendor, Owner Owner, int RunsAtOnce, bool HasApiKey, string? WorkerVolume, SignIn? SignIn);
 
     private sealed record Owner(string Kind, Guid Id);
+
+    private sealed record InboxItem(string Kind, Guid SubjectId, string Title, string Detail, string Url);
 
     private sealed record SignIn(bool SignedIn, DateTimeOffset? EndsAt, DateTimeOffset? CheckedAt);
 }

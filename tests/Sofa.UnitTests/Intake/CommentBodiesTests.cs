@@ -49,6 +49,18 @@ public class CommentBodiesTests
         Assert.EndsWith("[See DEMO-1 in Sofa](https://sofa.example.com/projects/DEMO/work-items/DEMO-1)", body);
     }
 
+    [Fact]
+    public void A_Question_answered_in_Sofa_quotes_the_answer_and_says_a_reply_no_longer_answers_it()
+    {
+        var body = CommentBodies.QuestionAnsweredInSofa(PhaseName.Spec, "DEMO-1", "Should the toggle follow the system setting by default?",
+            "Yes.\n\nAnd remember the choice.", InSofa);
+
+        Assert.StartsWith("### Question from Spec · DEMO-1\n\nShould the toggle follow the system setting by default?", body);
+        Assert.Contains("**Answered in Sofa:**\n\n> Yes.\n>\n> And remember the choice.", body);
+        Assert.Contains("A reply here no longer answers it.", body);
+        Assert.DoesNotContain("Reply on this issue to answer it.", body);
+    }
+
     [Theory]
     [InlineData(PhaseName.Triage, "sofa: triage")]
     [InlineData(PhaseName.Spec, "sofa: spec")]

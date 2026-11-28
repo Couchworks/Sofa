@@ -58,10 +58,11 @@ print({
   subtype: "init",
   model,
   apiKeySource: process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY" : "none",
-  tools: allowedTools,
+  tools: ["Task", "WebFetch", "WebSearch", ...allowedTools],
   mcp_servers: [{ name: "sofa", status: "connected" }],
   stub: true,
 });
+print({ type: "system", subtype: "thinking_tokens", tokens: 0 });
 print({ type: "assistant", message: { content: [{ type: "text", text: `Read the Brief (${brief.length} characters).` }] } });
 
 const said = /STUB: say (\S+)/.exec(brief);
