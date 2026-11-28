@@ -263,12 +263,12 @@ test('problems with fields are shown beside them', async () => {
   expect(screen.getByLabelText('Password').getAttribute('aria-invalid')).toBe('true')
 })
 
-test('coming back from Identity finishes signing in and goes home', async () => {
-  session.finishSigningIn.mockResolvedValue(undefined)
+test('coming back from Identity finishes signing in and goes to the page it was opened on', async () => {
+  session.finishSigningIn.mockResolvedValue('/projects/DEMO/work-items/DEMO-4')
 
   renderAt('/signed-in')
 
-  await waitFor(() => expect(navigation.replaceWith).toHaveBeenCalledWith('/'))
+  await waitFor(() => expect(navigation.replaceWith).toHaveBeenCalledWith('/projects/DEMO/work-items/DEMO-4'))
 })
 
 test('a Work Item’s address from a Report opens the Work Item’s page', async () => {
