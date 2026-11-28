@@ -86,6 +86,9 @@ public static partial class ProjectRules
             ? $"An Agent's instructions have at most {LongestInstructions} characters."
             : AgentModels.Problem(model);
 
+    public static string? InstructionsProblem(string instructions) =>
+        instructions.Length > LongestInstructions ? $"A Phase's instructions have at most {LongestInstructions} characters." : null;
+
     private static bool IsRepository(string? repository) =>
         repository is not null && repository.Trim().Length <= LongestRepository && Repository().IsMatch(repository.Trim());
 

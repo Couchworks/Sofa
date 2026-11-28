@@ -16,6 +16,8 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
     public DbSet<Agent> Agents => Set<Agent>();
     public DbSet<WorkItem> WorkItems => Set<WorkItem>();
     public DbSet<Question> Questions => Set<Question>();
+    public DbSet<WorkItemRun> WorkItemRuns => Set<WorkItemRun>();
+    public DbSet<PhaseEnd> PhaseEnds => Set<PhaseEnd>();
 
     public static void Configure(DbContextOptionsBuilder options, NpgsqlDataSource dataSource) =>
         options.UseNpgsql(dataSource, MigrationsInOwnSchema).UseSnakeCaseNamingConvention();
@@ -53,7 +55,43 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
             workItem.HasOne<Project>().WithMany().HasForeignKey(w => w.ProjectId);
             workItem.HasIndex(w => new { w.ProjectId, w.Number }).IsUnique();
             workItem.HasIndex(w => w.RequestId).IsUnique();
+            workItem.Property(w => w.State).HasConversion<string>().HasMaxLength(30);
+            workItem.Property(w => w.Phase).HasConversion<string>().HasMaxLength(20);
+            workItem.Property(w => w.Track).HasConversion<string>().HasMaxLength(20);
+            workItem.Property(w => w.WaitingFor).HasConversion<string>().HasMaxLength(40);
+            workItem.Property(w => w.WaitingBecause).HasMaxLength(WorkItemRules.LongestWhy);
+            workItem.Property(w => w.PullRequestRepository).HasMaxLength(ProjectRules.LongestRepository);
+            workItem.Property(w => w.PullRequestUrl).HasMaxLength(WorkItemRules.LongestUrl);
+            workItem.Property(w => w.PullRequestState).HasConversion<string>().HasMaxLength(20);
+            workItem.Property(w => w.Version).IsRowVersion();
+            workItem.HasMany(w => w.Runs).WithOne().HasForeignKey(r => r.WorkItemId);
+            workItem.HasMany(w => w.PhaseEnds).WithOne().HasForeignKey(e => e.WorkItemId);
             workItem.Ignore(w => w.Request);
+            workItem.Ignore(w => w.Waiting);
+            workItem.Ignore(w => w.PullRequest);
+        });
+
+        model.Entity<WorkItemRun>(run =>
+        {
+            run.HasKey(r => r.RunId);
+            run.Property(r => r.RunId).ValueGeneratedNever();
+            run.Property(r => r.Phase).HasConversion<string>().HasMaxLength(20);
+            run.Property(r => r.EndedAs).HasMaxLength(100);
+            run.HasIndex(r => new { r.WorkItemId, r.StartedAt });
+            run.Ignore(r => r.Details);
+        });
+
+        model.Entity<PhaseEnd>(end =>
+        {
+            end.HasKey(e => e.RunId);
+            end.Property(e => e.RunId).ValueGeneratedNever();
+            end.Property(e => e.Phase).HasConversion<string>().HasMaxLength(20);
+            end.Property(e => e.Outcome).HasMaxLength(40);
+            end.Property(e => e.Gate).HasConversion<string>().HasMaxLength(20);
+            end.Property(e => e.Standing).HasConversion<string>().HasMaxLength(20);
+            end.Property(e => e.Comment).HasMaxLength(WorkItemRules.LongestComment);
+            end.HasIndex(e => new { e.WorkItemId, e.EndedAt });
+            end.Ignore(e => e.Details);
         });
 
         model.Entity<Question>(question =>
@@ -89,6 +127,7 @@ public sealed class FlowDb(DbContextOptions<FlowDb> options) : DbContext(options
             phase.Property(p => p.Pattern).HasConversion<string>().HasMaxLength(20);
             phase.Property(p => p.Gate).HasConversion<string>().HasMaxLength(20);
             phase.Property(p => p.Sandbox).HasConversion<string>().HasMaxLength(20);
+            phase.Property(p => p.Instructions).HasMaxLength(ProjectRules.LongestInstructions);
             phase.HasOne<Project>().WithMany().HasForeignKey(p => p.ProjectId);
             phase.HasOne<Agent>().WithMany()
                 .HasForeignKey(p => new { p.ProjectId, p.CastAgentId })

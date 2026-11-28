@@ -156,9 +156,15 @@ public static class ProjectHandler
             return FlowAnswer.Refused(FlowRefusal.Invalid, $"Only Project {project.Key}'s own Agents are cast in its Phases.");
         }
 
+        if (command.Instructions is { } instructions && ProjectRules.InstructionsProblem(instructions) is { } problem)
+        {
+            return FlowAnswer.Refused(FlowRefusal.Invalid, problem);
+        }
+
         phase.CastAgentId = command.CastAgentId;
         phase.Gate = command.Gate;
         phase.Sandbox = command.Sandbox;
+        phase.Instructions = command.Instructions?.Trim() ?? phase.Instructions;
         await db.SaveChangesAsync(cancellation);
         return FlowAnswer.Done;
     }

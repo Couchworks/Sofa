@@ -38,7 +38,7 @@ public static class ProjectEndpoints
         }
 
         var phases = await db.Phases.AsNoTracking().Where(p => p.ProjectId == project.Id).OrderBy(p => p.Position)
-            .Select(p => new PhaseDetails(p.Name, p.Position, p.Pattern, p.CastAgentId, p.Gate, p.Sandbox))
+            .Select(p => new PhaseDetails(p.Name, p.Position, p.Pattern, p.CastAgentId, p.Gate, p.Sandbox, p.Instructions))
             .ToListAsync(cancellation);
         var agents = (await db.Agents.AsNoTracking().Where(a => a.ProjectId == project.Id).ToListAsync(cancellation))
             .OrderBy(a => a.Role).ThenBy(a => a.Name)
