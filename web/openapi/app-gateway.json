@@ -1266,7 +1266,7 @@
         "tags": [
           "ProjectEndpoints"
         ],
-        "summary": "Changes a Phase's cast, Gate and Sandbox.",
+        "summary": "Changes a Phase's cast, Gate and Sandbox, and its instructions when given.",
         "operationId": "ConfigurePhase",
         "parameters": [
           {
@@ -1397,6 +1397,397 @@
                   "items": {
                     "$ref": "#/components/schemas/WorkItemOfProject"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}": {
+      "get": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "A Work Item: where it is in the Flow and what it waits for, its Track, Runs, Phase ends, Questions and pull request.",
+        "operationId": "GetWorkItem",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/phases/{phase}/approval": {
+      "post": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "Approves the Phase waiting at its Approve Gate, so the Work Item goes on, or marks a Phase left Unverified as looked at.",
+        "operationId": "ApprovePhase",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PhaseName"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/phases/{phase}/sending-back": {
+      "post": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "Sends the Phase waiting at its Approve Gate back with a comment: a new Run of it reads the comment.",
+        "operationId": "SendPhaseBack",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PhaseName"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendingBack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/projects/{key}/work-items/{workItemKey}/questions/{questionId}/answer": {
+      "post": {
+        "tags": [
+          "WorkItemEndpoints"
+        ],
+        "summary": "Answers a Question a Run asked; a new Run of its Phase reads the answer.",
+        "operationId": "AnswerQuestion",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workItemKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerToQuestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2331,6 +2722,62 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspaceId}/inbox": {
+      "get": {
+        "tags": [
+          "InboxEndpoints"
+        ],
+        "summary": "The signed-in User's Inbox: what waits for them, such as Questions and Approve Gates, and for an Admin what waits for the Workspace's Admins, newest first.",
+        "operationId": "GetInbox",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "description": "A Workspace the signed-in User belongs to.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InboxItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2431,6 +2878,20 @@
           "Lead",
           "Builder"
         ]
+      },
+      "AnswerToQuestion": {
+        "required": [
+          "answer"
+        ],
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "AskedQuestion": {
         "required": [
@@ -2690,6 +3151,52 @@
           }
         }
       },
+      "InboxItem": {
+        "required": [
+          "id",
+          "kind",
+          "for",
+          "subjectId",
+          "projectKey",
+          "title",
+          "detail",
+          "url",
+          "raisedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "for": {
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectKey": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "raisedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "JsonElement": { },
       "NewApiKeyRunner": {
         "required": [
@@ -2825,6 +3332,12 @@
           },
           "sandbox": {
             "$ref": "#/components/schemas/Sandbox"
+          },
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2835,7 +3348,8 @@
           "pattern",
           "castAgentId",
           "gate",
-          "sandbox"
+          "sandbox",
+          "instructions"
         ],
         "type": "object",
         "properties": {
@@ -2862,8 +3376,77 @@
           },
           "sandbox": {
             "$ref": "#/components/schemas/Sandbox"
+          },
+          "instructions": {
+            "type": "string"
           }
         }
+      },
+      "PhaseEndDetails": {
+        "required": [
+          "runId",
+          "phase",
+          "outcome",
+          "gate",
+          "standing",
+          "endedAt",
+          "decidedByUserId",
+          "comment",
+          "decidedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseName"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "gate": {
+            "$ref": "#/components/schemas/Gate"
+          },
+          "standing": {
+            "$ref": "#/components/schemas/PhaseEndStanding"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "comment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "decidedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PhaseEndStanding": {
+        "enum": [
+          "WentOn",
+          "AwaitsApproval",
+          "Approved",
+          "SentBack",
+          "Unverified",
+          "Verified"
+        ]
       },
       "PhaseName": {
         "enum": [
@@ -3110,6 +3693,59 @@
           "ClosedUnmerged"
         ]
       },
+      "QuestionDetails": {
+        "required": [
+          "id",
+          "runId",
+          "phase",
+          "text",
+          "askedAt",
+          "answer",
+          "answeredByUserId",
+          "answeredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseName"
+          },
+          "text": {
+            "type": "string"
+          },
+          "askedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "answer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "answeredByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "answeredAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "RefusedAs": {
         "enum": [
           "SignInAgain",
@@ -3325,6 +3961,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "brief": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -3449,6 +4091,20 @@
           "IntegrationBranch"
         ]
       },
+      "SendingBack": {
+        "required": [
+          "comment"
+        ],
+        "type": "object",
+        "properties": {
+          "comment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "Status": {
         "required": [
           "name",
@@ -3530,6 +4186,13 @@
             "format": "uuid"
           }
         }
+      },
+      "Track": {
+        "enum": [
+          "Small",
+          "Full",
+          null
+        ]
       },
       "Transcript": {
         "required": [
@@ -3759,6 +4422,163 @@
           "Anthropic"
         ]
       },
+      "WaitDetails": {
+        "required": [
+          "waitId",
+          "kind",
+          "why",
+          "since"
+        ],
+        "type": "object",
+        "properties": {
+          "waitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WaitKind"
+          },
+          "why": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WaitKind": {
+        "enum": [
+          "Question",
+          "Approval",
+          "RunGoneWrong",
+          "PullRequestClosedUnmerged"
+        ]
+      },
+      "WorkItemDetails": {
+        "required": [
+          "id",
+          "key",
+          "title",
+          "projectId",
+          "requestId",
+          "request",
+          "delegatingUserId",
+          "openedAt",
+          "questions",
+          "state",
+          "phase",
+          "track",
+          "waiting",
+          "runs",
+          "phaseEnds",
+          "pullRequest",
+          "doneAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestRef"
+          },
+          "delegatingUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDetails"
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkItemState"
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseName"
+              }
+            ]
+          },
+          "track": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ]
+          },
+          "waiting": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WaitDetails"
+              }
+            ]
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkItemRunDetails"
+            }
+          },
+          "phaseEnds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhaseEndDetails"
+            }
+          },
+          "pullRequest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkItemPullRequest"
+              }
+            ]
+          },
+          "doneAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "WorkItemOfProject": {
         "required": [
           "key",
@@ -3766,7 +4586,10 @@
           "requestId",
           "request",
           "delegatedBy",
-          "openedAt"
+          "openedAt",
+          "state",
+          "phase",
+          "track"
         ],
         "type": "object",
         "properties": {
@@ -3796,8 +4619,114 @@
           "openedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkItemState"
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseName"
+              }
+            ]
+          },
+          "track": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ]
           }
         }
+      },
+      "WorkItemPullRequest": {
+        "required": [
+          "repository",
+          "number",
+          "url",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PullRequestState"
+          }
+        }
+      },
+      "WorkItemRunDetails": {
+        "required": [
+          "runId",
+          "phase",
+          "startedAt",
+          "retryOf",
+          "endedAs",
+          "endedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseName"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "retryOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "endedAs": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "WorkItemState": {
+        "enum": [
+          "AwaitsDelegation",
+          "Running",
+          "AwaitsAnswer",
+          "AwaitsApproval",
+          "AwaitsPullRequest",
+          "AwaitsUser",
+          "Done"
+        ]
       },
       "WorkspaceMember": {
         "required": [
@@ -3861,6 +4790,9 @@
   "tags": [
     {
       "name": "GitHubAppEndpoints"
+    },
+    {
+      "name": "InboxEndpoints"
     },
     {
       "name": "ProjectEndpoints"
