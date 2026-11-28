@@ -31,10 +31,11 @@ public sealed class NoticesDb(DbContextOptions<NoticesDb> options) : DbContext(o
             item.Property(i => i.For).HasConversion<string>().HasMaxLength(40);
             item.Property(i => i.ProjectKey).HasMaxLength(10);
             item.Property(i => i.Title).HasMaxLength(1024);
-            item.Property(i => i.Detail).HasMaxLength(2000);
+            item.Property(i => i.Detail).HasMaxLength(InboxRules.LongestDetail);
             item.Property(i => i.Url).HasMaxLength(500);
             item.HasIndex(i => new { i.Kind, i.SubjectId }).IsUnique();
             item.HasIndex(i => new { i.WorkspaceId, i.For });
+            item.HasIndex(i => new { i.WorkspaceId, i.UserId });
         });
     }
 }

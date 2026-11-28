@@ -12,7 +12,13 @@ builder.AddSofaMessaging(SofaServices.Notices, options =>
 {
     options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
     options.CodeGeneration.AlwaysUseServiceLocationFor<NoticesDb>();
-}, eventsSubscribedTo: [SofaEvents.RequestAwaitingDelegation, SofaEvents.SubscriptionSignedOut]);
+}, eventsSubscribedTo:
+[
+    SofaEvents.RequestAwaitingDelegation,
+    SofaEvents.SubscriptionSignedOut,
+    SofaEvents.WorkItemAwaitsUser,
+    SofaEvents.WorkItemNoLongerAwaitsUser,
+]);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<NoticesDb>((services, options) =>

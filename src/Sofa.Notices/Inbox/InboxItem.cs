@@ -3,11 +3,16 @@ namespace Sofa.Notices.Inbox;
 public enum InboxItemKind
 {
     RequestAwaitingDelegation,
+    Question,
+    Approval,
+    RunGoneWrong,
+    PullRequestClosedUnmerged,
 }
 
 public enum InboxAudience
 {
     TheWorkspacesAdmins,
+    TheUser,
 }
 
 public sealed class InboxItem
@@ -19,6 +24,8 @@ public sealed class InboxItem
     public required InboxItemKind Kind { get; init; }
 
     public required InboxAudience For { get; init; }
+
+    public Guid? UserId { get; init; }
 
     public required Guid SubjectId { get; init; }
 
